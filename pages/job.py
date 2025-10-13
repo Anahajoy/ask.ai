@@ -12,13 +12,12 @@ st.markdown("""
     * {
         font-family: 'Inter', sans-serif;
     }
-    
-    /* Main container */
-    .main {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 2rem;
-        min-height: 100vh;
+     .stApp {
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+        background-attachment: fixed;
     }
+  
     
     /* Header section */
     .header-section {

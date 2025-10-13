@@ -27,24 +27,100 @@ RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications
 # --- Utility Functions (CSS, format_section_title, add_new_item, render functions) ---
 
 def apply_custom_css():
-    """Applies custom CSS for a modern, black/white/gray ATS-friendly resume format."""
+    """Applies custom CSS for a modern, visually appealing ATS-friendly resume editor."""
     st.markdown("""
         <style>
-        .stApp { background-color: #F8F8F8; color: #333333; font-family: Arial, sans-serif; }
-        .main-content { background-color: white; padding: 30px; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.1); border-radius: 8px; max-width: 900px; margin: auto; }
-        .resume-section { padding: 15px 0; border-bottom: 2px solid #DDDDDD; margin-bottom: 15px; }
-        .resume-section h2 { color: #111111; text-transform: uppercase; letter-spacing: 2px; font-size: 1.2em; padding-bottom: 5px; border-bottom: 1px solid #AAAAAA; margin-bottom: 15px; }
-        h1 { color: #000000; font-size: 2.5em; margin-bottom: 0px; }
-        .contact-info { color: #555555; font-size: 0.9em; margin-bottom: 15px; }
-        .item-title { font-weight: bold; color: #333333; font-size: 1.1em; margin-top: 10px; margin-bottom: 2px; }
+        /* Background Image and App Styling */
+       .stApp {
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+        background-attachment: fixed;
+    }
+
+                
+                
+        /* Main content box styling */
+        .main-content {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            border-radius: 12px;
+            max-width: 900px;
+            margin: 40px auto;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Resume section styling */
+        .resume-section {
+            padding: 20px 0;
+            border-bottom: 2px solid #DDDDDD;
+            margin-bottom: 20px;
+        }
+
+        .resume-section h2 {
+            color: #111111;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 1.3em;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #AAAAAA;
+            margin-bottom: 15px;
+        }
+
+        h1 {
+            color: #000000;
+            font-size: 2.7em;
+            margin-bottom: 10px;
+        }
+
+        .contact-info {
+            color: #555555;
+            font-size: 0.95em;
+            margin-bottom: 20px;
+        }
+
+        /* Item styling */
+        .item-title { font-weight: bold; color: #333333; font-size: 1.15em; margin-top: 12px; margin-bottom: 3px; }
         .item-subtitle { font-style: italic; color: #666666; font-size: 1em; margin-bottom: 5px; }
-        .item-details { color: #888888; font-size: 0.9em; margin-bottom: 5px; }
+        .item-details { color: #444444; font-size: 0.92em; margin-bottom: 6px; }
         .bullet-list { list-style-type: disc; margin-left: 20px; padding-left: 0; }
-        .bullet-list li { margin-bottom: 5px; line-height: 1.4; color: #444444; }
+        .bullet-list li { margin-bottom: 6px; line-height: 1.5; }
         .skill-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding: 0; }
-        .skill-item { background-color: #EEEEEE; color: #333333; padding: 5px 10px; border-radius: 4px; font-size: 0.85em; }
+        .skill-item { background-color: #f0f0f0; color: #333333; padding: 6px 12px; border-radius: 6px; font-size: 0.88em; }
+
+        /* Text areas & inputs */
+        textarea, input[type="text"] {
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            font-size: 0.95em;
+        }
+
+        /* Sidebar buttons */
+        [data-testid="stSidebar"] button {
+            background-color: #5c2e0e;
+            color: white;
+            font-weight: bold;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease-in-out;
+        }
+
+        [data-testid="stSidebar"] button:hover {
+            background-color: #693926;
+            color: #fff;
+        }
+
+        /* Expanders */
+        .streamlit-expanderHeader {
+            font-weight: bold;
+            color: #261b19;
+        }
+
         </style>
-        """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+
 
 def format_section_title(key):
     """Converts keys like 'certifications' to 'Certifications'."""

@@ -30,6 +30,7 @@ def format_section_title(key):
 def get_css_minimalist(color):
     return f"""
         <style>
+        
         @page {{ margin: 0.3in; size: letter; }}
         body {{ margin: 0; padding: 0; }}
         .ats-page {{ 
@@ -41,6 +42,12 @@ def get_css_minimalist(color):
             padding: 0.3in;
             line-height: 1.2; 
         }}
+
+        .stApp {{
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+        background-attachment: fixed;
+    }}
         
         /* Highlighted Section Headings */
         .ats-section-title {{ 

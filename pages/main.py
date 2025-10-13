@@ -1,6 +1,36 @@
 import streamlit as st
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, get_all_roles_from_llm
 
+
+from pathlib import Path
+import json
+
+def save_user_resume(email, resume_data):
+    """Save or update a user's resume without affecting other users"""
+    user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
+    
+    # Load existing data
+    try:
+        if user_data_file.exists():
+            with open(user_data_file, 'r', encoding='utf-8') as f:
+                all_data = json.load(f)
+        else:
+            all_data = {}
+    except Exception as e:
+        st.error(f"Error loading user data: {e}")
+        all_data = {}
+    
+    # Update only this user
+    all_data[email] = resume_data
+    
+    # Save back
+    try:
+        with open(user_data_file, 'w', encoding='utf-8') as f:
+            json.dump(all_data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving resume data: {e}")
+        return False
 # Initialize session state
 if "exp_indices" not in st.session_state:
     st.session_state.exp_indices = [0]
@@ -23,11 +53,11 @@ st.markdown("""
 }
 
 /* Main App Background */
-.stApp {
-    background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(26,26,26,0.9) 100%),
-                url('https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?q=80&w=1920&auto=format&fit=crop') center/cover fixed;
-    min-height: 100vh;
-}
+ .stApp {
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+        background-attachment: fixed;
+    }
 
 /* Main Container - Centralized */
 .main {
@@ -725,6 +755,12 @@ if input_method == "Manual Entry":
                     st.session_state.resume_source = user_data
                 
                 st.success("Resume data saved successfully!")
+                if 'logged_in_user' in st.session_state:
+                    save_success = save_user_resume(st.session_state.logged_in_user, user_data)
+                    if save_success:
+                        st.success("Resume processed and saved successfully!")
+                    else:
+                        st.warning("Resume processed but couldn't save to profile")
                 st.switch_page("pages/job.py")
             else:
                 st.error("Please fill in all required fields marked with *")
@@ -764,6 +800,12 @@ else:
                         st.session_state.resume_processed = True
                         
                         st.success("Resume processed successfully!")
+                        if 'logged_in_user' in st.session_state:
+                            save_success = save_user_resume(st.session_state.logged_in_user, parsed_data)
+                            if save_success:
+                                st.success("Resume data saved successfully!")
+                            else:
+                                st.warning("Resume created but couldn't save to profile")
                         st.switch_page("pages/job.py")
                     else:
                         st.error("Failed to process resume. Please try manual entry or upload a different file.")

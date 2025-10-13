@@ -4,7 +4,7 @@ import json
 import re
 
 # Page configuration
-st.set_page_config(page_title="Landing Page", layout="wide")
+st.set_page_config(page_title="Loging Page", layout="wide", initial_sidebar_state="collapsed")
 
 # Initialize session state
 if 'mode' not in st.session_state:
@@ -44,7 +44,15 @@ def load_user_resume_data():
 def get_user_resume(email):
     """Get resume data for a specific user"""
     all_data = load_user_resume_data()
-    return all_data.get(email, None)
+    user_resume = all_data.get(email, None)
+    
+    # Debug print (remove after testing)
+    print(f"Checking resume for {email}: {user_resume is not None}")
+    
+    # Check if resume exists and has actual data
+    if user_resume and isinstance(user_resume, dict) and len(user_resume) > 0:
+        return user_resume
+    return None
 
 def save_user_resume(email, resume_data):
     """Save or update a user's resume without affecting other users"""
@@ -67,11 +75,28 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+            
+        /* Hide sidebar */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    
+    /* Hide sidebar collapse button */
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
+    
+    /* Adjust main content to use full width */
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 5rem;
+        padding-right: 5rem;
+    }
     
     /* Main container styling */
     .stApp {
         background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
-                    url('https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?q=80&w=465&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover;
+                    url('https://cdn.pixabay.com/photo/2016/01/22/20/42/man-1156619_1280.jpg') center/cover;
         background-attachment: fixed;
     }
     
@@ -199,6 +224,11 @@ with col2:
     # Logo
     st.markdown('<div class="logo">ASK.AI</div>', unsafe_allow_html=True)
 
+    # Ensure name always exists (avoid NameError). Show input only for register mode.
+    name = ""
+    if st.session_state.mode == 'register':
+        name = st.text_input("Full Name", placeholder="Full Name...", label_visibility="collapsed", key="full_name")
+
     # Email / Password input
     email = st.text_input("Email", placeholder="Email...", label_visibility="collapsed", key="email")
     password = st.text_input("Password", placeholder="Password...", type="password", label_visibility="collapsed", key="password")
@@ -215,24 +245,42 @@ with col2:
                 
                 if st.session_state.mode == 'login':
                     # ---------------- LOGIN MODE ----------------
-                    if email in users and users[email] == password:
+                    user_entry = users.get(email)
+                    # support old-style (password string) and new-style (dict)
+                    if isinstance(user_entry, dict):
+                        stored_pw = user_entry.get("password")
+                        stored_name = user_entry.get("name")
+                    else:
+                        stored_pw = user_entry
+                        stored_name = None
+
+                    if user_entry is None:
+                        st.error("Invalid email or password")
+                    elif stored_pw == password:
                         st.session_state.logged_in_user = email
-                        st.session_state.username = email.split('@')[0]
+                        # prefer stored name if available; fallback to email prefix
+                        st.session_state.username = stored_name or email.split('@')[0]
 
                         # Load existing resume safely
                         user_resume = get_user_resume(email)
-                        if user_resume:
+                        
+                        # Debug info (remove after testing)
+                        st.info(f"Debug: Resume data found: {user_resume is not None}")
+                        
+                        if user_resume and len(user_resume) > 0:
                             st.session_state.resume_source = user_resume
-                            st.session_state.is_returning_user = True
-                            st.success(f"Welcome back, {email}!")
+                            st.success(f"Welcome back, {st.session_state.username}! Loading your saved resume...")
+                            # Add a small delay to see the message
+                            import time
+                            time.sleep(1)
                             st.switch_page("pages/job.py")
                         else:
-                            st.session_state.is_returning_user = False
-                            st.success(f"Welcome back, {email}! Let's create your resume.")
+                            st.success(f"Welcome, {st.session_state.username}! Let's create your resume.")
+                            import time
+                            time.sleep(1)
                             st.switch_page("pages/main.py")
                     else:
                         st.error("Invalid email or password")
-                
                 else:
                     # ---------------- REGISTER MODE ----------------
                     if email in users:
@@ -241,15 +289,16 @@ with col2:
                         st.rerun()
                     elif len(password) < 6:
                         st.error("Password must be at least 6 characters long")
+                    elif not name or len(name.strip()) == 0:
+                        st.error("Please enter your full name")
                     else:
-                        # Save new user
-                        users[email] = password
+                        # Save new user with name included
+                        users[email] = {"password": password, "name": name.strip()}
                         save_users(users)
                         st.session_state.logged_in_user = email
-                        st.session_state.username = email.split('@')[0]
+                        st.session_state.username = name.strip()
                         st.session_state.mode = 'login'
-                        st.session_state.is_returning_user = False
-                        st.success("Account created successfully! Logging you in...")
+                        st.success(f"Account created successfully, {name.strip()}! Let's create your resume.")
                         st.switch_page("pages/main.py")
         else:
             st.warning("Please enter both email and password")

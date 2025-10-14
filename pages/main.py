@@ -4,11 +4,29 @@ from utils import extract_text_from_pdf, extract_text_from_docx, extract_details
 
 from pathlib import Path
 import json
+import streamlit as st
 
-def save_user_resume(email, resume_data):
+
+def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""
     user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
-    
+
+    # Convert date objects to strings
+    def convert_dates(obj):
+        if isinstance(obj, dict):
+            return {k: convert_dates(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_dates(item) for item in obj]
+        elif hasattr(obj, 'isoformat'):  # date/datetime
+            return obj.isoformat()
+        return obj
+
+    resume_data = convert_dates(resume_data)
+
+    # ✅ Inject input_method into resume data
+    if input_method:
+        resume_data["input_method"] = input_method
+
     # Load existing data
     try:
         if user_data_file.exists():
@@ -19,10 +37,10 @@ def save_user_resume(email, resume_data):
     except Exception as e:
         st.error(f"Error loading user data: {e}")
         all_data = {}
-    
+
     # Update only this user
     all_data[email] = resume_data
-    
+
     # Save back
     try:
         with open(user_data_file, 'w', encoding='utf-8') as f:
@@ -31,7 +49,8 @@ def save_user_resume(email, resume_data):
     except Exception as e:
         st.error(f"Error saving resume data: {e}")
         return False
-# Initialize session state
+
+    
 if "exp_indices" not in st.session_state:
     st.session_state.exp_indices = [0]
 if "edu_indices" not in st.session_state:
@@ -582,10 +601,10 @@ if input_method == "Manual Entry":
                 position_name = st.text_input("Position", key=f"position_{i}", placeholder="e.g., Senior Developer")
                 all_skills_list = get_all_skills_from_llm()
                 exp_skills = st.multiselect(
-                      "Your Skills * (Experience)",
+                    "Your Skills * (Experience)",
                     options=all_skills_list,
                     help="Select all relevant skills",
-                    key="exp_skills" 
+                    key=f"exp_skills_{i}" 
                 )
             with col2:
                 comp_startdate = st.date_input("Start Date", key=f"comp_startdate_{i}")
@@ -744,24 +763,27 @@ if input_method == "Manual Entry":
             if name and  skills and experience:
                 with st.spinner("Processing your resume..."):
                     user_data = {
-                        'name': name,
-                        'skills': skills,
-                        'experience': experience,
-                        'professional_experience': professional_experience,
-                        'education': education,
-                        'certificate': certificate,
-                        'project':project
-                    }
-                    st.session_state.resume_source = user_data
-                
+                    'name': name,
+                    'skills': skills,
+                    'experience': experience,
+                    'professional_experience': professional_experience,
+                    'education': education,
+                    'certificate': certificate,
+                    'project': project
+                }
+
+                st.session_state.resume_source = user_data
                 st.success("Resume data saved successfully!")
+
                 if 'logged_in_user' in st.session_state:
-                    save_success = save_user_resume(st.session_state.logged_in_user, user_data)
+                    save_success = save_user_resume(st.session_state.logged_in_user, user_data, input_method="Manual Entry")
                     if save_success:
                         st.success("Resume processed and saved successfully!")
                     else:
                         st.warning("Resume processed but couldn't save to profile")
+
                 st.switch_page("pages/job.py")
+
             else:
                 st.error("Please fill in all required fields marked with *")
 
@@ -798,15 +820,17 @@ else:
                     if parsed_data:
                         st.session_state.resume_source = parsed_data
                         st.session_state.resume_processed = True
-                        
+
                         st.success("Resume processed successfully!")
                         if 'logged_in_user' in st.session_state:
-                            save_success = save_user_resume(st.session_state.logged_in_user, parsed_data)
+                            save_success = save_user_resume(st.session_state.logged_in_user, parsed_data, input_method="Upload")
                             if save_success:
                                 st.success("Resume data saved successfully!")
                             else:
                                 st.warning("Resume created but couldn't save to profile")
+
                         st.switch_page("pages/job.py")
+
                     else:
                         st.error("Failed to process resume. Please try manual entry or upload a different file.")
                 else:

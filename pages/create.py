@@ -27,76 +27,59 @@ RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications
 # --- Utility Functions (CSS, format_section_title, add_new_item, render functions) ---
 
 def apply_custom_css():
-    """Applies custom CSS for a modern, visually appealing ATS-friendly resume editor."""
+    """Applies custom CSS for a modern dark theme with white text."""
     st.markdown("""
         <style>
-        /* Background Image and App Styling */
-       .stApp {
-        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
-                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
-        background-attachment: fixed;
-    }
+        /* Background */
+        .stApp {
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                        url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=870') center/cover;
+            background-attachment: fixed;
+            color: #FFFFFF;
+        }
 
-                
-                
-        /* Main content box styling */
+        /* Main content box */
         .main-content {
-            background-color: rgba(255, 255, 255, 0.95);
+            background-color: rgba(0, 0, 0, 0.55);
             padding: 30px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
             max-width: 900px;
             margin: 40px auto;
             backdrop-filter: blur(10px);
+            color: #FFFFFF;
         }
 
-        /* Resume section styling */
-        .resume-section {
-            padding: 20px 0;
-            border-bottom: 2px solid #DDDDDD;
-            margin-bottom: 20px;
-        }
-
+        /* Section headers */
         .resume-section h2 {
-            color: #111111;
+            color: #FFD700;
             text-transform: uppercase;
             letter-spacing: 2px;
-            font-size: 1.3em;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #AAAAAA;
-            margin-bottom: 15px;
-        }
-
-        h1 {
-            color: #000000;
-            font-size: 2.7em;
+            border-bottom: 1px solid #888;
             margin-bottom: 10px;
         }
 
+        h1 {
+            color: #FFFFFF;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        /* Contact info */
         .contact-info {
-            color: #555555;
-            font-size: 0.95em;
+            color: #DDDDDD;
+            font-size: 1em;
             margin-bottom: 20px;
         }
 
-        /* Item styling */
-        .item-title { font-weight: bold; color: #333333; font-size: 1.15em; margin-top: 12px; margin-bottom: 3px; }
-        .item-subtitle { font-style: italic; color: #666666; font-size: 1em; margin-bottom: 5px; }
-        .item-details { color: #444444; font-size: 0.92em; margin-bottom: 6px; }
-        .bullet-list { list-style-type: disc; margin-left: 20px; padding-left: 0; }
-        .bullet-list li { margin-bottom: 6px; line-height: 1.5; }
-        .skill-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding: 0; }
-        .skill-item { background-color: #f0f0f0; color: #333333; padding: 6px 12px; border-radius: 6px; font-size: 0.88em; }
+        /* Item styles */
+        .item-title { font-weight: bold; color: #FFFFFF; font-size: 1.15em; margin-top: 12px; margin-bottom: 3px; }
+        .item-subtitle { font-style: italic; color: #CCCCCC; font-size: 1em; margin-bottom: 5px; }
+        .item-details { color: #DDDDDD; font-size: 0.95em; margin-bottom: 6px; }
+        .bullet-list li { margin-bottom: 6px; line-height: 1.5; color: #EEEEEE; }
+        .skill-item { background-color: #333333; color: #FFD700; padding: 6px 12px; border-radius: 6px; font-size: 0.9em; }
 
-        /* Text areas & inputs */
-        textarea, input[type="text"] {
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            padding: 8px;
-            font-size: 0.95em;
-        }
-
-        /* Sidebar buttons */
+        /* Sidebar Buttons */
         [data-testid="stSidebar"] button {
             background-color: #5c2e0e;
             color: white;
@@ -104,33 +87,26 @@ def apply_custom_css():
             border-radius: 6px;
             padding: 8px 12px;
             margin-bottom: 8px;
-            transition: all 0.2s ease-in-out;
         }
-
         [data-testid="stSidebar"] button:hover {
             background-color: #693926;
-            color: #fff;
         }
-
-        /* Expanders */
-        .streamlit-expanderHeader {
-            font-weight: bold;
-            color: #261b19;
-        }
-
         </style>
     """, unsafe_allow_html=True)
 
 
 def format_section_title(key):
     """Converts keys like 'certifications' to 'Certifications'."""
-    title = key.replace('_', ' ').replace('Skills', ' Skills')
+    title = key.replace('_', ' ')
     return ' '.join(word.capitalize() for word in title.split())
 
+
 def render_basic_details(data, is_edit):
-    """Renders the fixed, top-level personal details and summary."""
+    """Top header section (Name, title, contact info)."""
     if is_edit:
         data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
+        data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
+
         col1, col2, col3 = st.columns(3)
         with col1:
             data['phone'] = st.text_input("Phone", data.get('phone', ''), key="edit_phone")
@@ -143,9 +119,12 @@ def render_basic_details(data, is_edit):
         st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
         data['summary'] = st.text_area("Summary", data.get('summary', ''), height=150, key="edit_summary")
         st.markdown('</div>', unsafe_allow_html=True)
-
     else:
+        # ✅ Ensure name & job title show
         st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
+        if data.get('job_title'):
+            st.markdown(f"<h3 style='color:#FFD700;'>{data['job_title']}</h3>", unsafe_allow_html=True)
+
         contact_html = f"""
         <div class="contact-info">
             {data.get('phone', '')} | {data.get('email', '')} | {data.get('location', '')}
@@ -159,55 +138,49 @@ def render_basic_details(data, is_edit):
             st.markdown(f"<p>{data['summary']}</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
+
 def render_list_item(item, index, key_prefix, section_title, is_edit=True):
     """Generic list item renderer for both edit and view modes."""
     title_keys = ['name', 'title', 'degree', 'institution', 'company'] 
-    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description']
-    
-    if is_edit:
-        st.subheader(f"Edit {section_title[:-1]}")
+    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview']
+
+    if not is_edit:
+        html_content = "<div>"
+        main_title = next((item[k] for k in title_keys if k in item and item[k]), None)
+        if main_title:
+            html_content += f'<div class="item-title">{main_title}</div>'
+            subtitle_keys = ['institution', 'company', 'issuer']
+            subtitle = next((item[k] for k in subtitle_keys if k in item and item[k]), None)
+            if subtitle:
+                html_content += f'<div class="item-subtitle">{subtitle}</div>'
+
+        # ✅ Include duration/date
+        duration = item.get('duration') or f"{item.get('start_date', '')} - {item.get('end_date', '')}"
+        if duration.strip() != '-':
+            html_content += f'<div class="item-details"><em>{duration}</em></div>'
+
+        # ✅ Rest content
+        for k, v in item.items():
+            if isinstance(v, str) and v.strip() and k not in title_keys + detail_keys_to_skip + ['duration', 'start_date', 'end_date']:
+                html_content += f'<p>{v}</p>'
+
+        for k, v in item.items():
+            if isinstance(v, list) and v:
+                bullet_html = "".join([f"<li>{line}</li>" for line in v])
+                html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
+
+        html_content += "</div>"
+        return html_content
+    else:
         edited_item = item.copy()
         for k, v in item.items():
             if isinstance(v, str):
-                edited_item[k] = st.text_input(format_section_title(k), v, key=f"{key_prefix}_input_{k}_{index}")
+                edited_item[k] = st.text_input(format_section_title(k), v, key=f"{key_prefix}_{k}_{index}")
             elif isinstance(v, list):
-                description_text = "\n".join(v)
-                edited_description = st.text_area(f"Edit {format_section_title(k)} (one per line)", description_text, key=f"{key_prefix}_area_{k}_{index}")
-                edited_item[k] = [line.strip() for line in edited_description.split('\n') if line.strip()]
+                text = "\n".join(v)
+                edited_text = st.text_area(format_section_title(k), text, key=f"{key_prefix}_area_{k}_{index}")
+                edited_item[k] = [line.strip() for line in edited_text.split('\n') if line.strip()]
         return edited_item
-    
-    else:
-        html_content = "<div>"
-        main_title = next((item[k] for k in title_keys if k in item and item[k]), None)
-        
-        if main_title and section_title not in ["Achievements"]:
-            html_content += f'<div class="item-title">{main_title}</div>'
-            subtitle_keys = ['institution', 'company', 'issuer']
-            subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), None)
-            if subtitle: html_content += f'<div class="item-subtitle">{subtitle}</div>'
-        
-        detail_pairs = []
-        for k, v in item.items():
-            if isinstance(v, str) and v.strip():
-                if section_title == "Achievements":
-                    detail_pairs.append(f"**{format_section_title(k)}:** {v}")
-                elif k not in title_keys and k not in detail_keys_to_skip:
-                    detail_pairs.append(f"**{format_section_title(k)}:** {v}")
-        
-        if detail_pairs:
-            html_content += f'<p style="margin-top: 5px;">{"<br>".join(detail_pairs)}</p>'
-        
-        for k, v in item.items():
-            if isinstance(v, list) and v:
-                if k != 'description' and k != 'achievement' and section_title != 'Achievements':
-                    html_content += f'<p style="margin-top: 5px;">**{format_section_title(k)}:**</p>'
-                
-                bullet_html = "".join([f"<li>{line}</li>" for line in v])
-                html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
-            
-        html_content += "</div>"
-        return html_content
-
 
 def render_generic_section(section_key, data_list, is_edit):
     """Renders dynamic list sections."""
@@ -352,27 +325,16 @@ def generate_and_switch():
 # --- Main Streamlit App Layout ---
 
 def main():
-    
     apply_custom_css()
-
-    # NOTE: The data retrieval needs to happen inside main() to react to session state changes
     data = st.session_state['enhanced_resume']
 
-    # --- SIDEBAR: Tools and Generate Button (UPDATED) ---
     st.sidebar.title("Resume Tools 🛠️")
-    
-    # 1. Action Buttons (Improve and Generate)
     if st.sidebar.button("✨ **Save & Auto-Improve**", use_container_width=True):
         save_and_improve()
-        # Force rerun is necessary here to refresh text_area values if the LLM changed them
-    
-        
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
         generate_and_switch()
 
     st.sidebar.markdown("---")
-    
-    # 2. Add Section Buttons
     st.sidebar.subheader("➕ Add New Section Items")
     st.sidebar.button("Add New Experience", on_click=add_new_item, args=('experience', {"title": "New Job Title", "company": "New Company", "duration": "YYYY - YYYY", "description": ["New responsibility 1."]}))
     st.sidebar.button("Add New Education", on_click=add_new_item, args=('education', {"institution": "New University", "degree": "New Degree", "duration": "YYYY - YYYY"}))
@@ -380,8 +342,6 @@ def main():
     st.sidebar.button("Add New Project", on_click=add_new_item, args=('projects', {"name": "New Project Title", "description": ["Project detail 1.", "Project detail 2."]}))
 
     st.sidebar.markdown("---")
-    
-    # 3. Custom Section Management
     st.sidebar.subheader("Custom Section Management")
     new_section_key = st.sidebar.text_input("Add a New Section Key (e.g., 'awards')")
     if st.sidebar.button("Add Custom List Section"):
@@ -394,39 +354,26 @@ def main():
         del st.session_state['enhanced_resume']
         st.rerun()
 
-    # --- Main Content Rendering ---
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
-    is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode** (Edit, Add, Remove Content)", key='edit_toggle')
+    is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
     st.markdown("---")
 
     render_basic_details(data, is_edit=is_edit_mode)
-    
-    remaining_keys = [k for k in data.keys() if k not in ["name", "email", "phone", "location", "summary", "job_title"]]
-    
+
+    rendered_keys = set()
     for key in RESUME_ORDER:
         if key in data and data[key]:
+            rendered_keys.add(key)
             if key == "skills":
-                # Note: render_skills_section updates st.session_state directly via text_area key
                 render_skills_section(data, is_edit=is_edit_mode)
-            elif isinstance(data[key], list):
+            else:
                 render_generic_section(key, data[key], is_edit=is_edit_mode)
-                
-    for key in remaining_keys:
-        if key not in RESUME_ORDER:
-            if isinstance(data.get(key), list):
-                 render_generic_section(key, data[key], is_edit=is_edit_mode)
-            
-            elif isinstance(data.get(key), str):
-                 st.markdown('<div class="resume-section">', unsafe_allow_html=True)
-                 st.markdown(f'<h2>{format_section_title(key)}</h2>', unsafe_allow_html=True)
-                 
-                 if is_edit_mode:
-                     with st.expander(f"Edit: {format_section_title(key)}", expanded=True):
-                         data[key] = st.text_area("Edit Content", data[key], key=f"edit_str_{key}")
-                 
-                 st.markdown(f"<p>{data[key]}</p>", unsafe_allow_html=True)
-                 st.markdown('</div>', unsafe_allow_html=True)
+
+    # Prevent duplicates
+    for key, value in data.items():
+        if key not in rendered_keys and key not in ["name", "email", "phone", "location", "summary", "job_title"]:
+            if isinstance(value, list):
+                render_generic_section(key, value, is_edit=is_edit_mode)
 
     st.markdown('</div>', unsafe_allow_html=True)
 

@@ -758,14 +758,13 @@ def check_specific_section(section_name: str, section_data: Any) -> Dict[str, An
 
 
 
-
-
-
 def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
+
     """
     Rewrite the candidate's resume content to align with the job description.
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
+    # del st.session_state['enhanced_resume']
     rewritten_resume = resume_data.copy()
 
     # -------------------- Education and Certifications --------------------
@@ -808,23 +807,63 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     responsibilities = jd_data.get("responsibilities", [])
     required_skills = jd_data.get("required_skills", [])
 
+    rewritten_resume["job_title"] = job_title
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-    professional_experience = resume_data.get("professional_experience", [])
+# -------------------- Normalize experience data --------------------
+    experience_all = []
+
+    if "experience" in resume_data and isinstance(resume_data["experience"], list):
+        experience_all.extend(resume_data["experience"])
+
+    if "professional_experience" in resume_data and isinstance(resume_data["professional_experience"], list):
+        experience_all.extend(resume_data["professional_experience"])
+
+    # Remove the old keys from rewritten_resume
+    rewritten_resume.pop("experience", None)
+    rewritten_resume.pop("professional_experience", None)
+    rewritten_resume.pop("input_method", None)  # optional, if not needed
+
+# Remove duplicates based on company + position
+    seen = set()
+    merged_experience = []
+    for exp in experience_all:
+        key = (exp.get("company", ""), exp.get("position", ""))
+        if key not in seen:
+            merged_experience.append(exp)
+            seen.add(key)
+
+    # Assign merged experience
+    rewritten_resume["experience"] = merged_experience
+    rewritten_resume["total_experience_count"] = len(merged_experience)
+
+
+    # Remove old keys
+    resume_data.pop("experience", None)
+    resume_data.pop("professional_experience", None)
+    # resume_data.pop("input_method", None)  # Remove if not needed
+
+    # Remove duplicates based on company + position
+    seen = set()
+    merged_experience = []
+    for exp in experience_all:
+        key = (exp.get("company", ""), exp.get("position", ""))
+        if key not in seen:
+            merged_experience.append(exp)
+            seen.add(key)
 
     # -------------------- Generate Experience Descriptions --------------------
     rewritten_experience = []
     all_exp_desc = []
 
-    for exp in professional_experience:
+    for exp in merged_experience:
         position = exp.get("position", "Professional")
         company = exp.get("company", "A Company")
         start_date = exp.get("start_date", "")
         end_date = exp.get("end_date", "")
         exp_skills = exp.get("exp_skills", [])
 
-        # Build LLM prompt for description
         exp_prompt = f"""
         You are an expert career coach. Rewrite the professional experience for {resume_data.get('name','')}
         for a {position} position at {company}, from {start_date} to {end_date}.
@@ -837,39 +876,39 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
         rewritten_exp_text = call_llm_api(exp_prompt, 500)
 
         try:
-            # Parse LLM JSON output
             json_start = rewritten_exp_text.find('[')
             json_end = rewritten_exp_text.rfind(']') + 1
             rewritten_exp_list = json.loads(rewritten_exp_text[json_start:json_end])
-
-            # Take the first object and clean description
             rewritten_exp_obj = rewritten_exp_list[0] if rewritten_exp_list else {}
             desc = rewritten_exp_obj.get("description", [])
             if isinstance(desc, str):
                 desc = [line.strip() for line in desc.split("\n") if line.strip()]
 
-            # Update exp dictionary: remove exp_skills, add description
-            exp.clear()
-            exp.update({
+            new_exp = {
                 "company": company,
                 "position": position,
                 "start_date": start_date,
                 "end_date": end_date,
                 "description": desc if desc else [f"Worked as a {position} at {company}."]
-            })
+            }
+            rewritten_experience.append(new_exp)
+            all_exp_desc.extend(desc)
 
-        except Exception as e:
-            # fallback if LLM fails
-            exp.clear()
-            exp.update({
+        except Exception:
+            fallback_desc = [f"Worked as a {position} at {company}, utilizing skills: {', '.join(exp_skills)}."]
+            new_exp = {
                 "company": company,
                 "position": position,
                 "start_date": start_date,
                 "end_date": end_date,
-                "description": [f"Worked as a {position} at {company}, utilizing skills: {', '.join(exp_skills)}."]
-            })
+                "description": fallback_desc
+            }
+            rewritten_experience.append(new_exp)
+            all_exp_desc.extend(fallback_desc)
 
+    # Finalize experience
     rewritten_resume["experience"] = rewritten_experience
+    rewritten_resume["total_experience_count"] = len(rewritten_experience)
 
     # -------------------- Generate Professional Summary --------------------
     summary_prompt = f"""
@@ -881,7 +920,6 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     Return 2-3 sentence polished ATS-friendly summary only.
     """
     rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
-    rewritten_resume["job_title"] = job_title
 
     # -------------------- Generate Project Descriptions --------------------
     if "project" in resume_data:
@@ -893,7 +931,6 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
             tools_used = proj.get("tools", [])
             original_desc = proj.get("description", proj.get("decription", ""))
 
-            # Create LLM prompt to generate description naturally
             proj_prompt = f"""
             You are an expert career coach. Rewrite this project description for a {job_title} role:
             Project Name: {project_name}
@@ -921,15 +958,16 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
                 if isinstance(desc, str):
                     proj_obj["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
 
-                # Ensure name and overview exist
                 proj_obj["name"] = project_name
                 proj_obj["overview"] = proj_obj.get("overview", "")
-
                 rewritten_projects.append(proj_obj)
 
             except:
-                # fallback if LLM fails
-                fallback_desc = [line.strip() for line in original_desc.split("\n") if line.strip()] if isinstance(original_desc, str) else [f"Worked on {project_name} using {', '.join(tools_used)}."]
+                fallback_desc = (
+                    [line.strip() for line in original_desc.split("\n") if line.strip()]
+                    if isinstance(original_desc, str)
+                    else [f"Worked on {project_name} using {', '.join(tools_used)}."]
+                )
                 rewritten_projects.append({
                     "name": project_name,
                     "description": fallback_desc,
@@ -958,177 +996,14 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     except:
         rewritten_resume["skills"] = candidate_skills
 
+    # ✅ --- Final Cleanup: Remove old singular keys ---
+    if "project" in rewritten_resume and "projects" in rewritten_resume:
+        del rewritten_resume["project"]
+
+    if "certificate" in rewritten_resume and "certifications" in rewritten_resume:
+        del rewritten_resume["certificate"]
+
+    rewritten_resume["projects"] = rewritten_resume.get("projects", [])
+    rewritten_resume["certifications"] = rewritten_resume.get("certifications", [])
+
     return rewritten_resume
-
-
-
-
-
-
-
-
-# def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
-#     """
-#     Rewrite the candidate's resume content to align with the job description.
-#     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
-#     """
-#     rewritten_resume = resume_data.copy()
-
-
-#     education_all = resume_data.get("education", [])
-#     education_list, certification_list = [], []
-
-#     for item in education_all:
-#         if any(k in item for k in ["duration", "gpa", "degree"]):
-#             education_list.append(item)
-#         elif any(k in item for k in ["issuer", "name"]):
-#             certification_list.append(item)
-#         else:
-#             education_list.append(item)
-
-
-#     cert_data = resume_data.get("certifications", [])
-#     if isinstance(cert_data, list):
-#         certification_list.extend(cert_data)
-
-#     rewritten_resume["education"] = education_list
-#     rewritten_resume["certifications"] = certification_list
-
-#     candidate_skills = resume_data.get("skills", [])
-#     if isinstance(candidate_skills, list) and candidate_skills:
-#         if isinstance(candidate_skills[0], dict):
-#             flat_skills = []
-#             for group in candidate_skills:
-#                 if isinstance(group, dict):
-#                     for vals in group.values():
-#                         if isinstance(vals, list):
-#                             flat_skills.extend([str(v) for v in vals if v])
-#             candidate_skills = flat_skills
-#         else:
-#             candidate_skills = [str(s) for s in candidate_skills if s]
-#     else:
-#         candidate_skills = []
-    
-#     experience = resume_data.get("experience", []) #example : 2 years*
-
-#     professional_experience = resume_data.get("professional_experience",[]) #example details of experince like company name posisiton start date end date skills earned
-    
-
-    
-
-#     job_title = jd_data.get("job_title", "")
-#     job_summary = jd_data.get("job_summary", "")
-#     responsibilities = jd_data.get("responsibilities", [])
-#     required_skills = jd_data.get("required_skills", [])
-
-#     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
-#     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
-
-#     all_exp_desc = []
-
-
-#     for exp in professional_experience:
-#             if isinstance(exp, dict):
-#                 exp_skills = exp.get("exp_skills", [])
-#                 if isinstance(exp_skills, list) and exp_skills:
-#                     if isinstance(exp_skills[0], dict):
-#                         take_skills = []
-#                         for sets in exp_skills:
-#                             if isinstance(sets, dict):
-#                                 for vals in sets.values():
-#                                     if isinstance(vals, list):
-#                                         take_skills.extend([str(v) for v in vals if v])
-#                         exp_skills = take_skills
-#                     else:
-#                         exp_skills = [str(s) for s in exp_skills if s]
-#                 else:
-#                     exp_skills = []
-
-#     if not all_exp_desc:  
-#         exp_prompt = f"""
-#         Rewrite the candidate's experience for a {exp.get(position)}.
-#         Include measurable achievements, relevant keywords, and ATS-friendly formatting.
-#         Maintain JSON structure: description (array of strings), overview.
-#         use :{json.dumps(exp_skills)} for reference.
-#         Original Experience: {json.dumps(experience)}
-#         Responsibilities: {', '.join(responsibilities)}
-#         Required Skills: {', '.join(required_skills)}
-#         Return ONLY valid JSON array.
-#         """
-#         rewritten_exp_text = call_llm_api(exp_prompt, 500)
-#         try:
-#             json_start = rewritten_exp_text.find('[')
-#             json_end = rewritten_exp_text.rfind(']') + 1
-#             rewritten_experience = json.loads(rewritten_exp_text[json_start:json_end])
-#             for exp in rewritten_experience:
-#                 desc = exp.get("description", [])
-#                 if not desc or (isinstance(desc, list) and not any(line.strip() for line in desc)):
-#                     position = exp.get("position", "Professional")
-#                     company = exp.get("company", "A Company")
-#                     placeholder_desc = generate_basic_description(position, company, candidate_skills, call_llm_api)
-#                     exp["description"] = placeholder_desc
-#                     desc = placeholder_desc
-#                 if isinstance(desc, str):
-#                     exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
-#             rewritten_resume["experience"] = rewritten_experience
-#         except:
-#             rewritten_resume["experience"] = experience
-
-
-
-#     summary_prompt = f"""
-#     You are an expert career coach. Rewrite a professional summary for {resume_data.get('name','')}
-#     applying for a {job_title} position at {jd_data.get('company','')}.
-#     Highlight relevant skills, achievements, and experience. Use the candidate's original summary:
-#     {resume_data.get('summary','')} and experience highlights: {all_exp_desc[:10]}
-#     Consider the job requirements: {', '.join(required_skills)}
-#     Return 2-3 sentence polished ATS-friendly summary only.
-#     with out description
-#     """
-#     rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
-#     rewritten_resume["job_title"] = job_title
-
-#     if "projects" in resume_data:
-#         projects = resume_data.get("projects", [])
-#         proj_prompt = f"""
-#         Rewrite the candidate's project descriptions for a {job_title} role.
-#         Highlight achievements and relevant skills, keep JSON: name, description (array of strings), overview.
-#         Original Projects: {json.dumps(projects)}
-#         Responsibilities: {', '.join(responsibilities)}
-#         Required Skills: {', '.join(required_skills)}
-#         Return ONLY valid JSON array.
-#         """
-#         rewritten_proj_text = call_llm_api(proj_prompt, 400)
-#         try:
-#             json_start = rewritten_proj_text.find('[')
-#             json_end = rewritten_proj_text.rfind(']') + 1
-#             rewritten_projects = json.loads(rewritten_proj_text[json_start:json_end])
-#             for proj in rewritten_projects:
-#                 desc = proj.get("description", [])
-#                 if isinstance(desc, str):
-#                     proj["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
-#             rewritten_resume["projects"] = rewritten_projects
-#         except:
-#             rewritten_resume["projects"] = projects
-
-
-#     skills_prompt = f"""
-#     Analyze and categorize the candidate's skills for a {job_title} role.
-#     Merge existing skills with required skills. Categorize into:
-#     technicalSkills, tools, cloudSkills, softSkills, languages.
-#     Candidate Skills: {', '.join(candidate_skills[:30])}
-#     Required Skills: {', '.join(required_skills)}
-#     Return ONLY a JSON object with above categories.
-#     """
-#     skills_text = call_llm_api(skills_prompt, 300)
-#     try:
-#         json_start = skills_text.find('{')
-#         json_end = skills_text.rfind('}') + 1
-#         parsed_skills = json.loads(skills_text[json_start:json_end])
-#         categorized_skills = {k: parsed_skills.get(k, []) for k in 
-#                               ["technicalSkills","tools","cloudSkills","softSkills","languages"]}
-#         rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
-#     except:
-#         rewritten_resume["skills"] = candidate_skills
-
-#     return rewritten_resume

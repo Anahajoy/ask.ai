@@ -850,18 +850,6 @@ def app_download():
             switch_page("main")
         return
 
-    st.markdown(
-    """
-    <div style="text-align: center;">
-        <h1>📄 Download Your Resume</h1>
-        <p style="color: gray; font-size: 16px;">
-            <b>All templates optimized for single-page format.</b> Choose your template and download in multiple formats.
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
 
     # --- Sidebar: Settings & Downloads ---
     st.sidebar.subheader("⚙️ Template Settings")
@@ -921,36 +909,57 @@ def app_download():
     if st.sidebar.button("⬅️ Go Back to Editor", use_container_width=True):
         switch_page("job")
 
-
-    # --- Main Page: Live Preview ---
     st.markdown(
-    f"""
-    <div style="text-align: center;">
-        <h3>📋 Live Preview: {selected_template_name}</h3>
-        <p style="color: gray;">This preview shows how your resume will look when printed to PDF (optimized for single page)</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-
-    # Use the selected template's functions for the preview
-    ats_css = selected_template['css_generator'](primary_color)
-    ats_html = selected_template['html_generator'](final_data) 
-
-    full_html = f"""
-    {ats_css}
-    <div class="ats-page">
-        {ats_html}
-    </div>
-    """
-
-    st.components.v1.html(
-        full_html,
-        height=1000, 
-        scrolling=True
+        """
+        <div style="text-align: center;">
+            <h1>📄 Download Your Resume</h1>
+            <p style="color: gray; font-size: 16px;">
+                <b>All templates optimized for single-page format.</b> Choose your template and download in multiple formats.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-# Execute the download app function
+    # --- File uploader ---
+    uploaded_file = st.file_uploader(
+        "Upload PDF, PPT, DOC, or HTML template file", 
+        type=["pdf", "ppt", "pptx", "doc", "docx", "html"], 
+        help="Upload your custom resume template file.",
+        key="template_uploader"
+    )
+
+    if uploaded_file is not None:
+        # Show only upload success
+        st.success(f"File '{uploaded_file.name}' uploaded successfully!")
+        st.info("Processing / preview logic is skipped because a file was uploaded.")
+    else:
+        # Show default content if no file uploaded
+        st.markdown(
+            f"""
+            <div style="text-align: center;">
+                <h3>📋 Live Preview: {selected_template_name}</h3>
+                <p style="color: gray;">This preview shows how your resume will look when printed to PDF (optimized for single page)</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        ats_css = selected_template['css_generator'](primary_color)
+        ats_html = selected_template['html_generator'](final_data) 
+
+        full_html = f"""
+        {ats_css}
+        <div class="ats-page">
+            {ats_html}
+        </div>
+        """
+
+        st.components.v1.html(
+            full_html,
+            height=1000, 
+            scrolling=True
+        )
+
 if __name__ == '__main__':
     app_download()

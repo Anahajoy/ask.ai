@@ -1,54 +1,6 @@
 import streamlit as st
-from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, get_all_roles_from_llm
+from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, save_user_resume
 
-
-from pathlib import Path
-import json
-import streamlit as st
-
-
-def save_user_resume(email, resume_data, input_method=None):
-    """Save or update a user's resume without affecting other users"""
-    user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
-
-    # Convert date objects to strings
-    def convert_dates(obj):
-        if isinstance(obj, dict):
-            return {k: convert_dates(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_dates(item) for item in obj]
-        elif hasattr(obj, 'isoformat'):  # date/datetime
-            return obj.isoformat()
-        return obj
-
-    resume_data = convert_dates(resume_data)
-
-    # ✅ Inject input_method into resume data
-    if input_method:
-        resume_data["input_method"] = input_method
-
-    # Load existing data
-    try:
-        if user_data_file.exists():
-            with open(user_data_file, 'r', encoding='utf-8') as f:
-                all_data = json.load(f)
-        else:
-            all_data = {}
-    except Exception as e:
-        st.error(f"Error loading user data: {e}")
-        all_data = {}
-
-    # Update only this user
-    all_data[email] = resume_data
-
-    # Save back
-    try:
-        with open(user_data_file, 'w', encoding='utf-8') as f:
-            json.dump(all_data, f, indent=2)
-        return True
-    except Exception as e:
-        st.error(f"Error saving resume data: {e}")
-        return False
 
     
 if "exp_indices" not in st.session_state:

@@ -2,68 +2,15 @@ from openpyxl import load_workbook
 import streamlit as st
 import pdfplumber
 from docx import Document
-from typing import List, Dict
+from typing import List, Dict,Any
 import json
 import requests
 import os
 import re
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
-from io import BytesIO
-import streamlit as st
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem, Table, TableStyle, HRFlowable
-from reportlab.lib import colors
-import pdfkit
-from html2docx import html2docx
-from io import BytesIO
-from typing import Dict, Any
-from docx import Document
-from io import BytesIO
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-import streamlit as st
-import json
-import bcrypt
-import os
-import re
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.style import WD_STYLE_TYPE
-import pdfplumber
-from io import BytesIO
+from pathlib import Path
 import base64
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
 import requests
-from typing import Dict, Any, List, Optional
-import streamlit as st
-import requests
-import json
-import base64
-from io import BytesIO
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-import streamlit as st
-import base64
-from typing import Dict, Any
-from io import BytesIO
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
 
 
@@ -197,7 +144,6 @@ def call_llm(payload):
     llm_text = data['choices'][0]['message']['content']
     return llm_text
 
-# ALL THE SKILL LIST #
 
 SKILL_CACHE_FILE = "../ask.ai/json/skill.json"
 
@@ -228,13 +174,11 @@ def get_all_skills_from_llm():
     try:
         skills_list = json.loads(llm_response)
     except json.JSONDecodeError:
-        # If JSON parse fails, fallback to cleaning and splitting text
-        cleaned_text = re.sub(r'[0-9]+\w*', '', llm_response)  # remove numbered prefixes
+        cleaned_text = re.sub(r'[0-9]+\w*', '', llm_response) 
         skills_list = [
             skill.strip().strip('"') for skill in re.split(r'[\n,•*-]+', cleaned_text) if skill.strip()
         ]
 
-    # Clean, remove categories and incomplete entries
     clean_skills = []
     for skill in skills_list:
         skill = skill.strip().strip('"').strip()
@@ -438,7 +382,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
         else:
             education_list.append(item)
 
-    # Include certifications from a separate key if exists
+   
     cert_data = resume_data.get("certifications", [])
     if isinstance(cert_data, list):
         certification_list.extend(cert_data)
@@ -446,7 +390,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["education"] = education_list
     rewritten_resume["certifications"] = certification_list
 
-    # --- 2. Flatten skills ---
+   
     candidate_skills = resume_data.get("skills", [])
     if isinstance(candidate_skills, list) and candidate_skills:
         if isinstance(candidate_skills[0], dict):
@@ -610,15 +554,6 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
     and professional formatting while preserving all information, using an external API.
     """
     
-    # --- EXTERNAL API CONFIGURATION (MOCKED/PLACEHOLDER) ---
-    # NOTE: You MUST replace these placeholders with your actual API endpoint 
-    # and authorization credentials for the Llama model provider.
-    # url = "https://api.your-llama-provider.com/generate" 
-    # headers = {
-    #     "Authorization": "Bearer YOUR_API_KEY", # <-- REPLACE WITH YOUR KEY
-    #     "Content-Type": "application/json"
-    # }
-    # # -----------------------------------------------------
 
     resume_text = json.dumps(resume_data, indent=2)
     
@@ -1007,3 +942,47 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["certifications"] = rewritten_resume.get("certifications", [])
 
     return rewritten_resume
+
+
+def save_user_resume(email, resume_data, input_method=None):
+    """Save or update a user's resume without affecting other users"""
+    user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
+
+    # Convert date objects to strings
+    def convert_dates(obj):
+        if isinstance(obj, dict):
+            return {k: convert_dates(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_dates(item) for item in obj]
+        elif hasattr(obj, 'isoformat'):  # date/datetime
+            return obj.isoformat()
+        return obj
+
+    resume_data = convert_dates(resume_data)
+
+    # ✅ Inject input_method into resume data
+    if input_method:
+        resume_data["input_method"] = input_method
+
+    # Load existing data
+    try:
+        if user_data_file.exists():
+            with open(user_data_file, 'r', encoding='utf-8') as f:
+                all_data = json.load(f)
+        else:
+            all_data = {}
+    except Exception as e:
+        st.error(f"Error loading user data: {e}")
+        all_data = {}
+
+    # Update only this user
+    all_data[email] = resume_data
+
+    # Save back
+    try:
+        with open(user_data_file, 'w', encoding='utf-8') as f:
+            json.dump(all_data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving resume data: {e}")
+        return False

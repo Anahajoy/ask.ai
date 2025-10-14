@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 import json
 import re
+from utils import save_user_resume
 
 # Page configuration
 st.set_page_config(page_title="Loging Page", layout="wide", initial_sidebar_state="collapsed")
@@ -54,44 +55,6 @@ def get_user_resume(email):
         return user_resume
     return None
 
-def save_user_resume(email, resume_data):
-    """Save or update a user's resume without affecting other users"""
-    user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
-    
-    # Convert date objects to strings
-    def convert_dates(obj):
-        if isinstance(obj, dict):
-            return {k: convert_dates(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
-            return [convert_dates(item) for item in obj]
-        elif hasattr(obj, 'isoformat'):  # Check if it's a date/datetime object
-            return obj.isoformat()
-        return obj
-    
-    resume_data = convert_dates(resume_data)
-    
-    # Load existing data
-    try:
-        if user_data_file.exists():
-            with open(user_data_file, 'r', encoding='utf-8') as f:
-                all_data = json.load(f)
-        else:
-            all_data = {}
-    except Exception as e:
-        st.error(f"Error loading user data: {e}")
-        all_data = {}
-    
-    # Update only this user
-    all_data[email] = resume_data
-    
-    # Save back
-    try:
-        with open(user_data_file, 'w', encoding='utf-8') as f:
-            json.dump(all_data, f, indent=2)
-        return True
-    except Exception as e:
-        st.error(f"Error saving resume data: {e}")
-        return False
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'

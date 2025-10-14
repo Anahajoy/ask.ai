@@ -21,10 +21,8 @@ st.json(sample_enhanced_resume_data)
 if 'enhanced_resume' not in st.session_state:
     st.session_state['enhanced_resume'] = sample_enhanced_resume_data
 
-# Define the preferred display order for sections
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
-# --- Utility Functions (CSS, format_section_title, add_new_item, render functions) ---
 
 def apply_custom_css():
     """Applies custom CSS for a modern dark theme with white text."""

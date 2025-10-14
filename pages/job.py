@@ -2,63 +2,69 @@ import streamlit as st
 import json
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 
+# Define the new blue colors
+NEW_BLUE = "#1E90FF"  # Dodger Blue
+NEW_CYAN = "#00CED1"  # Dark Cyan
+NEW_BLUE_SHADOW = "rgba(30, 144, 255, 0.4)" # Shadow for the blue accent
+
 # --- Custom CSS for Black/White/Grey Theme (FIXED FOR ALL TEXT READABILITY) ---
-st.markdown("""
+st.markdown(f"""
 <style>
     
-    [data-testid="stSidebar"] {display: none;}
-    [data-testid="collapsedControl"] {display: none;}
-    button[kind="header"] {display: none;}
-    [data-testid="stSidebarNav"] {display: none;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    [data-testid="stSidebar"] {{display: none;}}
+    [data-testid="collapsedControl"] {{display: none;}}
+    button[kind="header"] {{display: none;}}
+    [data-testid="stSidebarNav"] {{display: none;}}
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
     
     /* Import Google Fonts - Inter is used for the entire app */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     /* Color Palette Variables (Cohesive with main.py) */
-    :root {
+    :root {{
         --primary-dark: #1a1a1a;
         --secondary-light: #ffffff;
-        --accent-color: #ff6b35; /* Tangerine Accent for continuity */
+        --accent-color: {NEW_BLUE}; /* CHANGED: New Blue Accent */
         --text-dark: #1a1a1a;
         --text-light: #FFFFFF;
         --card-bg-light: #ffffff;
         --card-shadow: 0 10px 40px rgba(0,0,0,0.08);
         --card-border: 1px solid rgba(0,0,0,0.06);
-    }
+    }}
 
     /* Global Styles */
-    * {
+    * {{
         font-family: 'Inter', sans-serif;
-    }
+    }}
 
     /* Main App Background & Default Text Color (FIXED) */
-    .stApp {
-        background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)),
-                        url('https://images.unsplash.com/photo-1549491418-2e0e4b8686e5?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover;
+    .stApp {{
+        /* UPDATED BACKGROUND URL and gradient for darker effect */
+        background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.9)),
+                        url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=870') center/cover;
         background-attachment: fixed;
         min-height: 100vh;
         color: var(--text-light); /* IMPORTANT: Sets default text to white */
-    }
+    }}
     
     /* Streamlit Widget Labels (FIXED - Ensures all labels outside cards are white) */
-    .stApp label {
+    .stApp label {{
         color: var(--text-light);
         font-weight: 600;
-    }
+    }}
 
     /* Centralizing Content */
-    .block-container {
+    .block-container {{
         max-width: 900px;
         padding: 2rem 3rem;
         margin: 0 auto;
-    }
+    }}
 
     
     /* Header section - Dark/Glassmorphism to stand out */
-    .header-section {
+    .header-section {{
         background: rgba(0, 0, 0, 0.6); /* Dark Glassmorphism */
         backdrop-filter: blur(15px);
         border-radius: 20px;
@@ -68,21 +74,21 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         position: relative;
         overflow: hidden;
-    }
+    }}
     
-    .header-section::before {
+    .header-section::before {{
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--accent-color), #f7931e, var(--accent-color));
+        background: linear-gradient(90deg, {NEW_BLUE}, {NEW_CYAN}, {NEW_BLUE}); 
         opacity: 0.8;
-    }
+    }}
     
     /* Title styling */
-    h2 {
+    h2 {{
         color: var(--text-light) !important;
         font-weight: 800 !important;
         margin: 0 !important;
@@ -91,12 +97,12 @@ st.markdown("""
         align-items: center !important;
         gap: 1rem !important;
         text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-    }
+    }}
     
     /* Step number badge - Using Accent Color */
-    .step-badge {
+    .step-badge {{
         display: inline-block;
-        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%);
+        background: linear-gradient(135deg, {NEW_BLUE} 0%, {NEW_CYAN} 100%);
         color: white;
         width: 45px;
         height: 45px;
@@ -106,22 +112,22 @@ st.markdown("""
         font-weight: 700;
         font-size: 1.2rem;
         box-shadow: 
-            0 4px 15px rgba(255, 107, 53, 0.4);
+            0 4px 15px {NEW_BLUE_SHADOW};
         border: 2px solid white;
-    }
+    }}
     
     /* Alert box for returning users - Dark Glassmorphism */
-    .returning-user-alert {
-        background: rgba(0, 0, 0, 0.6); /* Increased opacity for better contrast */
+    .returning-user-alert {{
+        background: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(10px);
         border: 2px solid var(--accent-color);
         border-radius: 16px;
         padding: 1.5rem 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
-    }
+        box-shadow: 0 4px 16px {NEW_BLUE_SHADOW};
+    }}
     
-    .returning-user-alert h3 {
+    .returning-user-alert h3 {{
         color: var(--text-light) !important;
         margin-top: 0 !important;
         font-size: 1.5rem !important;
@@ -130,70 +136,104 @@ st.markdown("""
         display: flex !important;
         align-items: center !important;
         gap: 0.5rem !important;
-    }
+    }}
     
-    .returning-user-alert p {
-        color: #FFFFFF; /* Made text pure white for maximum readability */
+    .returning-user-alert p {{
+        color: #FFFFFF;
         margin: 0.5rem 0 1rem 0;
         font-size: 1rem;
         line-height: 1.6;
-    }
+    }}
     
     /* Add New Resume button styling - Accent Dark */
-    .stButton > button[key="add-new-resume-btn"] {
-        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%) !important;
-        color: white !important;
+    .stButton > button[key="add-new-resume-btn"] {{
+        background: linear-gradient(135deg, var(--accent-color) 0%, {NEW_CYAN} 100%) !important;
         border: none !important;
         border-radius: 12px !important;
         padding: 0.8rem 2rem !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+        box-shadow: 0 4px 12px {NEW_BLUE_SHADOW} !important;
         width: auto !important;
         min-width: 250px !important;
-    }
+        /* FIX 1: Ensure the outer button has white text */
+        color: white !important; 
+    }}
+
+    /* FIX 2: Target the internal span for maximum text visibility override */
+    .stButton > button[key="add-new-resume-btn"] > div > p {{
+        color: white !important; 
+        font-weight: 600 !important;
+    }}
     
-    .stButton > button[key="add-new-resume-btn"]:hover {
-        background: linear-gradient(135deg, #f7931e 0%, var(--accent-color) 100%) !important;
+    .stButton > button[key="add-new-resume-btn"]:hover {{
+        background: linear-gradient(135deg, {NEW_CYAN} 0%, var(--accent-color) 100%) !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4) !important;
-    }
+        box-shadow: 0 6px 20px {NEW_BLUE_SHADOW} !important;
+    }}
     
-    /* Content container - White card for form elements */
-    .content-container {
+    /* Button for 'Go to Resume Builder' (appears when no data is found) */
+    .stButton > button[key="go-to-main-btn"] {{
+        /* This button appears outside the white content container, on the dark background. 
+           It should be styled like a bright accent button to be visible. */
+        background: var(--accent-color) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.8rem 2rem !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+    }}
+    
+    .stButton > button[key="go-to-main-btn"] > div > p {{
+        color: white !important;
+        font-weight: 600 !important;
+    }}
+
+    /* Content container - White card for form elements (No change needed) */
+    .content-container {{
         background: var(--card-bg-light);
         border-radius: 20px;
         padding: 2.5rem;
         margin-bottom: 2rem;
         box-shadow: var(--card-shadow);
         border: var(--card-border);
-    }
+    }}
+
+    /* FIX: Ensure default button text inside the white container is visible (dark)
+       (This primarily targets default, non-styled buttons within the white container. 
+       The jb-btn rule below overrides this for the dark submit button.) */
+    .content-container .stButton > button {{
+        color: var(--text-dark) !important; 
+        font-weight: 600 !important;
+    }}
+
     
-    /* Radio buttons *label* inside the content container (must be dark) */
-    .content-container .stRadio > label {
+    /* Radio buttons *label* inside the content container (No change needed) */
+    .content-container .stRadio > label {{
         font-weight: 600 !important;
         color: var(--text-dark) !important;
         font-size: 1rem !important;
         margin-bottom: 1rem !important;
-    }
+    }}
 
-    /* Text Area/Input Labels inside the content container (must be dark) */
+    /* Text Area/Input Labels inside the content container (No change needed) */
     .content-container .stTextArea > label,
-    .content-container .stFileUploader > label {
+    .content-container .stFileUploader > label {{
         color: var(--text-dark) !important;
-    }
+    }}
     
-    .stRadio > div {
+    .stRadio > div {{
         background: #f8f9fa;
         padding: 1.2rem;
         border-radius: 16px;
         gap: 1.5rem;
         border: 1px solid rgba(0,0,0,0.08);
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
-    }
+    }}
     
-    .stRadio > div > label {
+    .stRadio > div > label {{
         background: #f0f0f0 !important;
         border: 1px solid rgba(0,0,0,0.1) !important;
         border-radius: 12px !important;
@@ -202,24 +242,24 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
         font-weight: 500 !important;
         color: var(--text-dark) !important;
-    }
+    }}
     
-    /* Checked radio button uses the primary dark color for contrast */
-    .stRadio > div > label[data-checked="true"] {
+    /* Checked radio button uses the primary dark color for contrast (No change needed) */
+    .stRadio > div > label[data-checked="true"] {{
         background: var(--primary-dark) !important;
         border-color: var(--primary-dark) !important;
         color: white !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
-    }
+    }}
 
-    .stRadio > div > label:hover {
+    .stRadio > div > label:hover {{
         background: #ffffff !important;
         border-color: rgba(0,0,0,0.15) !important;
         transform: translateY(-2px) !important;
-    }
+    }}
     
-    /* File uploader - Dark dashed border for focus */
-    .stFileUploader {
+    /* File uploader - Dark dashed border for focus (No change needed) */
+    .stFileUploader {{
         background: #ffffff !important;
         border: 2px dashed rgba(0,0,0,0.2) !important;
         border-radius: 16px !important;
@@ -227,28 +267,28 @@ st.markdown("""
         box-shadow: inset 0 2px 8px rgba(0,0,0,0.04) !important;
         transition: all 0.3s ease !important;
         margin-top: 1rem !important;
-    }
+    }}
     
-    .stFileUploader:hover {
+    .stFileUploader:hover {{
         border-color: var(--primary-dark) !important;
         background: #f8f9fa !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
-    }
+    }}
     
-    .stFileUploader label {
+    .stFileUploader label {{
         color: #666666 !important;
         font-weight: 500 !important;
-    }
+    }}
     
     /* Text area - Clean and readable */
-    .stTextArea > label {
+    .stTextArea > label {{
         font-weight: 600 !important;
         color: var(--text-dark) !important;
         font-size: 1rem !important;
         margin-bottom: 0.8rem !important;
-    }
+    }}
     
-    .stTextArea > div > div > textarea {
+    .stTextArea > div > div > textarea {{
         background: #f5f5f5 !important;
         border: 1px solid rgba(0,0,0,0.08) !important;
         border-radius: 12px !important;
@@ -258,21 +298,20 @@ st.markdown("""
         line-height: 1.6 !important;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
+    }}
     
-    .stTextArea > div > div > textarea:focus {
-        border-color: var(--accent-color) !important; /* Focus with accent */
+    .stTextArea > div > div > textarea:focus {{
+        border-color: var(--accent-color) !important;
         background: #ffffff !important;
         box-shadow: 
-            0 0 0 3px rgba(255, 107, 53, 0.2),
+            0 0 0 3px rgba(30, 144, 255, 0.2),
             inset 0 2px 4px rgba(0,0,0,0.02) !important;
         transform: translateY(-1px) !important;
-    }
+    }}
     
     /* Submit button - Dark/Accent Hero Style */
-    .stButton > button[key="jb-btn"] {
+    .stButton > button[key="jb-btn"] {{
         background: linear-gradient(135deg, var(--primary-dark) 0%, #333333 100%) !important;
-        color: white !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 14px !important;
         padding: 1.1rem 3rem !important;
@@ -286,18 +325,26 @@ st.markdown("""
             inset 0 1px 0 rgba(255,255,255,0.15) !important;
         text-transform: uppercase !important;
         letter-spacing: 1px !important;
-    }
+        /* FIX 3: Ensure the outer button has white text */
+        color: white !important; 
+    }}
+
+    /* FIX 4: Target the internal span for maximum text visibility override */
+    .stButton > button[key="jb-btn"] > div > p {{
+        color: white !important; 
+        font-weight: 700 !important;
+    }}
     
-    .stButton > button[key="jb-btn"]:hover {
-        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%) !important;
+    .stButton > button[key="jb-btn"]:hover {{
+        background: linear-gradient(135deg, var(--accent-color) 0%, {NEW_CYAN} 100%) !important;
         transform: translateY(-3px) !important;
         box-shadow: 
-            0 12px 40px rgba(255, 107, 53, 0.45),
+            0 12px 40px {NEW_BLUE_SHADOW},
             inset 0 1px 0 rgba(255,255,255,0.2) !important;
-    }
+    }}
     
-    /* Success/Error/Warning messages */
-    .stSuccess {
+    /* Success/Error/Warning messages (No change needed for success/error) */
+    .stSuccess {{
         background: #f0fdf4 !important;
         border: 1px solid #86efac !important;
         border-radius: 12px !important;
@@ -305,9 +352,9 @@ st.markdown("""
         padding: 1rem !important;
         font-weight: 500 !important;
         box-shadow: 0 4px 12px rgba(134, 239, 172, 0.2) !important;
-    }
+    }}
     
-    .stError {
+    .stError {{
         background: #fef2f2 !important;
         border: 1px solid #fca5a5 !important;
         border-radius: 12px !important;
@@ -315,36 +362,36 @@ st.markdown("""
         padding: 1rem !important;
         font-weight: 500 !important;
         box-shadow: 0 4px 12px rgba(252, 165, 165, 0.2) !important;
-    }
+    }}
 
     /* Streamlit Warning box color (FIXED - so the text isn't black on black) */
-    .stWarning {
+    .stWarning {{
         background: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid var(--accent-color) !important;
         border-radius: 12px !important;
         color: var(--text-light) !important; /* White text on dark warning box */
         font-weight: 500 !important;
-    }
+    }}
     
     /* Spinner */
-    .stSpinner > div {
+    .stSpinner > div {{
         border-color: var(--accent-color) transparent transparent transparent !important;
-    }
+    }}
     
-    /* Helper text */
-    .help-text {
+    /* Helper text (No change needed) */
+    .help-text {{
         color: #666666;
         font-size: 0.85rem;
         margin-top: 0.5rem;
         font-style: italic;
-    }
+    }}
     
-    /* Section divider */
-    .section-divider {
+    /* Section divider (No change needed) */
+    .section-divider {{
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(0,0,0,0.15), transparent);
         margin: 2rem 0;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 

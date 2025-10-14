@@ -555,7 +555,7 @@ def get_html_download_link(data, color, template_name):
     link_text = f"⬇️ Download HTML (.html)"
     
     # Styled download link
-    href = f'<a href="data:{mime_type};base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #28a745; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>{link_text}</strong></a>'
+    href = f'<a href="data:{mime_type};base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #1E90FF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>{link_text}</strong></a>'
     return href
 
 def get_pdf_download_link(data, color, template_name):
@@ -591,7 +591,7 @@ def get_pdf_download_link(data, color, template_name):
     pdf_html = f"""
     <a href="data:text/html;charset=utf-8;base64,{b64_data}" download="{filename}"
        style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
-              background-color: #dc3545; color: white; border-radius: 5px; 
+              background-color: #00BFFF; color: white; border-radius: 5px; 
               display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
         <strong>📄 Download for PDF Export (.html)</strong>
     </a>
@@ -728,7 +728,7 @@ def get_text_download_link(data):
     link_text = "📋 Download Plain Text (.txt)"
 
     # Styled download link
-    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #6c757d; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>{link_text}</strong></a>'
+    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #1E90FF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>{link_text}</strong></a>'
     return href
 
 # Reuse the existing robust markdown generator for the .txt file
@@ -812,17 +812,16 @@ def app_download():
     st.markdown("""
         <style>
         /* Hide entire sidebar */
-    [data-testid="stSidebar"] {
-        display: none;
-    }
+
     [data-testid="collapsedControl"] {
         display: none;
     }
         .stApp {
-            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
-                        url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
-            background-attachment: fixed;
-        }
+    background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)),
+                url('https://plus.unsplash.com/premium_photo-1674331863328-78a318c57447?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=872') center/cover;
+    background-attachment: fixed;
+}
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -851,89 +850,106 @@ def app_download():
             switch_page("main")
         return
 
-    st.title("📄 Download Your Resume")
-    st.markdown("**All templates optimized for single-page format.** Choose your template and download in multiple formats.")
+    st.markdown(
+    """
+    <div style="text-align: center;">
+        <h1>📄 Download Your Resume</h1>
+        <p style="color: gray; font-size: 16px;">
+            <b>All templates optimized for single-page format.</b> Choose your template and download in multiple formats.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-    col_settings, col_preview = st.columns([1, 2.5])
 
-    # --- 1. Settings Column ---
-    with col_settings:
-        st.subheader("⚙️ Template Settings")
-        
-        selected_template_name = st.selectbox(
-            "Choose Template Style:",
-            list(TEMPLATE_CONFIGS.keys()),
-            key='template_select'
-        )
-        selected_template = TEMPLATE_CONFIGS[selected_template_name]
+    # --- Sidebar: Settings & Downloads ---
+    st.sidebar.subheader("⚙️ Template Settings")
 
-        color_name = st.selectbox(
-            'Choose Accent Color:',
-            list(ATS_COLORS.keys()),
-            key='color_name_select'
-        )
-        primary_color = ATS_COLORS[color_name]
-        
-        # Optional: Show color picker for custom color
-        custom_color = st.color_picker(
-            'Custom Color (Advanced):',
-            primary_color, 
-            key='color_picker_custom'
-        )
-        
-        if custom_color != primary_color:
-            primary_color = custom_color
-        
-        st.markdown("---")
-        st.markdown("### 💾 Download Options")
-        
-        # HTML Download
-        st.markdown(get_html_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
-        
-        # PDF Download Button
-        st.markdown(get_pdf_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
-        st.caption("↑ Downloads HTML → Open it in browser → Ctrl+P → Save as PDF")
-        
-        # DOC Download
-        st.markdown(get_doc_download_link(final_data), unsafe_allow_html=True)
-        
-        # Plain Text Download
-        st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
-        
-        # Instructions
-        st.markdown("---")
-        st.caption("### 💡 Download Tips:")
-        st.caption("**HTML:** Best for web viewing and customization")
-        st.caption("**PDF:** Downloads HTML file → Open in Chrome/Edge → Ctrl+P (Cmd+P) → Destination: Save as PDF → Save")
-        st.caption("**DOC:** Opens in Microsoft Word for editing (single-page optimized)")
-        st.caption("**TXT:** Maximum ATS compatibility (plain text format)")
-        
-        st.markdown(f'<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+    # Template Selection
+    selected_template_name = st.sidebar.selectbox(
+        "Choose Template Style:",
+        list(TEMPLATE_CONFIGS.keys()),
+        key='template_select'
+    )
+    selected_template = TEMPLATE_CONFIGS[selected_template_name]
 
-        if st.button("⬅️ Go Back to Editor", use_container_width=True):
-            switch_page("main")
+    # Accent Color Selection
+    color_name = st.sidebar.selectbox(
+        'Choose Accent Color:',
+        list(ATS_COLORS.keys()),
+        key='color_name_select'
+    )
+    primary_color = ATS_COLORS[color_name]
 
-    # --- 2. Live Preview ---
-    with col_preview:
-        st.subheader(f"📋 Live Preview: {selected_template_name}")
-        st.caption("This preview shows how your resume will look when printed to PDF (optimized for single page)")
-        
-        # Use the selected template's functions for the preview
-        ats_css = selected_template['css_generator'](primary_color)
-        ats_html = selected_template['html_generator'](final_data) 
-        
-        full_html = f"""
-        {ats_css}
-        <div class="ats-page">
-            {ats_html}
-        </div>
-        """
-        
-        st.components.v1.html(
-            full_html,
-            height=1000, 
-            scrolling=True
-        )
+    # Optional: Show color picker for custom color
+    custom_color = st.sidebar.color_picker(
+        'Custom Color (Advanced):',
+        primary_color, 
+        key='color_picker_custom'
+    )
+
+    if custom_color != primary_color:
+        primary_color = custom_color
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 💾 Download Options")
+
+    # HTML Download
+    st.sidebar.markdown(get_html_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
+
+    # PDF Download
+    st.sidebar.markdown(get_pdf_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
+    st.sidebar.caption("↑ Downloads HTML → Open it in browser → Ctrl+P → Save as PDF")
+
+    # DOC Download
+    st.sidebar.markdown(get_doc_download_link(final_data), unsafe_allow_html=True)
+
+    # Plain Text Download
+    st.sidebar.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
+
+    # Instructions
+    st.sidebar.markdown("---")
+    st.sidebar.caption("### 💡 Download Tips:")
+    st.sidebar.caption("**HTML:** Best for web viewing and customization")
+    st.sidebar.caption("**PDF:** Downloads HTML file → Open in Chrome/Edge → Ctrl+P (Cmd+P) → Destination: Save as PDF → Save")
+    st.sidebar.caption("**DOC:** Opens in Microsoft Word for editing (single-page optimized)")
+    st.sidebar.caption("**TXT:** Maximum ATS compatibility (plain text format)")
+
+    st.sidebar.markdown(f'<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
+
+    if st.sidebar.button("⬅️ Go Back to Editor", use_container_width=True):
+        switch_page("job")
+
+
+    # --- Main Page: Live Preview ---
+    st.markdown(
+    f"""
+    <div style="text-align: center;">
+        <h3>📋 Live Preview: {selected_template_name}</h3>
+        <p style="color: gray;">This preview shows how your resume will look when printed to PDF (optimized for single page)</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+    # Use the selected template's functions for the preview
+    ats_css = selected_template['css_generator'](primary_color)
+    ats_html = selected_template['html_generator'](final_data) 
+
+    full_html = f"""
+    {ats_css}
+    <div class="ats-page">
+        {ats_html}
+    </div>
+    """
+
+    st.components.v1.html(
+        full_html,
+        height=1000, 
+        scrolling=True
+    )
 
 # Execute the download app function
 if __name__ == '__main__':

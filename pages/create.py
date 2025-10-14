@@ -1,98 +1,174 @@
 import streamlit as st
-from utils import rewrite_resume_for_job, analyze_and_improve_resume ,rewrite_resume_for_job_manual
+from utils import rewrite_resume_for_job, analyze_and_improve_resume, rewrite_resume_for_job_manual
 from streamlit_extras.switch_page_button import switch_page 
 from copy import deepcopy
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
+# --- Configuration & Data Retrieval ---
 resume_data = st.session_state.get('resume_source')
-jd_data  = st.session_state.get('job_description')
-# st.json(resume_data)
+jd_data = st.session_state.get('job_description')
 
-input_method = st.session_state["input_method"]
-
-if input_method == "Manual Entry":
-    sample_enhanced_resume_data = rewrite_resume_for_job_manual(resume_data, jd_data)
-else:
-    sample_enhanced_resume_data = rewrite_resume_for_job(resume_data, jd_data)
-
-st.json(sample_enhanced_resume_data)
+input_method = st.session_state.get("input_method", "Manual Entry") # Added .get() for robustness
 
 if 'enhanced_resume' not in st.session_state:
+    if input_method == "Manual Entry":
+        sample_enhanced_resume_data = rewrite_resume_for_job_manual(resume_data, jd_data)
+    else:
+        sample_enhanced_resume_data = rewrite_resume_for_job(resume_data, jd_data)
     st.session_state['enhanced_resume'] = sample_enhanced_resume_data
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
 
 def apply_custom_css():
-    """Applies custom CSS for a modern dark theme with white text."""
-    st.markdown("""
+    """Applies custom CSS for a modern dark theme with white text and Teal accent."""
+    # Define the new accent color
+    ACCENT_TEAL = "#4ECDC4"
+    
+    st.markdown(f"""
         <style>
-                
-        [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
+            
+        /* Hides Streamlit Navigation/Pages */
+        [data-testid="stSidebarNav"] {{
+            display: none !important;
+        }}
+        
         /* Background */
-        .stApp {
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.9)),
                         url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=870') center/cover;
             background-attachment: fixed;
             color: #FFFFFF;
-        }
+        }}
 
-        /* Main content box */
-        .main-content {
-            background-color: rgba(0, 0, 0, 0.55);
+        /* Main content box - Dark Glassmorphism */
+        .main-content {{
+            background-color: rgba(0, 0, 0, 0.6);
             padding: 30px;
-            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
             border-radius: 15px;
             max-width: 900px;
             margin: 40px auto;
             backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #FFFFFF;
-        }
+        }}
 
-        /* Section headers */
-        .resume-section h2 {
-            color: #FFD700;
+        /* Section headers (Teal accent) */
+        .resume-section h2 {{
+            color: {ACCENT_TEAL}; /* Updated accent color */
             text-transform: uppercase;
             letter-spacing: 2px;
-            border-bottom: 1px solid #888;
-            margin-bottom: 10px;
-        }
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            font-weight: 700;
+            font-size: 1.5em;
+        }}
 
-        h1 {
+        h1 {{
             color: #FFFFFF;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
+            font-size: 2.8em;
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+        }}
+        
+        h3 {{
+            color: {ACCENT_TEAL}; /* Job title color */
+            margin-top: 0;
+            font-weight: 500;
+        }}
 
         /* Contact info */
-        .contact-info {
-            color: #DDDDDD;
+        .contact-info {{
+            color: #B0B0B0;
             font-size: 1em;
-            margin-bottom: 20px;
-        }
+            margin-bottom: 25px;
+            font-weight: 300;
+        }}
 
         /* Item styles */
-        .item-title { font-weight: bold; color: #FFFFFF; font-size: 1.15em; margin-top: 12px; margin-bottom: 3px; }
-        .item-subtitle { font-style: italic; color: #CCCCCC; font-size: 1em; margin-bottom: 5px; }
-        .item-details { color: #DDDDDD; font-size: 0.95em; margin-bottom: 6px; }
-        .bullet-list li { margin-bottom: 6px; line-height: 1.5; color: #EEEEEE; }
-        .skill-item { background-color: #333333; color: #FFD700; padding: 6px 12px; border-radius: 6px; font-size: 0.9em; }
-
-        /* Sidebar Buttons */
-        [data-testid="stSidebar"] button {
-            background-color: #5c2e0e;
+        .item-title {{ font-weight: bold; color: #FFFFFF; font-size: 1.2em; margin-top: 15px; margin-bottom: 3px; }}
+        .item-subtitle {{ font-style: italic; color: #CCCCCC; font-size: 1.05em; margin-bottom: 5px; }}
+        .item-details {{ color: #DDDDDD; font-size: 0.95em; margin-bottom: 6px; }}
+        .bullet-list {{ list-style-type: disc; padding-left: 20px; }}
+        .bullet-list li {{ margin-bottom: 6px; line-height: 1.5; color: #E0E0E0; }}
+        
+        /* Skills Items (FIXED: No Yellow) */
+        .skill-list {{
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }}
+        .skill-item {{ 
+            background-color: #333333; /* Dark pill background */
+            color: {ACCENT_TEAL}; /* Teal text color */
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.9em; 
+            font-weight: 500;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }}
+        
+        /* Text inputs and text areas (Dark mode styling for contrast) */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {{
+            background-color: #2c2c2c;
+            color: #FFFFFF;
+            border: 1px solid #444444;
+            border-radius: 8px;
+            padding: 10px;
+        }}
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {{
+            border-color: {ACCENT_TEAL};
+            box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.4);
+        }}
+        
+        /* Expander styling for edit mode */
+        .streamlit-expanderHeader {{
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 10px;
+            padding: 10px 15px;
+            color: #FFFFFF;
+        }}
+        
+        /* Sidebar Buttons (FIXED: No Brown, using dark gray/Teal) */
+        [data-testid="stSidebar"] button {{
+            background-color: #333333; /* Dark Gray */
             color: white;
-            font-weight: bold;
-            border-radius: 6px;
-            padding: 8px 12px;
-            margin-bottom: 8px;
-        }
-        [data-testid="stSidebar"] button:hover {
-            background-color: #693926;
-        }
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #444444;
+        }}
+        
+        /* Primary Button (GENERATE RESUME) */
+        [data-testid="stSidebar"] button[kind="primary"] {{
+            background-color: {ACCENT_TEAL}; 
+            border: none;
+            color: #1a1a1a;
+            font-weight: 700;
+        }}
+        [data-testid="stSidebar"] button[kind="primary"]:hover {{
+            background-color: #61E8E0;
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
+            transform: translateY(-2px);
+        }}
+
+        [data-testid="stSidebar"] button:hover {{
+            background-color: #444444;
+            transform: translateY(-1px);
+        }}
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -106,6 +182,7 @@ def format_section_title(key):
 def render_basic_details(data, is_edit):
     """Top header section (Name, title, contact info)."""
     if is_edit:
+        st.markdown('<h2>Basic Details</h2>', unsafe_allow_html=True)
         data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
         data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
 
@@ -125,7 +202,7 @@ def render_basic_details(data, is_edit):
         # ✅ Ensure name & job title show
         st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
         if data.get('job_title'):
-            st.markdown(f"<h3 style='color:#FFD700;'>{data['job_title']}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
 
         contact_html = f"""
         <div class="contact-info">
@@ -137,14 +214,14 @@ def render_basic_details(data, is_edit):
         if data.get('summary'):
             st.markdown('<div class="resume-section">', unsafe_allow_html=True)
             st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
-            st.markdown(f"<p>{data['summary']}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color:#E0E0E0;'>{data['summary']}</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
 
 def render_list_item(item, index, key_prefix, section_title, is_edit=True):
     """Generic list item renderer for both edit and view modes."""
     title_keys = ['name', 'title', 'degree', 'institution', 'company'] 
-    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview']
+    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview', 'issuer']
 
     if not is_edit:
         html_content = "<div>"
@@ -162,25 +239,45 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
             html_content += f'<div class="item-details"><em>{duration}</em></div>'
 
         # ✅ Rest content
+        
+        # Look for the main bulleted list/description first (keys like 'description', 'overview')
+        main_description_list = item.get('description') or item.get('overview')
+        if isinstance(main_description_list, list) and main_description_list:
+            bullet_html = "".join([f"<li>{line}</li>" for line in main_description_list])
+            html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
+        
+        # Then, show any remaining string details (e.g., location, GPA)
         for k, v in item.items():
-            if isinstance(v, str) and v.strip() and k not in title_keys + detail_keys_to_skip + ['duration', 'start_date', 'end_date']:
-                html_content += f'<p>{v}</p>'
+            if isinstance(v, str) and v.strip() and k not in detail_keys_to_skip + ['duration', 'start_date', 'end_date']:
+                # Format to look like a small detail point
+                formatted_k = format_section_title(k)
+                html_content += f'<div class="item-details">**{formatted_k}:** {v}</div>'
 
-        for k, v in item.items():
-            if isinstance(v, list) and v:
-                bullet_html = "".join([f"<li>{line}</li>" for line in v])
-                html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
 
         html_content += "</div>"
         return html_content
     else:
         edited_item = item.copy()
-        for k, v in item.items():
+        
+        # Use an ordered list of fields for better UX in edit mode
+        edit_fields = list(item.keys())
+        # Prioritize key fields
+        priority_fields = ['title', 'name', 'company', 'institution', 'degree', 'issuer', 'duration', 'start_date', 'end_date', 'description', 'overview']
+        
+        ordered_fields = []
+        for field in priority_fields:
+            if field in edit_fields:
+                ordered_fields.append(field)
+                edit_fields.remove(field)
+        ordered_fields.extend(edit_fields) # Add the rest
+        
+        for k in ordered_fields:
+            v = item[k]
             if isinstance(v, str):
                 edited_item[k] = st.text_input(format_section_title(k), v, key=f"{key_prefix}_{k}_{index}")
             elif isinstance(v, list):
                 text = "\n".join(v)
-                edited_text = st.text_area(format_section_title(k), text, key=f"{key_prefix}_area_{k}_{index}")
+                edited_text = st.text_area(format_section_title(k), text, height=150, key=f"{key_prefix}_area_{k}_{index}")
                 edited_item[k] = [line.strip() for line in edited_text.split('\n') if line.strip()]
         return edited_item
 
@@ -193,25 +290,42 @@ def render_generic_section(section_key, data_list, is_edit):
     st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
 
     for i, item in enumerate(data_list):
-        with st.container(border=False):
-            if is_edit:
-                expander_title = item.get('title') or item.get('name') or item.get(list(item.keys())[0]) or f"{section_title[:-1]} Item {i+1}"
+        # Check if the item has been removed in a previous rerun
+        if i >= len(st.session_state['enhanced_resume'].get(section_key, [])):
+             continue 
 
+        with st.container(border=False):
+            
+            # Generate a meaningful title for the expander
+            expander_title_parts = [
+                item.get('title'),
+                item.get('name'),
+                item.get('company'),
+                item.get('institution'),
+                f"{section_title[:-1]} Item {i+1}"
+            ]
+            expander_title = next((t for t in expander_title_parts if t), f"{section_title[:-1]} Item {i+1}")
+
+            if is_edit:
                 
-                with st.expander(f"**Edit/Remove:** {expander_title}", expanded=False):
-                    edited_item = render_list_item(item, i, f"{section_key}_edit_{i}", section_title, is_edit=True)
+                with st.expander(f"📝 Edit: **{expander_title}**", expanded=False):
+                    # NOTE: Deepcopy item before passing to render_list_item to prevent modifying state mid-render
+                    temp_item = deepcopy(item) 
+                    edited_item = render_list_item(temp_item, i, f"{section_key}_edit_{i}", section_title, is_edit=True)
                     
+                    # Update the state only after all fields have been processed
                     if edited_item:
-                        data_list[i] = edited_item
+                        st.session_state['enhanced_resume'][section_key][i] = edited_item
                     
                     if st.button(f"❌ Remove this {section_title[:-1]}", key=f"{section_key}_remove_{i}"):
-                        data_list.pop(i)
+                        st.session_state['enhanced_resume'][section_key].pop(i)
                         st.rerun()
                 
+                # Show the view-mode rendering outside the expander for real-time preview
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
             else:
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
-
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_skills_section(data, is_edit):
@@ -223,19 +337,21 @@ def render_skills_section(data, is_edit):
     st.markdown('<h2>Skills</h2>', unsafe_allow_html=True)
 
     if is_edit:
-        with st.expander("📝 Edit Skills", expanded=False):
+        with st.expander("📝 Edit Skills (Separate by Line)", expanded=False):
             for skill_type, skill_list in skills_data.items():
                 st.subheader(format_section_title(skill_type))
                 skill_text = "\n".join(skill_list)
-                # Key must be unique across reruns. 'skills_edit_' is unique per type.
+                
                 edited_text = st.text_area(f"Edit {skill_type}", skill_text, height=100, key=f"skills_edit_{skill_type}")
                 
                 # Update the data list in session state directly
                 st.session_state['enhanced_resume']['skills'][skill_type] = [line.strip() for line in edited_text.split('\n') if line.strip()]
     
+    # Render view mode
     for skill_type, skill_list in skills_data.items():
         if skill_list:
             st.markdown(f"**{format_section_title(skill_type)}:**", unsafe_allow_html=True)
+            # Use list tag <ul> with custom class for horizontal flow
             skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skill_list])
             st.markdown(f'<ul class="skill-list">{skills_html}</ul>', unsafe_allow_html=True)
 
@@ -244,8 +360,8 @@ def render_skills_section(data, is_edit):
 def add_new_item(section_key, default_item):
     """Generic function to add a new item to any list section."""
     if section_key not in st.session_state['enhanced_resume']:
-           st.session_state['enhanced_resume'][section_key] = []
-           
+        st.session_state['enhanced_resume'][section_key] = []
+            
     st.session_state['enhanced_resume'][section_key].append(default_item)
     st.rerun()
 
@@ -267,7 +383,6 @@ def save_and_improve():
 
     with st.spinner('Calling LLM to perform auto-improvement...'):
         # 2. Call the auto_improve_resume function from utils.py
-        # Assume this returns a new dictionary with LLM suggestions
         improved_data = analyze_and_improve_resume(data, job_description)
     
     # --- 3. SKILLS MERGING LOGIC: Preserve user deletions/edits ---
@@ -288,7 +403,6 @@ def save_and_improve():
         final_skills_set = user_set.copy()
         
         # Add any skills from the LLM's response that the user doesn't currently have.
-        # This ensures new, relevant skills are added without re-introducing deleted ones.
         for skill in llm_set:
             if skill not in final_skills_set:
                 final_skills_set.add(skill)
@@ -315,8 +429,8 @@ def generate_and_switch():
     
     # 1. Call final analysis/quality check (using the function defined in utils)
     with st.spinner('Performing final analysis and generating download data...'):
+        # This uses the same function, assuming the LLM handles final formatting/checks if needed
         finalized_data = analyze_and_improve_resume(data) 
-        # st.json(finalized_data)
     
     # 2. Save the finalized data to be retrieved by download.py
     st.session_state['final_resume_data'] = finalized_data
@@ -371,7 +485,7 @@ def main():
             else:
                 render_generic_section(key, data[key], is_edit=is_edit_mode)
 
-    # Prevent duplicates
+    # Render any unlisted custom sections
     for key, value in data.items():
         if key not in rendered_keys and key not in ["name", "email", "phone", "location", "summary", "job_title"]:
             if isinstance(value, list):
@@ -380,4 +494,10 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
-    main()
+    # Ensure dependencies are available before running main
+    if 'job_description' not in st.session_state or 'resume_source' not in st.session_state:
+        st.error("Missing job description or resume source. Please go back to the main page.")
+        if st.button("Go to Home"):
+            switch_page("main")
+    else:
+        main()

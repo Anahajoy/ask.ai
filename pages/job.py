@@ -2,40 +2,70 @@ import streamlit as st
 import json
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 
-# Custom CSS
+# --- Custom CSS for Black/White/Grey Theme (FIXED FOR ALL TEXT READABILITY) ---
 st.markdown("""
 <style>
-            
+    
     [data-testid="stSidebar"] {display: none;}
     [data-testid="collapsedControl"] {display: none;}
     button[kind="header"] {display: none;}
     [data-testid="stSidebarNav"] {display: none;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* Import Google Fonts - Inter is used for the entire app */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
+    /* Color Palette Variables (Cohesive with main.py) */
+    :root {
+        --primary-dark: #1a1a1a;
+        --secondary-light: #ffffff;
+        --accent-color: #ff6b35; /* Tangerine Accent for continuity */
+        --text-dark: #1a1a1a;
+        --text-light: #FFFFFF;
+        --card-bg-light: #ffffff;
+        --card-shadow: 0 10px 40px rgba(0,0,0,0.08);
+        --card-border: 1px solid rgba(0,0,0,0.06);
+    }
+
     /* Global Styles */
     * {
         font-family: 'Inter', sans-serif;
     }
-     .stApp {
-        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
-                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+
+    /* Main App Background & Default Text Color (FIXED) */
+    .stApp {
+        background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)),
+                        url('https://images.unsplash.com/photo-1549491418-2e0e4b8686e5?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover;
         background-attachment: fixed;
+        min-height: 100vh;
+        color: var(--text-light); /* IMPORTANT: Sets default text to white */
     }
-  
     
-    /* Header section */
+    /* Streamlit Widget Labels (FIXED - Ensures all labels outside cards are white) */
+    .stApp label {
+        color: var(--text-light);
+        font-weight: 600;
+    }
+
+    /* Centralizing Content */
+    .block-container {
+        max-width: 900px;
+        padding: 2rem 3rem;
+        margin: 0 auto;
+    }
+
+    
+    /* Header section - Dark/Glassmorphism to stand out */
     .header-section {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+        background: rgba(0, 0, 0, 0.6); /* Dark Glassmorphism */
+        backdrop-filter: blur(15px);
         border-radius: 20px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         position: relative;
         overflow: hidden;
     }
@@ -47,53 +77,54 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, #1a1a1a, #4a4a4a, #1a1a1a);
-        opacity: 0.6;
+        background: linear-gradient(90deg, var(--accent-color), #f7931e, var(--accent-color));
+        opacity: 0.8;
     }
     
     /* Title styling */
     h2 {
-        color: #1a1a1a !important;
-        font-weight: 700 !important;
+        color: var(--text-light) !important;
+        font-weight: 800 !important;
         margin: 0 !important;
-        font-size: 1.8rem !important;
+        font-size: 2.2rem !important;
         display: flex !important;
         align-items: center !important;
         gap: 1rem !important;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
     }
     
-    /* Step number badge */
+    /* Step number badge - Using Accent Color */
     .step-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%);
         color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+        width: 45px;
+        height: 45px;
+        border-radius: 14px;
         text-align: center;
-        line-height: 40px;
+        line-height: 45px;
         font-weight: 700;
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         box-shadow: 
-            0 4px 12px rgba(0,0,0,0.2),
-            inset 0 1px 0 rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.1);
+            0 4px 15px rgba(255, 107, 53, 0.4);
+        border: 2px solid white;
     }
     
-    /* Alert box for returning users */
+    /* Alert box for returning users - Dark Glassmorphism */
     .returning-user-alert {
-        background: linear-gradient(145deg, #fff8e1 0%, #ffecb3 100%);
-        border: 2px solid #ffa726;
+        background: rgba(0, 0, 0, 0.6); /* Increased opacity for better contrast */
+        backdrop-filter: blur(10px);
+        border: 2px solid var(--accent-color);
         border-radius: 16px;
         padding: 1.5rem 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 16px rgba(255, 167, 38, 0.2);
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
     }
     
     .returning-user-alert h3 {
-        color: #e65100 !important;
+        color: var(--text-light) !important;
         margin-top: 0 !important;
-        font-size: 1.3rem !important;
+        font-size: 1.5rem !important;
         font-weight: 700 !important;
         margin-bottom: 0.5rem !important;
         display: flex !important;
@@ -102,83 +133,95 @@ st.markdown("""
     }
     
     .returning-user-alert p {
-        color: #5d4037;
+        color: #FFFFFF; /* Made text pure white for maximum readability */
         margin: 0.5rem 0 1rem 0;
-        font-size: 0.95rem;
+        font-size: 1rem;
         line-height: 1.6;
     }
     
-    /* Add New Resume button styling */
+    /* Add New Resume button styling - Accent Dark */
     .stButton > button[key="add-new-resume-btn"] {
-        background: linear-gradient(145deg, #2c2c2c 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%) !important;
         color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        border: none !important;
         border-radius: 12px !important;
         padding: 0.8rem 2rem !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        width: 100% !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+        width: auto !important;
+        min-width: 250px !important;
     }
     
     .stButton > button[key="add-new-resume-btn"]:hover {
-        background: linear-gradient(145deg, #3d3d3d 0%, #2c2c2c 100%) !important;
+        background: linear-gradient(135deg, #f7931e 0%, var(--accent-color) 100%) !important;
         transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4) !important;
     }
     
-    /* Content container */
+    /* Content container - White card for form elements */
     .content-container {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+        background: var(--card-bg-light);
         border-radius: 20px;
         padding: 2.5rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: var(--card-shadow);
+        border: var(--card-border);
     }
     
-    /* Radio buttons */
-    .stRadio > label {
+    /* Radio buttons *label* inside the content container (must be dark) */
+    .content-container .stRadio > label {
         font-weight: 600 !important;
-        color: #1a1a1a !important;
+        color: var(--text-dark) !important;
         font-size: 1rem !important;
         margin-bottom: 1rem !important;
     }
+
+    /* Text Area/Input Labels inside the content container (must be dark) */
+    .content-container .stTextArea > label,
+    .content-container .stFileUploader > label {
+        color: var(--text-dark) !important;
+    }
     
     .stRadio > div {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        background: #f8f9fa;
         padding: 1.2rem;
         border-radius: 16px;
-        gap: 1rem;
+        gap: 1.5rem;
         border: 1px solid rgba(0,0,0,0.08);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
     }
     
     .stRadio > div > label {
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
+        background: #f0f0f0 !important;
         border: 1px solid rgba(0,0,0,0.1) !important;
         border-radius: 12px !important;
         padding: 0.9rem 1.8rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
         font-weight: 500 !important;
+        color: var(--text-dark) !important;
     }
     
+    /* Checked radio button uses the primary dark color for contrast */
+    .stRadio > div > label[data-checked="true"] {
+        background: var(--primary-dark) !important;
+        border-color: var(--primary-dark) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    }
+
     .stRadio > div > label:hover {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
+        background: #ffffff !important;
         border-color: rgba(0,0,0,0.15) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
         transform: translateY(-2px) !important;
     }
     
-    /* File uploader */
+    /* File uploader - Dark dashed border for focus */
     .stFileUploader {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
-        border: 2px dashed rgba(0,0,0,0.15) !important;
+        background: #ffffff !important;
+        border: 2px dashed rgba(0,0,0,0.2) !important;
         border-radius: 16px !important;
         padding: 2.5rem !important;
         box-shadow: inset 0 2px 8px rgba(0,0,0,0.04) !important;
@@ -187,11 +230,9 @@ st.markdown("""
     }
     
     .stFileUploader:hover {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
-        box-shadow: 
-            inset 0 2px 8px rgba(0,0,0,0.06),
-            0 4px 12px rgba(0,0,0,0.08) !important;
+        border-color: var(--primary-dark) !important;
+        background: #f8f9fa !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
     }
     
     .stFileUploader label {
@@ -199,83 +240,65 @@ st.markdown("""
         font-weight: 500 !important;
     }
     
-    /* Text area */
+    /* Text area - Clean and readable */
     .stTextArea > label {
         font-weight: 600 !important;
-        color: #1a1a1a !important;
+        color: var(--text-dark) !important;
         font-size: 1rem !important;
         margin-bottom: 0.8rem !important;
     }
     
     .stTextArea > div > div > textarea {
-        background: linear-gradient(145deg, #fafafa 0%, #f5f5f5 100%) !important;
+        background: #f5f5f5 !important;
         border: 1px solid rgba(0,0,0,0.08) !important;
         border-radius: 12px !important;
-        font-family: 'Inter', sans-serif !important;
-        color: #1a1a1a !important;
+        color: var(--text-dark) !important;
         padding: 1rem !important;
-        font-size: 0.9rem !important;
+        font-size: 0.95rem !important;
         line-height: 1.6 !important;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
     
     .stTextArea > div > div > textarea:focus {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%) !important;
+        border-color: var(--accent-color) !important; /* Focus with accent */
+        background: #ffffff !important;
         box-shadow: 
-            0 0 0 3px rgba(26, 26, 26, 0.08),
+            0 0 0 3px rgba(255, 107, 53, 0.2),
             inset 0 2px 4px rgba(0,0,0,0.02) !important;
         transform: translateY(-1px) !important;
     }
     
-    /* Submit button */
+    /* Submit button - Dark/Accent Hero Style */
     .stButton > button[key="jb-btn"] {
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%) !important;
+        background: linear-gradient(135deg, var(--primary-dark) 0%, #333333 100%) !important;
         color: white !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-radius: 14px !important;
         padding: 1.1rem 3rem !important;
-        font-size: 1rem !important;
+        font-size: 1.05rem !important;
         font-weight: 700 !important;
         width: 100% !important;
         margin-top: 2rem !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: 
-            0 8px 30px rgba(0,0,0,0.2),
+            0 8px 30px rgba(0,0,0,0.3),
             inset 0 1px 0 rgba(255,255,255,0.15) !important;
         text-transform: uppercase !important;
         letter-spacing: 1px !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-    
-    .stButton > button[key="jb-btn"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s;
-    }
-    
-    .stButton > button[key="jb-btn"]:hover::before {
-        left: 100%;
     }
     
     .stButton > button[key="jb-btn"]:hover {
-        background: linear-gradient(135deg, #3d3d3d 0%, #2c2c2c 100%) !important;
+        background: linear-gradient(135deg, var(--accent-color) 0%, #f7931e 100%) !important;
         transform: translateY(-3px) !important;
         box-shadow: 
-            0 12px 40px rgba(0,0,0,0.3),
+            0 12px 40px rgba(255, 107, 53, 0.45),
             inset 0 1px 0 rgba(255,255,255,0.2) !important;
     }
     
-    /* Success/Error messages */
+    /* Success/Error/Warning messages */
     .stSuccess {
-        background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
+        background: #f0fdf4 !important;
         border: 1px solid #86efac !important;
         border-radius: 12px !important;
         color: #166534 !important;
@@ -285,7 +308,7 @@ st.markdown("""
     }
     
     .stError {
-        background: linear-gradient(145deg, #fef2f2 0%, #fee2e2 100%) !important;
+        background: #fef2f2 !important;
         border: 1px solid #fca5a5 !important;
         border-radius: 12px !important;
         color: #991b1b !important;
@@ -293,10 +316,19 @@ st.markdown("""
         font-weight: 500 !important;
         box-shadow: 0 4px 12px rgba(252, 165, 165, 0.2) !important;
     }
+
+    /* Streamlit Warning box color (FIXED - so the text isn't black on black) */
+    .stWarning {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid var(--accent-color) !important;
+        border-radius: 12px !important;
+        color: var(--text-light) !important; /* White text on dark warning box */
+        font-weight: 500 !important;
+    }
     
     /* Spinner */
     .stSpinner > div {
-        border-color: #1a1a1a !important;
+        border-color: var(--accent-color) transparent transparent transparent !important;
     }
     
     /* Helper text */
@@ -310,70 +342,78 @@ st.markdown("""
     /* Section divider */
     .section-divider {
         height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
+        background: linear-gradient(90deg, transparent, rgba(0,0,0,0.15), transparent);
         margin: 2rem 0;
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 # Check if user is logged in
 if 'logged_in_user' not in st.session_state:
     st.warning("Please login first!")
     st.switch_page("login.py")
 
-# Get input method from session state
+# Get resume data from session state
 resume_data = st.session_state.get("resume_source", {})
-input_method = resume_data.get("input_method", "Manual Entry")  # default if missing
+input_method = resume_data.get("input_method", "Manual Entry") 
 st.session_state["input_method"] = input_method
 
 
-# Header Section
+# --- Header Section ---
 st.markdown('<div class="header-section">', unsafe_allow_html=True)
 st.markdown('<h2><span class="step-badge">2</span>Target Job Description</h2>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Check if user has existing resume data (returning user)
+
+# --- Returning User Alert ---
 resume_source = st.session_state.get("resume_source", None)
 
 if resume_source:
     # Show alert for users with existing resume data
     st.markdown('<div class="returning-user-alert">', unsafe_allow_html=True)
-    st.markdown('<h3>👋 Welcome Back!</h3>', unsafe_allow_html=True)
-    st.markdown('<p>We found your saved resume data. You can continue with your existing resume or create a new one from scratch.</p>', unsafe_allow_html=True)
+    st.markdown('<h3>👋 Resume Found!</h3>', unsafe_allow_html=True)
     
-    if st.button("🔄 Add New Resume Content", key="add-new-resume-btn"):
-        # Clear all resume-related session state
-        keys_to_delete = ['resume_source', 'enhanced_resume', 'job_description', 
-                         'resume_processed', 'exp_indices', 'edu_indices', 'cert_indices']
-        
-        for key in keys_to_delete:
-            if key in st.session_state:
-                del st.session_state[key]
-        
-        # Reset indices to default
-        st.session_state.exp_indices = [0]
-        st.session_state.edu_indices = [0]
-        st.session_state.cert_indices = [0]
-        
-        st.success("Resume data cleared! Redirecting to create new resume...")
-        st.switch_page("pages/main.py")
+    # Display method used to create resume
+    method_display = "from your Uploaded File" if st.session_state.get("input_method") == "Upload" else "by Manual Entry"
+
+    st.markdown(f'<p>Your last resume was created **{method_display}**. You can proceed with it, or click the button below to start a new resume from scratch.</p>', unsafe_allow_html=True)
+    
+    col_a, col_b = st.columns([1, 4])
+    # Button is placed inside a column for better layout control
+    with col_a: 
+        if st.button("Start New Resume", key="add-new-resume-btn"):
+            # Clear all resume-related session state
+            keys_to_delete = ['resume_source', 'enhanced_resume', 'job_description', 
+                             'resume_processed', 'exp_indices', 'edu_indices', 'cert_indices', 'project_indices']
+            
+            for key in keys_to_delete:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            # Redirect to the main resume building page
+            st.switch_page("main.py") # Use main.py since it's the home page
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Check for resume data
+# --- Job Description Input ---
 if resume_source is None:
-    st.error("No resume data found. Please upload or enter your data first.")
-    if st.button("Go to Resume Builder"):
-        st.switch_page("pages/main.py")
+    # This text should now be white due to the .stApp color rule
+    st.error("No resume data found. Please go back to the main page to upload or enter your data first.")
+    if st.button("Go to Resume Builder", key="go-to-main-btn"):
+        st.switch_page("main.py")
 else:
     # Main content
     st.markdown('<div class="content-container">', unsafe_allow_html=True)
     
     # Job description input method
+    # The label for this radio button will now be dark because it is inside the .content-container,
+    # and the specific .content-container label rule overrides the general .stApp rule for good contrast.
     jd_method = st.radio(
         "Choose how to provide the job description:",
         ["Type or Paste", "Upload File"],
-        horizontal=True
+        horizontal=True,
+        key="jd_method_radio"
     )
     
     st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
@@ -395,19 +435,18 @@ else:
                     job_description = extract_text_from_docx(jd_file)
                 st.success("Job description uploaded successfully!")
             
-            # Show extracted text in a disabled text area
+            # Show extracted text
             if job_description:
                 st.text_area(
-                    "Extracted Content",
+                    "Extracted Job Description Content (Review before processing)",
                     value=job_description,
                     height=200,
-                    disabled=True,
                     help="Preview of the extracted job description"
                 )
 
     else:  # Type or Paste
         job_description = st.text_area(
-            "Job Description",
+            "Paste the Job Description Text *",
             value="",
             height=250,
             placeholder="Paste the complete job description here...\n\nExample:\nWe are looking for a Senior Software Engineer with 5+ years of experience...",
@@ -421,9 +460,9 @@ else:
     # Submit button in centered column
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Continue to Resume", key="jb-btn"):
+        if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
             if job_description:
-                with st.spinner("Analyzing job description..."):
+                with st.spinner("Analyzing job description and preparing for tailoring..."):
                     structured_jd = extract_details_from_jd(job_description)
                     
                     # Handle JSON parsing
@@ -431,7 +470,8 @@ else:
                         try:
                             structured_jd = json.loads(structured_jd)
                         except json.JSONDecodeError:
-                            structured_jd = {"text": structured_jd}
+                            # If LLM returns non-JSON or fails, save the raw text
+                            structured_jd = {"raw_text": job_description}
                     
                     st.session_state.job_description = structured_jd
                 

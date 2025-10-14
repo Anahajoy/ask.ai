@@ -2,7 +2,6 @@ import streamlit as st
 from pathlib import Path
 import json
 import re
-from utils import hide_streamlit_elements
 
 # Page configuration
 st.set_page_config(page_title="Loging Page", layout="wide", initial_sidebar_state="collapsed")

@@ -1,8 +1,13 @@
 import streamlit as st
 import json
 import base64
-import textwrap
+from pathlib import Path
+from utils import generate_template_from_blocks,extract_ppt_blocks,extract_docx_blocks,extract_html_blocks,refine_final_data_with_template,extract_pdf_blocks,json_to_html,save_user_resume_template
 from streamlit_extras.switch_page_button import switch_page 
+from datetime import datetime
+import re
+
+st.set_page_config(layout="wide", page_title="Download Resume")
 
 # Define the preferred display order for sections (copied from main.py for consistency)
 # Note: 'achievements' is now included and dynamically handled.
@@ -806,26 +811,172 @@ def generate_markdown_text(data):
     return text
 
 # --- Streamlit Page Layout ---
+def load_user_templates(user_id):
+    """
+    Load all saved templates for a user
+    """
+    save_folder = Path("user_templates")
+    if not save_folder.exists():
+        return []
+    
+    templates = []
+    for file_path in save_folder.glob(f"{user_id}_*.json"):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                template_data = json.load(f)
+                templates.append({
+                    "name": template_data.get("template_name", file_path.stem),
+                    "path": file_path,
+                    "data": template_data.get("template_data", template_data),
+                    "created_at": template_data.get("created_at", "Unknown")
+                })
+        except Exception as e:
+            st.error(f"Error loading template {file_path.name}: {str(e)}")
+    
+    return templates
+
+
+
+def save_user_template_enhanced(user_id, template_json, template_name):
+    """
+    Save user's custom template with metadata
+    """
+    save_folder = Path("user_templates")
+    save_folder.mkdir(exist_ok=True)
+    
+    # Create a unique filename
+    safe_name = template_name.replace(" ", "_").replace("/", "_")
+    save_path = save_folder / f"{user_id}_{safe_name}.json"
+    
+    # Add metadata
+    template_with_metadata = {
+        "template_name": template_name,
+        "user_id": user_id,
+        "created_at": str(datetime.now()),
+        "template_data": template_json
+    }
+    
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(template_with_metadata, f, indent=4)
+    
+    return save_path
+
+def delete_user_template(template_path):
+    """Delete a user's saved template."""
+    try:
+        Path(template_path).unlink()
+        return True
+    except Exception as e:
+        st.error(f"Error deleting template: {e}")
+        return False
+
+
+def get_all_templates(user_id):
+    """
+    Get both system templates and user templates.
+    Returns a dictionary with two categories.
+    """
+    # System templates
+    system_templates = [
+        {
+            "name": "Minimalist (ATS Best)",
+            "type": "system",
+            "description": "Clean, single-column layout optimized for ATS parsing",
+            "config": TEMPLATE_CONFIGS["Minimalist (ATS Best)"]
+        },
+        {
+            "name": "Horizontal Line",
+            "type": "system",
+            "description": "Classic design with horizontal line separators",
+            "config": TEMPLATE_CONFIGS["Horizontal Line"]
+        },
+        {
+            "name": "Bold Title Accent",
+            "type": "system",
+            "description": "Modern template with bold colored accents",
+            "config": TEMPLATE_CONFIGS["Bold Title Accent"]
+        },
+        {
+            "name": "Date Below",
+            "type": "system",
+            "description": "Dates positioned below job titles",
+            "config": TEMPLATE_CONFIGS["Date Below"]
+        },
+        {
+            "name": "Section Box Header",
+            "type": "system",
+            "description": "Colored box headers for each section",
+            "config": TEMPLATE_CONFIGS["Section Box Header"]
+        },
+        {
+            "name": "Times New Roman Classic",
+            "type": "system",
+            "description": "Traditional serif font with classic styling",
+            "config": TEMPLATE_CONFIGS["Times New Roman Classic"]
+        }
+    ]
+    
+    # User templates
+    user_templates = load_user_templates(user_id)
+    
+    return {
+        "system": system_templates,
+        "custom": user_templates
+    }
+
+
+# --- Streamlit App with Template Gallery ---
 
 def app_download():
-    st.set_page_config(layout="wide", page_title="Download Resume")
     st.markdown("""
         <style>
-        /* Hide entire sidebar */
-
-    [data-testid="collapsedControl"] {
-        display: none;
-    }
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
         .stApp {
-    background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)),
-                url('https://plus.unsplash.com/premium_photo-1674331863328-78a318c57447?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=872') center/cover;
-    background-attachment: fixed;
-}
-
+            background: linear-gradient(135deg, rgba(100, 181, 246, 0.15) 0%, rgba(224, 247, 250, 0.25) 50%, rgba(179, 229, 252, 0.15) 100%),
+                        linear-gradient(rgba(255, 255, 255, 0.85), rgba(240, 248, 255, 0.85)),
+                        url('https://images.unsplash.com/photo-1491002052546-bf38f186af56?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80') center/cover;
+            background-attachment: fixed;
+        }
+        
+        .template-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 2px solid rgba(66, 165, 245, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .template-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(66, 153, 225, 0.2);
+            border-color: #42A5F5;
+        }
+        
+        .template-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .badge-system {
+            background: linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%);
+            color: white;
+        }
+        
+        .badge-custom {
+            background: linear-gradient(135deg, #66BB6A 0%, #43A047 100%);
+            color: white;
+        }
         </style>
     """, unsafe_allow_html=True)
 
-    
     final_data = st.session_state.get('final_resume_data')
 
     if final_data is None:
@@ -834,132 +985,410 @@ def app_download():
             switch_page("main")
         return
 
-    # Safely load the data in case it was stored as a JSON string
+    # Safely load the data
     if isinstance(final_data, str):
         try:
             final_data = json.loads(final_data)
         except json.JSONDecodeError:
             st.error("❌ Error: Could not parse resume data.")
-            if st.button("⬅️ Go Back to Editor"):
-                switch_page("main")
             return
+
+    user_id = st.session_state.get('logged_in_user', 'default_user')
+    
+    # Get all templates
+    all_templates = get_all_templates(user_id)
+    
+    # --- Main Header ---
+    st.markdown("""
+        <div style="text-align: center; padding: 2rem 0;">
+            <h1 style="color: #0D47A1; font-size: 2.5rem; margin-bottom: 0.5rem;">📄 Download Your Resume</h1>
+            <p style="color: #1565C0; font-size: 1.1rem;">Choose from our templates or use your custom uploaded templates</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # --- Template Selection Tabs ---
+    tab1, tab2, tab3 = st.tabs(["🎨 System Templates", "📁 My Custom Templates", "⬆️ Upload New Template"])
+    
+    # TAB 1: System Templates
+    with tab1:
+        st.markdown("### 🎨 Professional System Templates")
+        st.markdown("Choose from our carefully designed ATS-optimized templates")
+        
+        cols = st.columns(2)
+        for idx, template in enumerate(all_templates["system"]):
+            with cols[idx % 2]:
+                st.markdown(f"""
+                    <div class="template-card">
+                        <span class="template-badge badge-system">SYSTEM</span>
+                        <h3 style="color: #0D47A1; margin: 0.5rem 0;">{template['name']}</h3>
+                        <p style="color: #666; font-size: 0.9rem;">{template['description']}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"Use {template['name']}", key=f"sys_{idx}"):
+                    st.session_state['selected_template'] = template['name']
+                    st.session_state['selected_template_type'] = 'system'
+                    st.success(f"✅ Selected: {template['name']}")
+                    st.rerun()
+    
+    # TAB 2: Custom Templates
+    with tab2:
+        st.markdown("### 📚 My Saved Templates")
+        
+        # Load user's saved templates
+        saved_templates = load_user_templates(user_id)
+        
+        if not saved_templates:
+            st.info("📭 You haven't saved any custom templates yet. Upload a template in Tab 3 to get started!")
+        else:
+            st.markdown(f"**Found {len(saved_templates)} saved template(s)**")
             
-    if not isinstance(final_data, dict):
-        st.error("❌ Resume data is in an unusable format.")
-        if st.button("⬅️ Go Back to Editor"):
-            switch_page("main")
-        return
+            # Display templates in a grid
+            cols_per_row = 3
+            for i in range(0, len(saved_templates), cols_per_row):
+                cols = st.columns(cols_per_row)
+                
+                for j, col in enumerate(cols):
+                    idx = i + j
+                    if idx < len(saved_templates):
+                        template = saved_templates[idx]
+                        
+                        with col:
+                            st.markdown(f"""
+                                <div style="border: 2px solid #42A5F5; border-radius: 12px; 
+                                            padding: 1rem; background: white; height: 200px;
+                                            display: flex; flex-direction: column; justify-content: space-between;">
+                                    <div>
+                                        <h4 style="margin: 0; color: #1E88E5;">📄 {template['name']}</h4>
+                                        <p style="font-size: 0.85rem; color: #666; margin: 0.5rem 0;">
+                                            Created: {template['created_at'][:10] if isinstance(template['created_at'], str) else 'Unknown'}
+                                        </p>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
+                            
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                if st.button("✨ Use", key=f"use_{idx}", use_container_width=True):
+                                    st.session_state['selected_template'] = template['name']
+                                    st.session_state['selected_template_type'] = 'custom'
+                                    st.session_state['selected_template_data'] = template['data']
+                                    st.success(f"✅ Selected: {template['name']}")
+                                    st.rerun()
+                            
+                            with col2:
+                                if st.button("🗑️ Delete", key=f"del_{idx}", use_container_width=True):
+                                    try:
+                                        template['path'].unlink()
+                                        st.success(f"✅ Deleted: {template['name']}")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"❌ Error: {str(e)}")
+    # ==================== IMPROVED SELECTED TEMPLATE PREVIEW ====================
 
+    st.markdown("---")
 
-    # --- Sidebar: Settings & Downloads ---
-    st.sidebar.subheader("⚙️ Template Settings")
+    if 'selected_template' in st.session_state:
+        selected_template_name = st.session_state['selected_template']
+        selected_type = st.session_state['selected_template_type']
+        
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%); 
+                        padding: 1.5rem; border-radius: 16px; color: white; text-align: center; margin: 2rem 0;">
+                <h2 style="margin: 0;">✨ Currently Selected: {selected_template_name}</h2>
+                <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Type: {selected_type.upper()}</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if selected_type == 'custom':
+            template_data = st.session_state.get('selected_template_data')
+            if template_data:
+                # Map data to template
+                with st.spinner("🔄 Generating preview..."):
+                    refined_data = refine_final_data_with_template(final_data, template_data)
+                    html_template = json_to_html(refined_data, final_data)
+                
+                st.markdown("### 📋 Live Preview")
+                st.components.v1.html(html_template, height=1000, scrolling=True)
+                
+                # Download custom template
+                st.sidebar.markdown("---")
+                st.sidebar.markdown("### 💾 Download Custom Template")
+                
+                b64 = base64.b64encode(html_template.encode()).decode()
+                href = f'<a href="data:text/html;base64,{b64}" download="Resume_{selected_template_name}.html" style="background-color: #42A5F5; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none; display: inline-block; width: 100%; text-align: center;"><strong>⬇️ Download HTML</strong></a>'
+                st.sidebar.markdown(href, unsafe_allow_html=True)
+                
+                # JSON download
+                json_b64 = base64.b64encode(json.dumps(refined_data, indent=2).encode()).decode()
+                json_href = f'<a href="data:application/json;base64,{json_b64}" download="Template_{selected_template_name}.json" style="background-color: #66BB6A; color: white; padding: 10px 15px; border-radius: 5px; text-decoration: none; display: inline-block; width: 100%; text-align: center; margin-top: 10px;"><strong>📋 Download JSON</strong></a>'
+                st.sidebar.markdown(json_href, unsafe_allow_html=True)
+        
+        else:  # System template
+            # Your existing system template code
+            pass
 
-    # Template Selection
-    selected_template_name = st.sidebar.selectbox(
-        "Choose Template Style:",
-        list(TEMPLATE_CONFIGS.keys()),
-        key='template_select'
-    )
-    selected_template = TEMPLATE_CONFIGS[selected_template_name]
+    else:
+        st.info("👆 Please select a template from the tabs above to preview and download your resume")
 
-    # Accent Color Selection
-    color_name = st.sidebar.selectbox(
-        'Choose Accent Color:',
-        list(ATS_COLORS.keys()),
-        key='color_name_select'
-    )
-    primary_color = ATS_COLORS[color_name]
-
-    # Optional: Show color picker for custom color
-    custom_color = st.sidebar.color_picker(
-        'Custom Color (Advanced):',
-        primary_color, 
-        key='color_picker_custom'
-    )
-
-    if custom_color != primary_color:
-        primary_color = custom_color
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 💾 Download Options")
-
-    # HTML Download
-    st.sidebar.markdown(get_html_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
-
-    # PDF Download
-    st.sidebar.markdown(get_pdf_download_link(final_data, primary_color, selected_template_name), unsafe_allow_html=True)
-    st.sidebar.caption("↑ Downloads HTML → Open it in browser → Ctrl+P → Save as PDF")
-
-    # DOC Download
-    st.sidebar.markdown(get_doc_download_link(final_data), unsafe_allow_html=True)
-
-    # Plain Text Download
-    st.sidebar.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
-
-    # Instructions
-    st.sidebar.markdown("---")
-    st.sidebar.caption("### 💡 Download Tips:")
-    st.sidebar.caption("**HTML:** Best for web viewing and customization")
-    st.sidebar.caption("**PDF:** Downloads HTML file → Open in Chrome/Edge → Ctrl+P (Cmd+P) → Destination: Save as PDF → Save")
-    st.sidebar.caption("**DOC:** Opens in Microsoft Word for editing (single-page optimized)")
-    st.sidebar.caption("**TXT:** Maximum ATS compatibility (plain text format)")
-
-    st.sidebar.markdown(f'<div style="margin-top: 15px;"></div>', unsafe_allow_html=True)
-
+    # Back button
     if st.sidebar.button("⬅️ Go Back to Editor", use_container_width=True):
         switch_page("job")
 
-    st.markdown(
-        """
-        <div style="text-align: center;">
-            <h1>📄 Download Your Resume</h1>
-            <p style="color: gray; font-size: 16px;">
-                <b>All templates optimized for single-page format.</b> Choose your template and download in multiple formats.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("---")
+    # TAB 3: Upload New Template
+    # Replace the TAB 3 section in your download.py with this improved version
 
-    # --- File uploader ---
-    uploaded_file = st.file_uploader(
-        "Upload PDF, PPT, DOC, or HTML template file", 
-        type=["pdf", "ppt", "pptx", "doc", "docx", "html"], 
-        help="Upload your custom resume template file.",
-        key="template_uploader"
-    )
-
-    if uploaded_file is not None:
-        # Show only upload success
-        st.success(f"File '{uploaded_file.name}' uploaded successfully!")
-        st.info("Processing / preview logic is skipped because a file was uploaded.")
-    else:
-        # Show default content if no file uploaded
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <h3>📋 Live Preview: {selected_template_name}</h3>
-                <p style="color: gray;">This preview shows how your resume will look when printed to PDF (optimized for single page)</p>
-            </div>
-            """,
-            unsafe_allow_html=True
+    with tab3:
+        st.markdown("### ⬆️ Upload Your Own Resume Template")
+        st.markdown("Upload a PDF, DOC, DOCX, PPT, PPTX, or HTML file to create a custom template")
+        
+        # Add helpful tips
+        with st.expander("💡 Tips for Best Results"):
+            st.markdown("""
+            **For best template extraction:**
+            - Use well-formatted documents with clear sections
+            - Ensure text is selectable (not scanned images)
+            - Files with consistent styling work best
+            - PDF and DOCX formats typically give best results
+            """)
+        
+        uploaded_file = st.file_uploader(
+            "Upload template file", 
+            type=["pdf", "doc", "docx", "html", "htm", "ppt", "pptx"], 
+            help="Upload your custom resume template file.",
+            key="template_uploader"
         )
 
-        ats_css = selected_template['css_generator'](primary_color)
-        ats_html = selected_template['html_generator'](final_data) 
-
-        full_html = f"""
-        {ats_css}
-        <div class="ats-page">
-            {ats_html}
-        </div>
-        """
-
-        st.components.v1.html(
-            full_html,
-            height=1000, 
-            scrolling=True
-        )
+        if uploaded_file is not None:
+            st.success(f"✅ File '{uploaded_file.name}' uploaded successfully!")
+            
+            file_ext = uploaded_file.name.split(".")[-1].lower()
+            
+            # Show processing status
+            status_container = st.empty()
+            progress_bar = st.progress(0)
+            
+            try:
+                # Step 1: Extract blocks
+                status_container.info(f"🔄 Step 1/3: Extracting content from {file_ext.upper()} file...")
+                progress_bar.progress(33)
+                
+                if file_ext == "pdf":
+                    blocks_data = extract_pdf_blocks(uploaded_file)
+                elif file_ext in ["ppt", "pptx"]:
+                    blocks_data = extract_ppt_blocks(uploaded_file)
+                elif file_ext in ["doc", "docx"]:
+                    blocks_data = extract_docx_blocks(uploaded_file)
+                elif file_ext in ["html", "htm"]:
+                    blocks_data = extract_html_blocks(uploaded_file)
+                else:
+                    st.error(f"❌ Unsupported file type: {file_ext}")
+                    st.stop()
+                
+                if not blocks_data:
+                    st.error("❌ No content could be extracted from the file. Please check the file format.")
+                    st.stop()
+                
+                st.success(f"✅ Extracted {len(blocks_data)} text blocks from the document")
+                
+                # Step 2: Generate template
+                status_container.info("🔄 Step 2/3: Analyzing document structure with AI...")
+                progress_bar.progress(66)
+                
+                template_json = generate_template_from_blocks(blocks_data, file_type=file_ext)
+                
+                # Check for errors in template generation
+                if "error" in template_json:
+                    st.error(f"❌ Error extracting template: {template_json.get('error')}")
+                    
+                    with st.expander("🔍 Debug Information - Click to expand"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**Error Details:**")
+                            st.json({
+                                "error": template_json.get("error"),
+                                "help": template_json.get("help", "No additional help available")
+                            })
+                        
+                        with col2:
+                            st.markdown("**Sample Extracted Content:**")
+                            st.json(template_json.get("blocks_sample", [])[:3])
+                        
+                        # Show raw AI response if available
+                        if "raw" in template_json:
+                            st.markdown("---")
+                            st.markdown("**Raw AI Response (first 1000 chars):**")
+                            st.code(template_json["raw"][:1000], language="text")
+                            
+                            # Try manual extraction
+                            st.markdown("---")
+                            if st.button("🔧 Try Manual JSON Extraction"):
+                                raw_text = template_json["raw"]
+                                extracted = None
+                                
+                                # Try different extraction methods
+                                patterns = [
+                                    (r'```json\s*(.*?)\s*```', "```json block"),
+                                    (r'```\s*(.*?)\s*```', "``` block"),
+                                    (r'(\{[\s\S]*\})', "JSON object")
+                                ]
+                                
+                                for pattern, name in patterns:
+                                    match = re.search(pattern, raw_text, re.DOTALL)
+                                    if match:
+                                        try:
+                                            extracted = json.loads(match.group(1).strip())
+                                            st.success(f"✅ Successfully extracted JSON from {name}!")
+                                            template_json = extracted
+                                            break
+                                        except json.JSONDecodeError as e:
+                                            st.warning(f"Found {name} but failed to parse: {str(e)}")
+                                
+                                if extracted is None:
+                                    st.error("❌ Could not automatically extract JSON. Please try a different file.")
+                                    st.stop()
+                    
+                    if "error" in template_json:  # Still has error after manual fix attempt
+                        st.info("💡 **Suggestions:**\n- Try a different file format (PDF or DOCX recommended)\n- Ensure the document has clear text content\n- Check that the file isn't corrupted")
+                        st.stop()
+                
+                status_container.success("✅ Step 2/3: Template structure extracted successfully!")
+                progress_bar.progress(100)
+                
+                # Preview extracted structure
+                with st.expander("📋 Preview Extracted Template Structure"):
+                    st.json(template_json)
+                
+                # Step 3: Map user data to template
+                st.markdown("---")
+                st.markdown("### 🎨 Preview with Your Data")
+                
+                with st.spinner("🔄 Step 3/3: Mapping your resume data to template..."):
+                    refined_data = refine_final_data_with_template(final_data, template_json)
+                    
+                    # Check for errors in mapping
+                    if "error" in refined_data:
+                        st.warning(f"⚠️ Warning during data mapping: {refined_data.get('error')}")
+                        
+                        if "fallback" in refined_data:
+                            st.info("ℹ️ Using original template structure with your data")
+                            refined_data = refined_data["fallback"]
+                        else:
+                            st.info("ℹ️ Showing template structure without data mapping")
+                            refined_data = template_json
+                    
+                    # Generate HTML preview
+                    html_template = json_to_html(refined_data, final_data)
+                
+                # Show live preview
+                st.markdown("### 📄 Live Preview")
+                st.components.v1.html(html_template, height=800, scrolling=True)
+                
+                # Save template section
+                st.markdown("---")
+                st.markdown("### 💾 Save This Template")
+                
+                col1, col2 = st.columns([3, 1])
+                
+                with col1:
+                    default_name = uploaded_file.name.rsplit('.', 1)[0]
+                    template_name = st.text_input(
+                        "Template Name", 
+                        value=default_name,
+                        placeholder="e.g., My Professional Template",
+                        key="custom_template_name",
+                        help="Give your template a memorable name"
+                    )
+                
+                with col2:
+                    st.write("")  # Spacing
+                    st.write("")  # Spacing
+                    save_enabled = bool(template_name and "error" not in template_json)
+                    
+                    if st.button("💾 Save Template", 
+                            type="primary", 
+                            use_container_width=True,
+                            disabled=not save_enabled):
+                        try:
+                            save_path = save_user_template_enhanced(
+                                user_id, 
+                                template_json, 
+                                template_name
+                            )
+                            st.success(f"✅ Template '{template_name}' saved successfully!")
+                            st.balloons()
+                            
+                            # Update session state
+                            st.session_state['selected_template'] = template_name
+                            st.session_state['selected_template_type'] = 'custom'
+                            st.session_state['selected_template_data'] = template_json
+                            
+                            # Show success message with next steps
+                            st.info("💡 Your template is now available in the 'My Custom Templates' tab!")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error saving template: {str(e)}")
+                
+                if not template_name:
+                    st.warning("⚠️ Please enter a template name to save")
+                
+                # Download options
+                st.markdown("---")
+                st.markdown("### ⬇️ Download Options")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Download HTML
+                    html_bytes = html_template.encode()
+                    b64 = base64.b64encode(html_bytes).decode()
+                    href = f'''
+                    <a href="data:text/html;base64,{b64}" 
+                    download="Resume_{template_name if template_name else 'Custom'}.html" 
+                    style="background-color: #42A5F5; color: white; padding: 12px 20px; 
+                            border-radius: 8px; text-decoration: none; display: inline-block; 
+                            width: 100%; text-align: center; font-weight: bold;">
+                        📄 Download HTML
+                    </a>
+                    '''
+                    st.markdown(href, unsafe_allow_html=True)
+                
+                with col2:
+                    # Download JSON template
+                    json_str = json.dumps(template_json, indent=2)
+                    b64_json = base64.b64encode(json_str.encode()).decode()
+                    href_json = f'''
+                    <a href="data:application/json;base64,{b64_json}" 
+                    download="Template_{template_name if template_name else 'Custom'}.json" 
+                    style="background-color: #66BB6A; color: white; padding: 12px 20px; 
+                            border-radius: 8px; text-decoration: none; display: inline-block; 
+                            width: 100%; text-align: center; font-weight: bold;">
+                        📋 Download JSON
+                    </a>
+                    '''
+                    st.markdown(href_json, unsafe_allow_html=True)
+                
+                with col3:
+                    # Info about PDF conversion
+                    st.info("💡 Use 'Print to PDF' in your browser after downloading HTML for PDF version")
+            
+            except Exception as e:
+                st.error(f"❌ Error processing file: {str(e)}")
+                with st.expander("🔍 Full Error Details"):
+                    st.exception(e)
+                
+                st.info("💡 **Troubleshooting:**\n"
+                    "1. Try a different file format\n"
+                    "2. Ensure the file isn't corrupted\n"
+                    "3. Check file size (very large files may timeout)")
+            
+            finally:
+                # Clean up progress indicators
+                status_container.empty()
+                progress_bar.empty()
 
 if __name__ == '__main__':
     app_download()

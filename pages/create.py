@@ -28,6 +28,10 @@ def apply_custom_css():
     """Applies custom CSS for a modern dark theme with white text."""
     st.markdown("""
         <style>
+                
+        [data-testid="stSidebarNav"] {
+        display: none !important;
+    }
         /* Background */
         .stApp {
             background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),

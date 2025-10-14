@@ -43,11 +43,7 @@ def get_css_minimalist(color):
             line-height: 1.2; 
         }}
 
-        .stApp {{
-        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
-                    url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
-        background-attachment: fixed;
-    }}
+       
         
         /* Highlighted Section Headings */
         .ats-section-title {{ 
@@ -813,6 +809,23 @@ def generate_markdown_text(data):
 
 def app_download():
     st.set_page_config(layout="wide", page_title="Download Resume")
+    st.markdown("""
+        <style>
+        /* Hide entire sidebar */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+    [data-testid="collapsedControl"] {
+        display: none;
+    }
+        .stApp {
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                        url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
+            background-attachment: fixed;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     
     final_data = st.session_state.get('final_resume_data')
 

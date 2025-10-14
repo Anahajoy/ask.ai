@@ -2,10 +2,11 @@ import streamlit as st
 from pathlib import Path
 import json
 import re
-from utils import save_user_resume
+from utils import hide_streamlit_elements
 
 # Page configuration
 st.set_page_config(page_title="Loging Page", layout="wide", initial_sidebar_state="collapsed")
+# hide_streamlit_elements()
 
 # Initialize session state
 if 'mode' not in st.session_state:
@@ -68,15 +69,10 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
             
-        /* Hide sidebar */
-    [data-testid="stSidebar"] {
-        display: none;
-    }
-    
-    /* Hide sidebar collapse button */
-    [data-testid="collapsedControl"] {
-        display: none;
-    }
+    [data-testid="stSidebar"] {display: none;}
+    [data-testid="collapsedControl"] {display: none;}
+    button[kind="header"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
     
     /* Adjust main content to use full width */
     .main .block-container {

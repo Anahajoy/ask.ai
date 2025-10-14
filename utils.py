@@ -986,3 +986,4 @@ def save_user_resume(email, resume_data, input_method=None):
     except Exception as e:
         st.error(f"Error saving resume data: {e}")
         return False
+    

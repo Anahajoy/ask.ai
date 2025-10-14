@@ -15,6 +15,12 @@ if "project_indices" not in st.session_state:
 # Custom CSS for improved UI with black, white, grey theme
 st.markdown("""
 <style>
+            
+[data-testid="stSidebar"] {display: none;}
+    [data-testid="collapsedControl"] {display: none;}
+    button[kind="header"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
+    
     /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 

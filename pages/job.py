@@ -5,6 +5,12 @@ from utils import extract_text_from_pdf, extract_text_from_docx, extract_details
 # Custom CSS
 st.markdown("""
 <style>
+            
+    [data-testid="stSidebar"] {display: none;}
+    [data-testid="collapsedControl"] {display: none;}
+    button[kind="header"] {display: none;}
+    [data-testid="stSidebarNav"] {display: none;}
+    
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     

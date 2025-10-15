@@ -530,7 +530,7 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
         b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.html"
-    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #1E90FF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
+    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00BFFF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
     return href
 
 def get_pdf_download_link(data, color, template_config, filename_suffix=""):
@@ -563,7 +563,7 @@ def get_pdf_download_link(data, color, template_config, filename_suffix=""):
     pdf_html = f"""
     <a href="data:text/html;charset=utf-8;base64,{b64_data}" download="{filename}"
        style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
-              background-color: #00BFFF; color: white; border-radius: 5px; 
+              background-color: #87CEFA; color: white; border-radius: 5px; 
               display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
         <strong>📄 Download for PDF Export (.html)</strong>
     </a>
@@ -679,14 +679,72 @@ def generate_doc_html(data):
     html += '</body></html>'
     return html
 
-def get_doc_download_link(data, filename_suffix=""):
-    """Generates a download link for a DOC file."""
-    text_content = generate_doc_html(data)
-    b64_data = base64.b64encode(text_content.encode('utf-8')).decode()
-    
-    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.doc"
-    href = f'<a href="data:application/msword;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #007bff; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📝 Download DOC (.doc)</strong></a>'
-    return href
+def get_doc_download_link(data, color, template_config, filename_suffix=""):
+    """
+    Generates a DOC download link using the selected template's HTML/CSS.
+
+    Note: The 'DOC' file generated is an HTML file with a .doc extension and 
+    Microsoft Word-specific XML/CSS (like @page rules) added to the beginning, 
+    allowing it to open and be formatted correctly in Word.
+    """
+    # 1. Generate the content using the template, similar to get_pdf_download_link
+    if 'html_generator' in template_config and 'css_generator' in template_config:
+        css = template_config['css_generator'](color)
+        html_body = template_config['html_generator'](data)
+    else:
+        # Fallback to generic HTML if generators are missing, though ideally 
+        # a separate 'generic doc' function would be used for non-template content
+        # For this function, we stick to the template-based approach logic.
+        css = template_config.get('css', '')
+        html_body = generate_generic_html(data) # Assumes this fallback function is defined
+
+    # 2. Add Microsoft Word-specific headers for .doc compatibility
+    # These headers tell Word how to interpret the HTML for page layout etc.
+    word_doc_header = f"""
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+xmlns:w='urn:schemas-microsoft-com:office:word'
+xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{data.get('name', 'Resume')}</title>
+    <style>
+        @page {{ 
+            size: 8.5in 11in; 
+            margin: 0.5in; 
+        }}
+        {css}
+    </style>
+</head>
+<body>
+    <div class='ats-page'>
+        {html_body}
+    </div>
+</body>
+</html>
+"""
+
+    # 3. Encode the content and create the download link
+    # We use base64 and the 'application/msword' MIME type for the .doc download.
+    try:
+        b64_data = base64.b64encode(word_doc_header.encode('utf-8')).decode()
+    except NameError:
+        # Handle case where base64 module is not imported in the environment
+        print("Error: 'base64' module not found. Please import it.")
+        return ""
+
+    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_Template_DOC{filename_suffix}.doc"
+
+    doc_html = f"""
+    <a href="data:application/msword;base64,{b64_data}" download="{filename}"
+       style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
+              background-color: #4682B4; color: white; border-radius: 5px; 
+              display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
+        <strong>📄 Download Template DOC (.doc)</strong>
+    </a>
+    """
+    return doc_html
+
 
 def generate_markdown_text(data):
     """Generates a plain markdown/text version of the resume."""
@@ -754,7 +812,7 @@ def get_text_download_link(data, filename_suffix=""):
     b64_data = base64.b64encode(text_content.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_ATS_Plain_Text{filename_suffix}.txt"
-    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #28a745; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
+    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #4169E1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
     return href
 
 def generate_pptx_file(data):
@@ -934,7 +992,7 @@ def get_pptx_download_link(data, filename_suffix=""):
         b64_data = base64.b64encode(pptx_data).decode()
         
         filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.pptx"
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #D04423; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
+        href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #B0E0E6; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
         return href
     except Exception as e:
         st.error(f"Error generating PPTX: {str(e)}")
@@ -1077,7 +1135,10 @@ def app_download():
                     st.session_state.selected_template_config
                 ), unsafe_allow_html=True)
                 
-                st.markdown(get_doc_download_link(final_data), unsafe_allow_html=True)
+                st.markdown(get_doc_download_link(final_data, 
+                    primary_color, 
+                    st.session_state.selected_template_config
+                ), unsafe_allow_html=True)
                 
                 st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
                 

@@ -992,7 +992,7 @@ def get_pptx_download_link(data, filename_suffix=""):
         b64_data = base64.b64encode(pptx_data).decode()
         
         filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.pptx"
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #B0E0E6; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
+        href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00CED1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
         return href
     except Exception as e:
         st.error(f"Error generating PPTX: {str(e)}")
@@ -1303,7 +1303,9 @@ def app_download():
                     ), unsafe_allow_html=True)
                     
                     st.markdown(get_doc_download_link(
-                        final_data,
+                       final_data, 
+                        default_color, 
+                        temp_config,
                         f"_{template_data['name'].replace(' ', '_')}"
                     ), unsafe_allow_html=True)
                     

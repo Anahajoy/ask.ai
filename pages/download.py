@@ -28,6 +28,9 @@ ATS_COLORS = {
 if 'uploaded_templates' not in st.session_state:
     st.session_state.uploaded_templates = {}
 
+if "selected_template_config" not in st.session_state:
+    st.session_state.selected_template_config = None
+
 def format_section_title(key):
     """Converts keys like 'certifications' to 'Certifications'."""
     title = key.replace('_', ' ').replace('Skills', ' Skills').replace('summary', 'Summary')
@@ -964,39 +967,154 @@ def get_text_download_link(data, filename_suffix=""):
 
 def app_download():
     st.set_page_config(layout="wide", page_title="Download Resume")
-    st.markdown("""
+    ACCENT_COLOR = "#6ea8fe" # Softer, bright blue
+
+    st.markdown(f"""
         <style>
-         /* Hides Streamlit Navigation/Pages */
-        [data-testid="stSidebarNav"] {
-            display: none !important;
-        }
-        .stApp {
-            background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)),
-                        url('https://plus.unsplash.com/premium_photo-1674331863328-78a318c57447?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=872') center/cover;
-            background-attachment: fixed;
-        }
-        .template-card {
-            background-color: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-        }
-        .template-card:hover {
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-            transform: translateY(-2px);
-        }
-        .saved-badge {
-            background-color: #28a745;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
+            /* ============================
+            🌟 Soft & Bright Theme V3 (Clean Background)
+            ============================ */
+            :root {{
+                --primary-color: #2c3e50; /* Softer dark blue for text/contrast */
+                --secondary-color: #f0f8ff; /* Very light, almost white background */
+                --accent-color: #6ea8fe; /* Soft, bright blue accent */
+                --accent-light: #9ed4ff; /* Lighter soft blue */
+                --accent-ice: #e0f2ff; /* Very pale icy blue */
+                --text-dark: #2c3e50;
+                --text-light: #FFFFFF;
+                --card-bg: rgba(255, 255, 255, 0.9); /* Opaque white for crisp cards */
+                --card-border: rgba(158, 212, 255, 0.5); /* Soft blue border */
+                --soft-shadow: rgba(44, 62, 80, 0.15); /* Soft shadow for depth */
+                --button-gradient-start: #6fa8fe;
+                --button-gradient-end: #a0d1ff;
+            }}
+
+            /* HIDE NAVIGATION */
+            [data-testid="stSidebarNav"] {{
+                display: none !important;
+            }}
+
+            /* APP BACKGROUND - SOLID LIGHT COLOR WITH SUBTLE TEXTURE */
+            .stApp {{
+                /* Use a very light, solid color for the main background */
+                background-color: var(--secondary-color); 
+                
+                /* Optional: Add a subtle texture image, or remove this line for pure solid color */
+                background-image: url('https://www.transparenttextures.com/patterns/white-diamond.png');
+                background-attachment: fixed;
+                
+                color: var(--text-dark);
+                font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            }}
+            
+            /* STREAMLIT MAIN CONTAINER ALIGNMENT AND PADDING (Kept for alignment) */
+            .main {{
+                padding-top: 2.5rem; 
+                padding-bottom: 2.5rem;
+            }}
+            
+            .block-container {{
+                padding-left: 2rem;
+                padding-right: 2rem;
+                padding-top: 1.5rem;
+                padding-bottom: 1.5rem;
+                max-width: 1100px;
+                margin-left: auto;
+                margin-right: auto;
+            }}
+
+            /* TEMPLATE CARDS - CRISP WHITE GLASS EFFECT */
+            .template-card {{
+                background: var(--card-bg); /* Opaque white for better contrast and brightness */
+                backdrop-filter: blur(10px); /* Less blur since the background is solid */
+                border: 1px solid var(--card-border);
+                padding: 25px; 
+                border-radius: 18px; 
+                box-shadow: 0 8px 25px var(--soft-shadow); /* Slightly stronger shadow to lift the card */
+                margin-bottom: 25px; 
+                transition: all 0.3s ease;
+                text-align: center;
+                min-height: 180px; 
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }}
+
+            .template-card:hover {{
+                box-shadow: 0 12px 35px rgba(110, 168, 254, 0.4); 
+                transform: translateY(-5px); 
+                border-color: var(--accent-color);
+            }}
+            
+            /* HEADINGS - HIGH CONTRAST */
+            h1, h2, h3, h4 {{
+                color: var(--primary-color);
+                font-weight: 700;
+            }}
+            
+            .template-card h3 {{
+                color: var(--primary-color); 
+                font-weight: 600;
+                margin-bottom: 5px;
+                font-size: 1.4em;
+            }}
+
+            /* BADGE - VIBRANT AND CLEAN */
+            .saved-badge {{
+                background: var(--accent-light); 
+                color: var(--primary-color); 
+                padding: 5px 12px;
+                border-radius: 15px;
+                font-weight: 700;
+                box-shadow: 0 2px 10px rgba(158, 212, 255, 0.5); 
+            }}
+
+            /* BUTTONS - REMAINS VIBRANT */
+            .stButton>button {{
+                background: linear-gradient(145deg, var(--button-gradient-start), var(--button-gradient-end)); 
+                color: var(--text-light); 
+                border: none;
+                border-radius: 12px;
+                padding: 0.8rem 1.8rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                box-shadow: 0 5px 18px rgba(110, 168, 254, 0.4);
+                transition: all 0.3s ease;
+                width: 100%;
+                max-width: 280px;
+                margin-top: auto;
+                margin-left: auto;
+                margin-right: auto;
+                display: block;
+            }}
+
+            .stButton>button:hover {{
+                background: linear-gradient(145deg, var(--button-gradient-end), var(--button-gradient-start));
+                box-shadow: 0 8px 25px rgba(158, 212, 255, 0.8); 
+                transform: translateY(-4px) scale(1.02); 
+                color: var(--text-dark); 
+            }}
+
+            /* INPUT FIELDS - CLEAN AND SUBTLE */
+            .stTextInput > div > div > input,
+            .stTextArea > div > div > textarea {{
+                background-color: var(--text-light); /* Pure white input */
+                color: var(--text-dark);
+                border: 1px solid var(--accent-ice);
+                border-radius: 10px;
+                padding: 14px;
+                box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
+            }}
+            .stTextInput > div > div > input:focus,
+            .stTextArea > div > div > textarea:focus {{
+                border-color: var(--accent-color);
+                box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.4); 
+            }}
+
         </style>
     """, unsafe_allow_html=True)
+
 
     final_data = st.session_state.get('final_resume_data')
     # st.json(final_data)
@@ -1054,25 +1172,33 @@ def app_download():
                     st.markdown("### 💾 Download Options")
                     
                     # Download buttons
-                    st.markdown(get_html_download_link(
-                        final_data, 
-                        primary_color, 
-                        st.session_state.selected_template_config
-                    ), unsafe_allow_html=True)
-                    
-                    # st.markdown(get_pdf_download_link(
-                    #     final_data, 
-                    #     primary_color, 
-                    #     st.session_state.selected_template_config
-                    # ), unsafe_allow_html=True)
-                    
-                    st.markdown(get_doc_download_link(final_data, 
-                        primary_color, 
-                        st.session_state.selected_template_config
-                    ), unsafe_allow_html=True)
-                    
-                    st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
-                    
+# Check if a template has been selected
+                    if st.session_state.get("selected_template_config"):
+
+                        st.markdown(get_html_download_link(
+                            final_data, 
+                            primary_color, 
+                            st.session_state.selected_template_config
+                        ), unsafe_allow_html=True)
+                        
+                        # Uncomment if you want PDF support
+                        # st.markdown(get_pdf_download_link(
+                        #     final_data, 
+                        #     primary_color, 
+                        #     st.session_state.selected_template_config
+                        # ), unsafe_allow_html=True)
+                        
+                        st.markdown(get_doc_download_link(
+                            final_data, 
+                            primary_color, 
+                            st.session_state.selected_template_config
+                        ), unsafe_allow_html=True)
+                        
+                        st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
+
+                    else:
+                        st.info("👆 Please select a template first to enable download links.")
+
                     # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
                     
                     st.markdown("---")

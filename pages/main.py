@@ -16,6 +16,7 @@ if "project_indices" not in st.session_state:
 # The background image URL provided is a placeholder. You'll need to update 
 # the 'url()' in the .stApp selector below to the actual URL you use for your 
 # login page's best background, or a similar image for consistency.
+# --- Custom CSS for Winter Theme ---
 st.markdown("""
 <style>
             
@@ -36,22 +37,24 @@ header {visibility: hidden;}
     font-family: 'Inter', sans-serif;
 }
 
-/* Color Palette Variables */
+/* Color Palette Variables - Winter Theme */
 :root {
-    --primary-color: #0d0d0d; /* Deep Black/Dark Grey */
-    --secondary-color: #f8f9fa; /* Off-White/Light Grey */
-    --accent-color: #ff6b35; /* Burnt Orange/Tangerine */
-    --accent-light: #f7931e;
-    --text-dark: #1a1a1a;
+    --primary-color: #1a2332; /* Deep Navy Blue */
+    --secondary-color: #e8f4f8; /* Icy White/Light Blue */
+    --accent-color: #4a9eff; /* Cool Sky Blue */
+    --accent-light: #7bb8ff;
+    --accent-ice: #b4e0ff; /* Pale Ice Blue */
+    --text-dark: #1a2332;
     --text-light: #FFFFFF;
-    --card-bg: rgba(255, 255, 255, 0.08); /* Dark Glassmorphism */
-    --card-border: rgba(255, 255, 255, 0.15);
+    --card-bg: rgba(74, 158, 255, 0.12); /* Cool Blue Glassmorphism */
+    --card-border: rgba(180, 224, 255, 0.3);
+    --silver: #c5d9e8; /* Silver-Blue accent */
 }
 
-/* Main App Background - Replace URL with your preferred image (e.g., a professional, moody landscape/abstract) */
+/* Main App Background - Winter landscape */
 .stApp {
-    background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)),
-                url('https://images.unsplash.com/photo-1549491418-2e0e4b8686e5?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') center/cover;
+    background: linear-gradient(rgba(26, 35, 50, 0.75), rgba(74, 158, 255, 0.65)),
+                url('https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?q=80&w=2676&auto=format&fit=crop') center/cover;
     background-attachment: fixed;
     min-height: 100vh;
 }
@@ -63,15 +66,15 @@ header {visibility: hidden;}
     margin: 0 auto;
 }
 
-/* Header Section Styling (Dark Card) */
+/* Header Section Styling (Winter Card) */
 .header-container {
     background: var(--card-bg);
-    backdrop-filter: blur(15px);
-    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
     padding: 2.5rem;
     margin-bottom: 2.5rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--card-border);
+    box-shadow: 0 10px 40px rgba(74, 158, 255, 0.25), 0 0 60px rgba(180, 224, 255, 0.15);
+    border: 2px solid var(--card-border);
 }
 
 /* Title Styling */
@@ -94,7 +97,7 @@ h1 {
 }
 
 .welcome-text strong {
-    color: var(--accent-color);
+    color: var(--accent-ice);
     font-weight: 600;
 }
 
@@ -118,7 +121,7 @@ h1 {
     border-color: var(--accent-color) !important;
     transform: translateY(-2px) !important;
     color: var(--text-light) !important;
-    box-shadow: 0 6px 15px rgba(255, 107, 53, 0.3) !important;
+    box-shadow: 0 6px 15px rgba(74, 158, 255, 0.4) !important;
 }
 
 /* Section Headers (Steps) */
@@ -134,12 +137,12 @@ h2 {
     text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
 }
 
-/* Section Number Badge - Accent Color */
+/* Section Number Badge - Winter Ice Blue */
 .section-number {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-ice) 100%);
     color: white;
     width: 45px;
     height: 45px;
@@ -147,8 +150,8 @@ h2 {
     font-weight: 700;
     font-size: 1.2rem;
     margin-right: 18px;
-    box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
-    border: 2px solid white;
+    box-shadow: 0 4px 20px rgba(74, 158, 255, 0.5), 0 0 30px rgba(180, 224, 255, 0.3);
+    border: 2px solid var(--accent-ice);
 }
 
 /* Sub-section Headers */
@@ -191,17 +194,17 @@ h3 {
 }
 
 .stRadio > div > label:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(74, 158, 255, 0.2) !important;
     border-color: var(--accent-color) !important;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+    box-shadow: 0 4px 16px rgba(74, 158, 255, 0.25);
 }
 
 .stRadio > div > label[data-checked="true"] {
     background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
     border-color: var(--accent-color) !important;
     color: white !important;
-    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4);
+    box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5), 0 0 30px rgba(180, 224, 255, 0.3);
 }
 
 /* Input Fields - Clean Light Background on Dark Card */
@@ -227,7 +230,7 @@ h3 {
 .stTextArea > div > div > textarea:focus {
     border-color: var(--accent-color) !important;
     background: white !important;
-    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.2) !important;
+    box-shadow: 0 0 0 4px rgba(74, 158, 255, 0.2), 0 0 20px rgba(180, 224, 255, 0.3) !important;
     transform: translateY(-1px);
 }
 
@@ -253,18 +256,19 @@ h3 {
 
 /* Experience/Education Cards (The main data entry container) */
 .experience-card {
-    background: rgba(255, 255, 255, 0.98); /* Near-white background for content forms */
-    backdrop-filter: blur(5px);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.97); /* Near-white background for content forms */
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
     padding: 2.5rem;
     margin-bottom: 1.5rem;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    border: 2px solid rgba(74, 158, 255, 0.15);
+    box-shadow: 0 8px 30px rgba(74, 158, 255, 0.15), 0 0 40px rgba(180, 224, 255, 0.1);
     transition: all 0.3s ease;
 }
 
 .experience-card:hover {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 12px 40px rgba(74, 158, 255, 0.25), 0 0 60px rgba(180, 224, 255, 0.15);
+    border-color: rgba(74, 158, 255, 0.3);
 }
 
 .card-badge {
@@ -276,25 +280,25 @@ h3 {
     letter-spacing: 0.5px;
 }
 
-/* Add Buttons - Minimal Dark Style */
+/* Add Buttons - Winter Ice Style */
 .stButton > button[key^="add_"] {
-    background: var(--primary-color) !important;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
     color: white !important;
     border: none !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
     padding: 0.85rem 2rem !important;
     font-weight: 600 !important;
     font-size: 1rem !important;
     width: 100% !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 4px 20px rgba(74, 158, 255, 0.4), 0 0 30px rgba(180, 224, 255, 0.2) !important;
     letter-spacing: 0.3px !important;
 }
 
 .stButton > button[key^="add_"]:hover {
-    background: var(--accent-color) !important;
+    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent-ice) 100%) !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4) !important;
+    box-shadow: 0 6px 30px rgba(74, 158, 255, 0.6), 0 0 50px rgba(180, 224, 255, 0.4) !important;
 }
 
 /* Remove Buttons - Subtle Red */
@@ -316,42 +320,42 @@ h3 {
     transform: scale(1.02);
 }
 
-/* Submit/Generate Buttons - Hero Accent Style */
+/* Submit/Generate Buttons - Hero Winter Style */
 .stButton > button[key$="-btn"] {
     background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
     color: white !important;
     border: none !important;
-    border-radius: 16px !important;
+    border-radius: 18px !important;
     padding: 1.5rem 3rem !important;
     font-size: 1.2rem !important;
     font-weight: 800 !important;
     width: 100% !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.45) !important;
+    box-shadow: 0 10px 40px rgba(74, 158, 255, 0.5), 0 0 60px rgba(180, 224, 255, 0.3) !important;
     text-transform: uppercase !important;
     letter-spacing: 1.5px !important;
 }
 
 .stButton > button[key$="-btn"]:hover {
-    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent-color) 100%) !important;
+    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent-ice) 100%) !important;
     transform: translateY(-3px) !important;
-    box-shadow: 0 15px 40px rgba(255, 107, 53, 0.6) !important;
+    box-shadow: 0 15px 50px rgba(74, 158, 255, 0.7), 0 0 80px rgba(180, 224, 255, 0.5) !important;
 }
 
-/* File Uploader - Elegant Dashed Border */
+/* File Uploader - Elegant Winter Dashed Border */
 .stFileUploader {
     background: var(--card-bg);
-    backdrop-filter: blur(15px);
+    backdrop-filter: blur(20px);
     border: 3px dashed var(--accent-color);
-    border-radius: 16px;
+    border-radius: 20px;
     padding: 4rem 3rem;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 30px rgba(74, 158, 255, 0.2), 0 0 40px rgba(180, 224, 255, 0.15);
 }
 
 .stFileUploader:hover {
-    border-color: white;
-    box-shadow: 0 8px 24px rgba(255, 107, 53, 0.2);
+    border-color: var(--accent-light);
+    box-shadow: 0 12px 40px rgba(74, 158, 255, 0.35), 0 0 60px rgba(180, 224, 255, 0.25);
 }
 
 .stFileUploader label {
@@ -360,22 +364,23 @@ h3 {
     font-size: 1.1rem !important;
 }
 
-/* Divider - Minimal */
+/* Divider - Minimal Winter */
 hr {
     border: none !important;
-    height: 1px !important;
-    background: rgba(255, 255, 255, 0.2) !important;
+    height: 2px !important;
+    background: linear-gradient(90deg, transparent, var(--accent-ice), transparent) !important;
     margin: 3rem 0 !important;
 }
 
-/* Multi-select Tags - Dark & Clean */
+/* Multi-select Tags - Winter Ice Theme */
 .stMultiSelect span[data-baseweb="tag"] {
-    background: var(--primary-color) !important;
-    border-radius: 8px !important;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
+    border-radius: 10px !important;
     color: white !important;
     padding: 0.4rem 0.8rem !important;
     font-weight: 500 !important;
     font-size: 0.9rem !important;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
 }
 
 .stMultiSelect button[aria-label*="Remove"] {
@@ -383,7 +388,7 @@ hr {
 }
 
 .stMultiSelect button[aria-label*="Remove"]:hover {
-    color: var(--accent-color) !important;
+    color: var(--accent-ice) !important;
 }
 
 /* Success/Error Messages */
@@ -413,22 +418,24 @@ hr {
     font-weight: 500 !important;
 }
 
-/* Scrollbar Styling */
+/* Scrollbar Styling - Winter Ice */
 ::-webkit-scrollbar {
-    width: 10px;
+    width: 12px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(74, 158, 255, 0.1);
+    border-radius: 6px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--accent-color);
-    border-radius: 5px;
+    background: linear-gradient(180deg, var(--accent-color), var(--accent-light));
+    border-radius: 6px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-light);
+    background: linear-gradient(180deg, var(--accent-light), var(--accent-ice));
 }
 
 </style>

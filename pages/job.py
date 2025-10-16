@@ -448,7 +448,7 @@ if resume_source is None:
     # This text should now be white due to the .stApp color rule
     st.error("No resume data found. Please go back to the main page to upload or enter your data first.")
     if st.button("Go to Resume Builder", key="go-to-main-btn"):
-        st.switch_page("main.py")
+        st.switch_page("pages/main.py")
 else:
     # Main content
     st.markdown('<div class="content-container">', unsafe_allow_html=True)

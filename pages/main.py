@@ -280,67 +280,70 @@ h3 {
     letter-spacing: 0.5px;
 }
 
-/* Add Buttons - Winter Ice Style */
-.stButton > button[key^="add_"] {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
-    color: white !important;
+/* ---------- Force-button overrides (place at END of your current CSS) ---------- */
+
+/* Generic fallback for any Streamlit-rendered button */
+.stApp .stButton > button,
+.stApp button[class*="stButton"],
+.stApp div.stButton button {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
+    color: #ffffff !important;
     border: none !important;
-    border-radius: 14px !important;
-    padding: 0.85rem 2rem !important;
-    font-weight: 600 !important;
-    font-size: 1rem !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 20px rgba(74, 158, 255, 0.4), 0 0 30px rgba(180, 224, 255, 0.2) !important;
-    letter-spacing: 0.3px !important;
+    box-shadow: 0 6px 18px rgba(74,158,255,0.28) !important;
+    padding: 0.9rem 1.6rem !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    min-width: 140px !important;
+    text-transform: none !important;
 }
 
-.stButton > button[key^="add_"]:hover {
-    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent-ice) 100%) !important;
+/* Make sure the internal span/p that holds the text is white too */
+.stApp .stButton > button > div > p,
+.stApp .stButton > button > span,
+.stApp button > div > p {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* Specific keyed buttons (your keys) — explicit overrides */
+.stApp .stButton > button[key="jb-btn"],
+.stApp button[key="jb-btn"] {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
+    color: #ffffff !important;
+    width: 100% !important;           /* keep your full-width CTA */
+    padding: 1rem 2rem !important;
+}
+
+/* smaller/secondary buttons */
+.stApp .stButton > button[key="add-new-resume-btn"],
+.stApp button[key="add-new-resume-btn"],
+.stApp .stButton > button[key="go-to-main-btn"],
+.stApp button[key="go-to-main-btn"] {
+    background: var(--accent-ice) !important;
+    color: var(--text-dark) !important;
+    box-shadow: 0 4px 12px rgba(180,224,255,0.25) !important;
+}
+
+/* Hover states (ensure hover reflects primary accent) */
+.stApp .stButton > button:hover,
+.stApp button:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 30px rgba(74, 158, 255, 0.6), 0 0 50px rgba(180, 224, 255, 0.4) !important;
+    filter: brightness(1.03) !important;
 }
 
-/* Remove Buttons - Subtle Red */
-.stButton > button[key^="remove_"] {
-    background: transparent !important;
-    color: #dc2626 !important;
-    border: 1px solid #dc2626 !important;
-    border-radius: 10px !important;
-    padding: 0.5rem 1rem !important;
-    font-weight: 500 !important;
-    font-size: 0.9rem !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
+/* Defensive rule: remove any Streamlit inline red text backgrounds */
+.stApp .stButton > button[style*="background"] {
+    background-image: none !important;
+    background-color: unset !important;
+    color: inherit !important;
 }
 
-.stButton > button[key^="remove_"]:hover {
-    background: #dc2626 !important;
-    color: white !important;
-    transform: scale(1.02);
+/* If a button still shows red text because of an error class, override it */
+.stApp .stButton > button:where([class*="error"], .css-1y4p8pa) {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
 }
 
-/* Submit/Generate Buttons - Hero Winter Style */
-.stButton > button[key$="-btn"] {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 18px !important;
-    padding: 1.5rem 3rem !important;
-    font-size: 1.2rem !important;
-    font-weight: 800 !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 10px 40px rgba(74, 158, 255, 0.5), 0 0 60px rgba(180, 224, 255, 0.3) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1.5px !important;
-}
-
-.stButton > button[key$="-btn"]:hover {
-    background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent-ice) 100%) !important;
-    transform: translateY(-3px) !important;
-    box-shadow: 0 15px 50px rgba(74, 158, 255, 0.7), 0 0 80px rgba(180, 224, 255, 0.5) !important;
-}
 
 /* File Uploader - Elegant Winter Dashed Border */
 .stFileUploader {

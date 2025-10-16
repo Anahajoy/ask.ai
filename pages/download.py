@@ -826,188 +826,188 @@ def get_text_download_link(data, filename_suffix=""):
     href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #4169E1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
     return href
 
-def generate_pptx_file(data):
-    """Generate a proper PPTX file with resume data."""
-    prs = Presentation()
-    prs.slide_width = Inches(10)
-    prs.slide_height = Inches(7.5)
+# def generate_pptx_file(data):
+#     """Generate a proper PPTX file with resume data."""
+#     prs = Presentation()
+#     prs.slide_width = Inches(10)
+#     prs.slide_height = Inches(7.5)
     
-    # Slide 1: Title slide with header info
-    slide1 = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+#     # Slide 1: Title slide with header info
+#     slide1 = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
     
-    # Add name (title)
-    name_box = slide1.shapes.add_textbox(Inches(0.5), Inches(1), Inches(9), Inches(1))
-    name_frame = name_box.text_frame
-    name_frame.text = data.get('name', 'NAME MISSING')
-    name_para = name_frame.paragraphs[0]
-    name_para.font.size = Pt(44)
-    name_para.font.bold = True
-    name_para.font.color.rgb = RGBColor(31, 73, 125)  # Professional blue
-    name_para.alignment = PP_ALIGN.CENTER
+#     # Add name (title)
+#     name_box = slide1.shapes.add_textbox(Inches(0.5), Inches(1), Inches(9), Inches(1))
+#     name_frame = name_box.text_frame
+#     name_frame.text = data.get('name', 'NAME MISSING')
+#     name_para = name_frame.paragraphs[0]
+#     name_para.font.size = Pt(44)
+#     name_para.font.bold = True
+#     name_para.font.color.rgb = RGBColor(31, 73, 125)  # Professional blue
+#     name_para.alignment = PP_ALIGN.CENTER
     
-    # Add job title
-    if data.get('job_title'):
-        job_box = slide1.shapes.add_textbox(Inches(0.5), Inches(2), Inches(9), Inches(0.6))
-        job_frame = job_box.text_frame
-        job_frame.text = data.get('job_title', '')
-        job_para = job_frame.paragraphs[0]
-        job_para.font.size = Pt(24)
-        job_para.font.color.rgb = RGBColor(100, 100, 100)
-        job_para.alignment = PP_ALIGN.CENTER
+#     # Add job title
+#     if data.get('job_title'):
+#         job_box = slide1.shapes.add_textbox(Inches(0.5), Inches(2), Inches(9), Inches(0.6))
+#         job_frame = job_box.text_frame
+#         job_frame.text = data.get('job_title', '')
+#         job_para = job_frame.paragraphs[0]
+#         job_para.font.size = Pt(24)
+#         job_para.font.color.rgb = RGBColor(100, 100, 100)
+#         job_para.alignment = PP_ALIGN.CENTER
     
-    # Add contact info
-    contact_parts = []
-    if data.get('phone'):
-        contact_parts.append(f"📱 {data.get('phone')}")
-    if data.get('email'):
-        contact_parts.append(f"✉️ {data.get('email')}")
-    if data.get('location'):
-        contact_parts.append(f"📍 {data.get('location')}")
+#     # Add contact info
+#     contact_parts = []
+#     if data.get('phone'):
+#         contact_parts.append(f"📱 {data.get('phone')}")
+#     if data.get('email'):
+#         contact_parts.append(f"✉️ {data.get('email')}")
+#     if data.get('location'):
+#         contact_parts.append(f"📍 {data.get('location')}")
     
-    contact_text = " • ".join(contact_parts)
-    contact_box = slide1.shapes.add_textbox(Inches(0.5), Inches(3), Inches(9), Inches(0.5))
-    contact_frame = contact_box.text_frame
-    contact_frame.text = contact_text
-    contact_para = contact_frame.paragraphs[0]
-    contact_para.font.size = Pt(14)
-    contact_para.alignment = PP_ALIGN.CENTER
+#     contact_text = " • ".join(contact_parts)
+#     contact_box = slide1.shapes.add_textbox(Inches(0.5), Inches(3), Inches(9), Inches(0.5))
+#     contact_frame = contact_box.text_frame
+#     contact_frame.text = contact_text
+#     contact_para = contact_frame.paragraphs[0]
+#     contact_para.font.size = Pt(14)
+#     contact_para.alignment = PP_ALIGN.CENTER
     
-    # Add summary if exists
-    if data.get('summary'):
-        summary_box = slide1.shapes.add_textbox(Inches(1), Inches(4), Inches(8), Inches(2.5))
-        summary_frame = summary_box.text_frame
-        summary_frame.word_wrap = True
-        summary_frame.text = data.get('summary')
-        summary_para = summary_frame.paragraphs[0]
-        summary_para.font.size = Pt(14)
-        summary_para.line_spacing = 1.2
+#     # Add summary if exists
+#     if data.get('summary'):
+#         summary_box = slide1.shapes.add_textbox(Inches(1), Inches(4), Inches(8), Inches(2.5))
+#         summary_frame = summary_box.text_frame
+#         summary_frame.word_wrap = True
+#         summary_frame.text = data.get('summary')
+#         summary_para = summary_frame.paragraphs[0]
+#         summary_para.font.size = Pt(14)
+#         summary_para.line_spacing = 1.2
     
-    # Process other sections
-    for key in RESUME_ORDER:
-        if key == 'summary':  # Already handled
-            continue
+#     # Process other sections
+#     for key in RESUME_ORDER:
+#         if key == 'summary':  # Already handled
+#             continue
             
-        section_data = data.get(key)
+#         section_data = data.get(key)
         
-        if not section_data or (isinstance(section_data, list) and not section_data):
-            continue
+#         if not section_data or (isinstance(section_data, list) and not section_data):
+#             continue
         
-        # Create new slide for each section
-        slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+#         # Create new slide for each section
+#         slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
         
-        # Section title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.6))
-        title_frame = title_box.text_frame
-        title_frame.text = format_section_title(key)
-        title_para = title_frame.paragraphs[0]
-        title_para.font.size = Pt(32)
-        title_para.font.bold = True
-        title_para.font.color.rgb = RGBColor(31, 73, 125)
+#         # Section title
+#         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.6))
+#         title_frame = title_box.text_frame
+#         title_frame.text = format_section_title(key)
+#         title_para = title_frame.paragraphs[0]
+#         title_para.font.size = Pt(32)
+#         title_para.font.bold = True
+#         title_para.font.color.rgb = RGBColor(31, 73, 125)
         
-        # Add horizontal line under title
-        line = slide.shapes.add_shape(
-            1,  # Line shape
-            Inches(0.5), Inches(0.95),
-            Inches(9), Inches(0)
-        )
-        line.line.color.rgb = RGBColor(31, 73, 125)
-        line.line.width = Pt(2)
+#         # Add horizontal line under title
+#         line = slide.shapes.add_shape(
+#             1,  # Line shape
+#             Inches(0.5), Inches(0.95),
+#             Inches(9), Inches(0)
+#         )
+#         line.line.color.rgb = RGBColor(31, 73, 125)
+#         line.line.width = Pt(2)
         
-        # Content box
-        content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(5.8))
-        content_frame = content_box.text_frame
-        content_frame.word_wrap = True
+#         # Content box
+#         content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(5.8))
+#         content_frame = content_box.text_frame
+#         content_frame.word_wrap = True
         
-        if key == 'skills' and isinstance(section_data, dict):
-            for skill_type, skill_list in section_data.items():
-                if skill_list:
-                    p = content_frame.add_paragraph()
-                    p.text = f"{format_section_title(skill_type)}: {', '.join(skill_list)}"
-                    p.font.size = Pt(14)
-                    p.space_after = Pt(8)
-                    p.level = 0
+#         if key == 'skills' and isinstance(section_data, dict):
+#             for skill_type, skill_list in section_data.items():
+#                 if skill_list:
+#                     p = content_frame.add_paragraph()
+#                     p.text = f"{format_section_title(skill_type)}: {', '.join(skill_list)}"
+#                     p.font.size = Pt(14)
+#                     p.space_after = Pt(8)
+#                     p.level = 0
                     
-                    # Make skill type bold
-                    run = p.runs[0]
-                    run.font.bold = True
+#                     # Make skill type bold
+#                     run = p.runs[0]
+#                     run.font.bold = True
         
-        elif isinstance(section_data, list):
-            for item in section_data:
-                if isinstance(item, str):
-                    p = content_frame.add_paragraph()
-                    p.text = item
-                    p.font.size = Pt(14)
-                    p.space_after = Pt(6)
-                    p.level = 0
-                    continue
+#         elif isinstance(section_data, list):
+#             for item in section_data:
+#                 if isinstance(item, str):
+#                     p = content_frame.add_paragraph()
+#                     p.text = item
+#                     p.font.size = Pt(14)
+#                     p.space_after = Pt(6)
+#                     p.level = 0
+#                     continue
                 
-                if not isinstance(item, dict):
-                    continue
+#                 if not isinstance(item, dict):
+#                     continue
                 
-                # Extract item details
-                title_keys = ['title', 'name', 'degree']
-                subtitle_keys = ['company', 'institution', 'issuer', 'organization']
-                duration_keys = ['duration', 'date', 'period']
+#                 # Extract item details
+#                 title_keys = ['title', 'name', 'degree']
+#                 subtitle_keys = ['company', 'institution', 'issuer', 'organization']
+#                 duration_keys = ['duration', 'date', 'period']
                 
-                main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
-                subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
-                duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
+#                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
+#                 subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
+#                 duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
                 
-                # Add title paragraph
-                p = content_frame.add_paragraph()
-                title_text = main_title
-                if subtitle:
-                    title_text += f" • {subtitle}"
-                if duration:
-                    title_text += f" • {duration}"
-                p.text = title_text
-                p.font.size = Pt(16)
-                p.font.bold = True
-                p.font.color.rgb = RGBColor(31, 73, 125)
-                p.space_after = Pt(4)
-                p.level = 0
+#                 # Add title paragraph
+#                 p = content_frame.add_paragraph()
+#                 title_text = main_title
+#                 if subtitle:
+#                     title_text += f" • {subtitle}"
+#                 if duration:
+#                     title_text += f" • {duration}"
+#                 p.text = title_text
+#                 p.font.size = Pt(16)
+#                 p.font.bold = True
+#                 p.font.color.rgb = RGBColor(31, 73, 125)
+#                 p.space_after = Pt(4)
+#                 p.level = 0
                 
-                # Add description bullets
-                description_list_raw = item.get('description') or item.get('achievement') or item.get('details')
+#                 # Add description bullets
+#                 description_list_raw = item.get('description') or item.get('achievement') or item.get('details')
                 
-                if description_list_raw:
-                    if isinstance(description_list_raw, str):
-                        description_list = [description_list_raw]
-                    elif isinstance(description_list_raw, list):
-                        description_list = description_list_raw
-                    else:
-                        description_list = None
+#                 if description_list_raw:
+#                     if isinstance(description_list_raw, str):
+#                         description_list = [description_list_raw]
+#                     elif isinstance(description_list_raw, list):
+#                         description_list = description_list_raw
+#                     else:
+#                         description_list = None
                     
-                    if description_list:
-                        for desc in description_list:
-                            p = content_frame.add_paragraph()
-                            p.text = desc
-                            p.font.size = Pt(13)
-                            p.space_after = Pt(3)
-                            p.level = 1  # Indent for bullet points
+#                     if description_list:
+#                         for desc in description_list:
+#                             p = content_frame.add_paragraph()
+#                             p.text = desc
+#                             p.font.size = Pt(13)
+#                             p.space_after = Pt(3)
+#                             p.level = 1  # Indent for bullet points
                 
-                # Add spacing between items
-                p = content_frame.add_paragraph()
-                p.space_after = Pt(8)
+#                 # Add spacing between items
+#                 p = content_frame.add_paragraph()
+#                 p.space_after = Pt(8)
     
-    # Save to BytesIO
-    pptx_io = BytesIO()
-    prs.save(pptx_io)
-    pptx_io.seek(0)
-    return pptx_io.getvalue()
+#     # Save to BytesIO
+#     pptx_io = BytesIO()
+#     prs.save(pptx_io)
+#     pptx_io.seek(0)
+#     return pptx_io.getvalue()
 
-def get_pptx_download_link(data, filename_suffix=""):
-    """Generates a download link for a PPTX file."""
-    try:
-        pptx_data = generate_pptx_file(data)
-        b64_data = base64.b64encode(pptx_data).decode()
+# def get_pptx_download_link(data, filename_suffix=""):
+#     """Generates a download link for a PPTX file."""
+#     try:
+#         pptx_data = generate_pptx_file(data)
+#         b64_data = base64.b64encode(pptx_data).decode()
         
-        filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.pptx"
-        href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00CED1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
-        return href
-    except Exception as e:
-        st.error(f"Error generating PPTX: {str(e)}")
-        return f'<p style="color: red;">Error generating PPTX file. Please try again.</p>'
+#         filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.pptx"
+#         href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00CED1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
+#         return href
+#     except Exception as e:
+#         st.error(f"Error generating PPTX: {str(e)}")
+#         return f'<p style="color: red;">Error generating PPTX file. Please try again.</p>'
 
 # --- Main Application ---
 
@@ -1047,7 +1047,7 @@ def app_download():
     """, unsafe_allow_html=True)
 
     final_data = st.session_state.get('final_resume_data')
-    st.json(final_data)
+    # st.json(final_data)
 
     if final_data is None:
         st.error("❌ Resume data not found. Please return to the editor to finalize your resume.")
@@ -1154,14 +1154,14 @@ def app_download():
                 
                 st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
                 
-                st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
+                # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
                 
                 st.markdown("---")
                 st.caption("### 💡 Download Tips:")
                 st.caption("**HTML:** Best for web viewing")
                 st.caption("**PDF:** Open HTML → Print → Save as PDF")
                 st.caption("**DOC:** Edit in Microsoft Word")
-                st.caption("**PPTX:** Present resume in PowerPoint")
+                # st.caption("**PPTX:** Present resume in PowerPoint")
                 st.caption("**TXT:** Maximum ATS compatibility")
             
             # Preview
@@ -1326,10 +1326,10 @@ def app_download():
                         f"_{template_data['name'].replace(' ', '_')}"
                     ), unsafe_allow_html=True)
                     
-                    st.markdown(get_pptx_download_link(
-                        final_data,
-                        f"_{template_data['name'].replace(' ', '_')}"
-                    ), unsafe_allow_html=True)
+                    # st.markdown(get_pptx_download_link(
+                    #     final_data,
+                    #     f"_{template_data['name'].replace(' ', '_')}"
+                    # ), unsafe_allow_html=True)
                     
                     st.markdown("---")
                     st.caption("### 💡 Download Tips:")

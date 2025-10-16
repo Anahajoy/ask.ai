@@ -24,9 +24,7 @@ ATS_COLORS = {
     "Navy Blue": "#000080"
 }
 
-# Initialize session state for saved templates
-# if 'saved_templates' not in st.session_state:
-#     st.session_state.saved_templates = {}
+
 if 'uploaded_templates' not in st.session_state:
     st.session_state.uploaded_templates = {}
 
@@ -337,13 +335,13 @@ def format_year_only(date_str):
     if not date_str:
         return ""
     date_str = str(date_str).strip()
-    if len(date_str) == 4 and date_str.isdigit():  # Already a year
+    if len(date_str) == 4 and date_str.isdigit(): 
         return date_str
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d")
         return dt.strftime("%Y")
     except:
-        return date_str  # fallback if unknown format
+        return date_str  
 
 def generate_generic_html(data, date_placement='right'):
     """Generates clean HTML content based on resume data, showing only years for all dates."""
@@ -381,7 +379,6 @@ def generate_generic_html(data, date_placement='right'):
                 if skill_list:
                     html += f'<div class="ats-skills-group"><strong>{format_section_title(skill_type)}:</strong> {", ".join(skill_list)}</div>'
 
-        # Lists of items (experience, education, certifications, etc.)
         elif isinstance(section_data, list):
             for item in section_data:
                 if isinstance(item, str) and item.strip():
@@ -391,7 +388,7 @@ def generate_generic_html(data, date_placement='right'):
                 if not isinstance(item, dict):
                     continue
 
-                # Detect title, subtitle, duration
+      
                 title_keys = ['title', 'name', 'degree', 'certificate_name', 'course', 'position']
                 subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
                 duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
@@ -399,7 +396,7 @@ def generate_generic_html(data, date_placement='right'):
                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
                 subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
 
-                # Duration handling — always show only year
+              
                 start = format_year_only(item.get('start_date', ''))
                 end = format_year_only(item.get('end_date', ''))
 
@@ -408,7 +405,7 @@ def generate_generic_html(data, date_placement='right'):
                 else:
                     duration = next((format_year_only(item[k]) for k in duration_keys if k in item and item[k]), '')
 
-                # Skip item if no title, subtitle, and duration
+             
                 if not main_title and not subtitle and not duration:
                     continue
 
@@ -442,7 +439,7 @@ def generate_generic_html(data, date_placement='right'):
 
     return html
 
-# System Templates Configuration
+
 SYSTEM_TEMPLATES = {
     "Minimalist (ATS Best)": {
         "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
@@ -470,8 +467,6 @@ SYSTEM_TEMPLATES = {
     }
 }
 
-# --- File Upload and Parsing Functions ---
-
 def parse_uploaded_file(uploaded_file):
     """Parse uploaded resume file and extract template styling."""
     file_type = uploaded_file.name.split('.')[-1].lower()
@@ -498,11 +493,10 @@ def parse_uploaded_file(uploaded_file):
 
 def extract_template_from_html(html_content):
     """Extract CSS and structure from uploaded HTML."""
-    # Extract CSS
+
     css_match = re.search(r'<style[^>]*>(.*?)</style>', html_content, re.DOTALL)
     css = css_match.group(1) if css_match else ""
     
-    # Create template config
     template_id = hashlib.md5(html_content.encode()).hexdigest()[:8]
     
     return {
@@ -513,7 +507,6 @@ def extract_template_from_html(html_content):
         'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
-# --- Download Functions ---
 
 def generate_html_content(data, color, template_generator, css_generator):
     """Generates the full HTML document and returns base64-encoded string."""
@@ -544,42 +537,7 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
     href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00BFFF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
     return href
 
-def get_pdf_download_link(data, color, template_config, filename_suffix=""):
-    """Generate PDF download link."""
-    if 'html_generator' in template_config and 'css_generator' in template_config:
-        css = template_config['css_generator'](color)
-        html_body = template_config['html_generator'](data)
-    else:
-        css = template_config.get('css', '')
-        html_body = generate_generic_html(data)
-    
-    full_html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='UTF-8'>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{data.get('name', 'Resume')}</title>
-    <style>{css}</style>
-</head>
-<body>
-    <div class='ats-page'>
-        {html_body}
-    </div>
-</body>
-</html>"""
-    
-    b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
-    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_PDF{filename_suffix}.html"
-    
-    pdf_html = f"""
-    <a href="data:text/html;charset=utf-8;base64,{b64_data}" download="{filename}"
-       style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
-              background-color: #87CEFA; color: white; border-radius: 5px; 
-              display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
-        <strong>📄 Download for PDF Export (.html)</strong>
-    </a>
-    """
-    return pdf_html
+
 
 def generate_doc_html(data):
     """Generate a simple HTML that can be saved as .doc."""
@@ -698,19 +656,14 @@ def get_doc_download_link(data, color, template_config, filename_suffix=""):
     Microsoft Word-specific XML/CSS (like @page rules) added to the beginning, 
     allowing it to open and be formatted correctly in Word.
     """
-    # 1. Generate the content using the template, similar to get_pdf_download_link
+
     if 'html_generator' in template_config and 'css_generator' in template_config:
         css = template_config['css_generator'](color)
         html_body = template_config['html_generator'](data)
     else:
-        # Fallback to generic HTML if generators are missing, though ideally 
-        # a separate 'generic doc' function would be used for non-template content
-        # For this function, we stick to the template-based approach logic.
+       
         css = template_config.get('css', '')
-        html_body = generate_generic_html(data) # Assumes this fallback function is defined
-
-    # 2. Add Microsoft Word-specific headers for .doc compatibility
-    # These headers tell Word how to interpret the HTML for page layout etc.
+        html_body = generate_generic_html(data) #
     word_doc_header = f"""
 <html xmlns:o='urn:schemas-microsoft-com:office:office'
 xmlns:w='urn:schemas-microsoft-com:office:word'
@@ -735,12 +688,10 @@ xmlns='http://www.w3.org/TR/REC-html40'>
 </html>
 """
 
-    # 3. Encode the content and create the download link
-    # We use base64 and the 'application/msword' MIME type for the .doc download.
+   
     try:
         b64_data = base64.b64encode(word_doc_header.encode('utf-8')).decode()
     except NameError:
-        # Handle case where base64 module is not imported in the environment
         print("Error: 'base64' module not found. Please import it.")
         return ""
 
@@ -1141,11 +1092,11 @@ def app_download():
                     st.session_state.selected_template_config
                 ), unsafe_allow_html=True)
                 
-                st.markdown(get_pdf_download_link(
-                    final_data, 
-                    primary_color, 
-                    st.session_state.selected_template_config
-                ), unsafe_allow_html=True)
+                # st.markdown(get_pdf_download_link(
+                #     final_data, 
+                #     primary_color, 
+                #     st.session_state.selected_template_config
+                # ), unsafe_allow_html=True)
                 
                 st.markdown(get_doc_download_link(final_data, 
                     primary_color, 
@@ -1307,12 +1258,12 @@ def app_download():
                         f"_{template_data['name'].replace(' ', '_')}"
                     ), unsafe_allow_html=True)
                     
-                    st.markdown(get_pdf_download_link(
-                        final_data, 
-                        default_color, 
-                        temp_config,
-                        f"_{template_data['name'].replace(' ', '_')}"
-                    ), unsafe_allow_html=True)
+                    # st.markdown(get_pdf_download_link(
+                    #     final_data, 
+                    #     default_color, 
+                    #     temp_config,
+                    #     f"_{template_data['name'].replace(' ', '_')}"
+                    # ), unsafe_allow_html=True)
                     
                     st.markdown(get_doc_download_link(
                        final_data, 
@@ -1334,9 +1285,9 @@ def app_download():
                     st.markdown("---")
                     st.caption("### 💡 Download Tips:")
                     st.caption("**HTML:** Best for web viewing")
-                    st.caption("**PDF:** Open HTML → Print → Save as PDF")
+                    # st.caption("**PDF:** Open HTML → Print → Save as PDF")
                     st.caption("**DOC:** Edit in Microsoft Word")
-                    st.caption("**PPTX:** Present resume in PowerPoint")
+                    # st.caption("**PPTX:** Present resume in PowerPoint")
                     st.caption("**TXT:** Maximum ATS compatibility")
                 
                 # Preview

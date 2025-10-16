@@ -1279,7 +1279,7 @@ def app_download():
                 
     st.markdown("---")
     if st.button("⬅️ Go Back to Editor", use_container_width=True):
-        switch_page("job")
+        switch_page("create")
 
 if __name__ == '__main__':
     app_download()

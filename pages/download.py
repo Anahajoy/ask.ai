@@ -330,92 +330,103 @@ def get_css_classic(color):
         </style>
     """
 
+from datetime import datetime
+
+def format_year_only(date_str):
+    """Return only the year from a date string. If already a year, return as-is."""
+    if not date_str:
+        return ""
+    date_str = str(date_str).strip()
+    if len(date_str) == 4 and date_str.isdigit():  # Already a year
+        return date_str
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%Y")
+    except:
+        return date_str  # fallback if unknown format
+
 def generate_generic_html(data, date_placement='right'):
-    """Generates the HTML content based on data and template style choices."""
-    if not data: return ""
+    """Generates clean HTML content based on resume data, showing only years for all dates."""
+    if not data: 
+        return ""
+
+    # Header
     job_title_for_header = data.get('job_title', '')
     contacts = [data.get('phone'), data.get('email'), data.get('location')]
-    contacts_html = " | ".join([c for c in contacts if c])  # only non-empty fields
+    contacts_html = " | ".join([c for c in contacts if c])
 
-    html = f"""
-    <div class="ats-header">
-        <h1>{data.get('name', 'NAME MISSING')}</h1>
-        {f'<div class="ats-job-title-header">{job_title_for_header}</div>' if job_title_for_header else ''}
-        {f'<div class="ats-contact">{contacts_html}</div>' if contacts_html else ''}
-    </div>
-    """
+    html = f'<div class="ats-header">'
+    html += f'<h1>{data.get("name", "NAME MISSING")}</h1>'
+    if job_title_for_header:
+        html += f'<div class="ats-job-title-header">{job_title_for_header}</div>'
+    if contacts_html:
+        html += f'<div class="ats-contact">{contacts_html}</div>'
+    html += '</div>'
 
-    
     for key in RESUME_ORDER:
         section_data = data.get(key)
-        
-        if not section_data or (isinstance(section_data, list) and not section_data) or (key == 'summary' and not section_data):
+        if not section_data or (isinstance(section_data, list) and not section_data):
             continue
-            
+
         title = format_section_title(key)
         html += f'<div class="ats-section-title">{title}</div>'
-        
-        if key == 'summary' and isinstance(section_data, str):
-            html += f'<p style="margin-top: 0; margin-bottom: 5px;">{section_data}</p>'
-        
+
+        # Summary
+        if key == 'summary' and isinstance(section_data, str) and section_data.strip():
+            html += f'<p style="margin-top:0;margin-bottom:5px;">{section_data}</p>'
+
+        # Skills
         elif key == 'skills' and isinstance(section_data, dict):
             for skill_type, skill_list in section_data.items():
                 if skill_list:
-                    html += f'<div class="ats-skills-group">'
-                    html += f'<strong>{format_section_title(skill_type)}:</strong> '
-                    html += ", ".join(skill_list)
-                    html += f'</div>'
-        
+                    html += f'<div class="ats-skills-group"><strong>{format_section_title(skill_type)}:</strong> {", ".join(skill_list)}</div>'
+
+        # Lists of items (experience, education, certifications, etc.)
         elif isinstance(section_data, list):
             for item in section_data:
-                if isinstance(item, str):
+                if isinstance(item, str) and item.strip():
                     html += f'<ul class="ats-bullet-list"><li>{item}</li></ul>'
                     continue
-                
+
                 if not isinstance(item, dict):
                     continue
-                
-                # Added keys for certifications
-                title_keys = ['title', 'name', 'degree', 'certificate_name']
-                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name']
-                duration_keys = ['duration', 'date', 'period', 'completed_date']
-                
+
+                # Detect title, subtitle, duration
+                title_keys = ['title', 'name', 'degree', 'certificate_name', 'course', 'position']
+                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
+                duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
+
                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
                 subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
-                duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
+
+                # Duration handling — always show only year
+                start = format_year_only(item.get('start_date', ''))
+                end = format_year_only(item.get('end_date', ''))
+
+                if start or end:
+                    duration = f"{start} - {end}" if start and end else start or end
+                else:
+                    duration = next((format_year_only(item[k]) for k in duration_keys if k in item and item[k]), '')
+
+                # Skip item if no title, subtitle, and duration
+                if not main_title and not subtitle and not duration:
+                    continue
 
                 html += '<div class="ats-item-header">'
-                
-                if duration and date_placement == 'right':
-                    html += '<div class="ats-item-title-group">' 
-                    html += f'<span class="ats-item-title">{main_title}'
-                    if subtitle:
-                        html += f' <span class="ats-item-subtitle">{subtitle}</span>' 
-                    html += '</span>'
+                if main_title or subtitle:
+                    html += '<div class="ats-item-title-group">'
+                    if main_title:
+                        html += f'<span class="ats-item-title">{main_title}'
+                        if subtitle:
+                            html += f' <span class="ats-item-subtitle">{subtitle}</span>'
+                        html += '</span>'
                     html += '</div>'
+                if duration:
                     html += f'<div class="ats-item-duration">{duration}</div>'
-                
-                elif duration and date_placement == 'below':
-                    html += '<div class="ats-item-title-group">' 
-                    html += f'<span class="ats-item-title">{main_title}'
-                    if subtitle:
-                        html += f' <span class="ats-item-subtitle">{subtitle}</span>'
-                    html += '</span>'
-                    html += '</div>'
-                    html += f'<div class="ats-item-duration">{duration}</div>'
-                        
-                else: 
-                    html += '<div class="ats-item-title-group">' 
-                    html += f'<span class="ats-item-title">{main_title}'
-                    if subtitle:
-                        html += f' <span class="ats-item-subtitle">{subtitle}</span>'
-                    html += '</span>'
-                    html += '</div>'
-                        
                 html += '</div>'
-                
-                description_list_raw = item.get('description') or item.get('achievement') or item.get('details') 
 
+                # Description / Achievements
+                description_list_raw = item.get('description') or item.get('achievement') or item.get('details')
                 if description_list_raw:
                     if isinstance(description_list_raw, str):
                         description_list = [description_list_raw]
@@ -423,13 +434,13 @@ def generate_generic_html(data, date_placement='right'):
                         description_list = description_list_raw
                     else:
                         description_list = None
-                        
+
                     if description_list:
-                        bullet_html = "".join([f"<li>{line}</li>" for line in description_list])
-                        html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+                        bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line.strip()])
+                        if bullet_html:
+                            html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
 
     return html
-
 
 # System Templates Configuration
 SYSTEM_TEMPLATES = {

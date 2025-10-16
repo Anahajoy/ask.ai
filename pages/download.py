@@ -1128,13 +1128,48 @@ def app_download():
             """
             
             st.components.v1.html(full_html, height=1000, scrolling=True)
+            
 
     
     # --- TAB 3: UPLOAD NEW TEMPLATE ---
     with tab3:
-        st.markdown("### Upload Custom Template")
-        st.caption("Upload your own resume template (HTML, DOC, DOCX, PDF, PPT, PPTX)")
         
+        if st.session_state.get('template_source') == 'uploaded' and st.session_state.get('current_upload_id'):
+            template_id = st.session_state.current_upload_id
+            
+            # Check if template still exists
+            if template_id in st.session_state.uploaded_templates:
+                template_data = st.session_state.uploaded_templates[template_id]
+        if st.session_state.uploaded_templates:
+                st.markdown("### Previously Uploaded Templates")
+                
+                cols = st.columns(3)
+                for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
+                    with cols[idx % 3]:
+                        st.markdown(f"""
+                        <div class="template-card">
+                            <h4>{template_data['name']}</h4>
+                            <p style="font-size: 0.85em; color: #888;">File: {template_data['original_filename']}</p>
+                            <p style="font-size: 0.8em; color: #aaa;">Uploaded: {template_data['uploaded_at']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(f"Use", key=f"use_upload_{template_id}", use_container_width=True):
+                                st.session_state.selected_template = template_data['name']
+                                st.session_state.selected_template_config = template_data
+                                st.session_state.template_source = 'uploaded'
+                                st.session_state.current_upload_id = template_id
+                                st.rerun()
+                        
+                        with col2:
+                            if st.button(f"Delete", key=f"del_upload_{template_id}", use_container_width=True):
+                                del st.session_state.uploaded_templates[template_id]
+                                st.success(f"✅ Template deleted!")
+                                st.rerun()
+        st.caption("Upload your own resume template (HTML, DOC, DOCX, PDF, PPT, PPTX)")
+        st.markdown("### Upload Custom Template")
         uploaded_file = st.file_uploader(
             "Choose a file",
             type=['html', 'doc', 'docx', 'pdf', 'ppt', 'pptx'],
@@ -1147,8 +1182,20 @@ def app_download():
             with st.spinner("Parsing template..."):
                 parsed_template = parse_uploaded_file(uploaded_file)
             
-            if parsed_template:
-                st.success("✅ Template parsed successfully!")
+
+                st.markdown("### Preview Uploaded Template")
+                st.caption("Your resume data will be displayed using this template")
+                css = parsed_template.get('css', '')
+                html_body = generate_generic_html(final_data)
+                        
+                full_html = f"""
+                        <style>{css}</style>
+                        <div class="ats-page">
+                            {html_body}
+                        </div>
+                        """
+                
+                st.components.v1.html(full_html, height=1000, scrolling=True)
                 
                 col1, col2 = st.columns([2, 1])
                 with col1:
@@ -1176,139 +1223,63 @@ def app_download():
                         st.rerun()
                 
                 st.markdown("---")
-                st.markdown("### Preview Uploaded Template")
-                st.caption("Your resume data will be displayed using this template")
-                
-                # Preview with resume data
-                css = parsed_template.get('css', '')
-                html_body = generate_generic_html(final_data)
-                
-                full_html = f"""
-                <style>{css}</style>
-                <div class="ats-page">
-                    {html_body}
-                </div>
-                """
-                
-                st.components.v1.html(full_html, height=1000, scrolling=True)
-        
-        # Show uploaded templates
-        if st.session_state.uploaded_templates:
-            st.markdown("---")
-            st.markdown("### Previously Uploaded Templates")
-            st.success(f"✅ You have {len(st.session_state.uploaded_templates)} uploaded template(s)")
-            
-            cols = st.columns(3)
-            for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
-                with cols[idx % 3]:
-                    st.markdown(f"""
-                    <div class="template-card">
-                        <h4>{template_data['name']}</h4>
-                        <p style="font-size: 0.85em; color: #888;">File: {template_data['original_filename']}</p>
-                        <p style="font-size: 0.8em; color: #aaa;">Uploaded: {template_data['uploaded_at']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button(f"Use", key=f"use_upload_{template_id}", use_container_width=True):
-                            st.session_state.selected_template = template_data['name']
-                            st.session_state.selected_template_config = template_data
-                            st.session_state.template_source = 'uploaded'
-                            st.session_state.current_upload_id = template_id
-                            st.rerun()
-                    
-                    with col2:
-                        if st.button(f"Delete", key=f"del_upload_{template_id}", use_container_width=True):
-                            del st.session_state.uploaded_templates[template_id]
-                            st.success(f"✅ Template deleted!")
-                            st.rerun()
-        
-        # Show preview if uploaded template is selected
-        if st.session_state.get('template_source') == 'uploaded' and st.session_state.get('current_upload_id'):
-            template_id = st.session_state.current_upload_id
-            
-            # Check if template still exists
-            if template_id in st.session_state.uploaded_templates:
-                st.markdown("---")
-                template_data = st.session_state.uploaded_templates[template_id]
-                st.markdown(f"### Preview: {template_data['name']}")
-                
                 with st.sidebar:
                     st.subheader("⚙️ Template Settings")
-                    st.info(f"Using uploaded template: **{template_data['name']}**")
-                    st.caption(f"Original file: {template_data['original_filename']}")
+                    
+                    color_name = st.selectbox(
+                        'Choose Accent Color:',
+                        list(ATS_COLORS.keys()),
+                        key='sys_color_select'
+                    )
+                    primary_color = ATS_COLORS[color_name]
+                    
+                    custom_color = st.color_picker(
+                        'Custom Color (Advanced):',
+                        primary_color,
+                        key='sys_color_picker'
+                    )
+                    
+                    if custom_color != primary_color:
+                        primary_color = custom_color
+                    
                     
                     st.markdown("---")
                     st.markdown("### 💾 Download Options")
                     
-                    # For uploaded templates, we'll use a default color
-                    default_color = "#1F497D"
-                    
-                    # Create a temporary config for download
-                    temp_config = {
-                        'css_generator': lambda color: f"<style>{template_data['css']}</style>",
-                        'html_generator': lambda data: generate_generic_html(data)
-                    }
-                    
+                    # Download buttons
                     st.markdown(get_html_download_link(
                         final_data, 
-                        default_color, 
-                        temp_config,
-                        f"_{template_data['name'].replace(' ', '_')}"
+                        primary_color, 
+                        st.session_state.selected_template_config
                     ), unsafe_allow_html=True)
                     
                     # st.markdown(get_pdf_download_link(
                     #     final_data, 
-                    #     default_color, 
-                    #     temp_config,
-                    #     f"_{template_data['name'].replace(' ', '_')}"
+                    #     primary_color, 
+                    #     st.session_state.selected_template_config
                     # ), unsafe_allow_html=True)
                     
-                    st.markdown(get_doc_download_link(
-                       final_data, 
-                        default_color, 
-                        temp_config,
-                        f"_{template_data['name'].replace(' ', '_')}"
+                    st.markdown(get_doc_download_link(final_data, 
+                        primary_color, 
+                        st.session_state.selected_template_config
                     ), unsafe_allow_html=True)
                     
-                    st.markdown(get_text_download_link(
-                        final_data,
-                        f"_{template_data['name'].replace(' ', '_')}"
-                    ), unsafe_allow_html=True)
+                    st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
                     
-                    # st.markdown(get_pptx_download_link(
-                    #     final_data,
-                    #     f"_{template_data['name'].replace(' ', '_')}"
-                    # ), unsafe_allow_html=True)
+                    # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
                     
                     st.markdown("---")
                     st.caption("### 💡 Download Tips:")
                     st.caption("**HTML:** Best for web viewing")
-                    # st.caption("**PDF:** Open HTML → Print → Save as PDF")
+                    st.caption("**PDF:** Open HTML → Print → Save as PDF")
                     st.caption("**DOC:** Edit in Microsoft Word")
                     # st.caption("**PPTX:** Present resume in PowerPoint")
                     st.caption("**TXT:** Maximum ATS compatibility")
                 
-                # Preview
-                css = template_data.get('css', '')
-                html_body = generate_generic_html(final_data)
                 
-                full_html = f"""
-                <style>{css}</style>
-                <div class="ats-page">
-                    {html_body}
-                </div>
-                """
-                
-                st.components.v1.html(full_html, height=1000, scrolling=True)
-            else:
-                st.warning("⚠️ Selected template no longer exists. Please select another template.")
-
-    # Back button
     st.markdown("---")
     if st.button("⬅️ Go Back to Editor", use_container_width=True):
-        switch_page("main")
+        switch_page("job")
 
 if __name__ == '__main__':
     app_download()

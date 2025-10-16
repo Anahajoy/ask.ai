@@ -966,8 +966,9 @@ def app_download():
     st.set_page_config(layout="wide", page_title="Download Resume")
     st.markdown("""
         <style>
-        [data-testid="collapsedControl"] {
-            display: none;
+         /* Hides Streamlit Navigation/Pages */
+        [data-testid="stSidebarNav"] {
+            display: none !important;
         }
         .stApp {
             background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)),

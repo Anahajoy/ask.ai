@@ -4,6 +4,8 @@ from streamlit_extras.switch_page_button import switch_page
 from copy import deepcopy
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
+del st.session_state['enhanced_resume']
+
 
 # --- Configuration & Data Retrieval ---
 resume_data = st.session_state.get('resume_source')

@@ -333,20 +333,18 @@ def get_css_classic(color):
 def generate_generic_html(data, date_placement='right'):
     """Generates the HTML content based on data and template style choices."""
     if not data: return ""
-    
     job_title_for_header = data.get('job_title', '')
+    contacts = [data.get('phone'), data.get('email'), data.get('location')]
+    contacts_html = " | ".join([c for c in contacts if c])  # only non-empty fields
 
     html = f"""
     <div class="ats-header">
         <h1>{data.get('name', 'NAME MISSING')}</h1>
         {f'<div class="ats-job-title-header">{job_title_for_header}</div>' if job_title_for_header else ''}
-        <div class="ats-contact">
-            <span>{data.get('phone', '')}</span>
-            <span>{data.get('email', '')}</span>
-            <span>{data.get('location', '')}</span>
-        </div>
+        {f'<div class="ats-contact">{contacts_html}</div>' if contacts_html else ''}
     </div>
     """
+
     
     for key in RESUME_ORDER:
         section_data = data.get(key)
@@ -377,9 +375,10 @@ def generate_generic_html(data, date_placement='right'):
                 if not isinstance(item, dict):
                     continue
                 
-                title_keys = ['title', 'name', 'degree']
-                subtitle_keys = ['company', 'institution', 'issuer', 'organization']
-                duration_keys = ['duration', 'date', 'period']
+                # Added keys for certifications
+                title_keys = ['title', 'name', 'degree', 'certificate_name']
+                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name']
+                duration_keys = ['duration', 'date', 'period', 'completed_date']
                 
                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
                 subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
@@ -430,6 +429,7 @@ def generate_generic_html(data, date_placement='right'):
                         html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
 
     return html
+
 
 # System Templates Configuration
 SYSTEM_TEMPLATES = {
@@ -1036,6 +1036,7 @@ def app_download():
     """, unsafe_allow_html=True)
 
     final_data = st.session_state.get('final_resume_data')
+    st.json(final_data)
 
     if final_data is None:
         st.error("❌ Resume data not found. Please return to the editor to finalize your resume.")

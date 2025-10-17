@@ -36,6 +36,7 @@ header {visibility: hidden;}
 
 /* Color Palette Variables - Winter Theme */
 :root {
+    --primary-blue: #2563eb;
     --primary-color: #1a2332; /* Deep Navy Blue */
     --secondary-color: #e8f4f8; /* Icy White/Light Blue */
     --accent-color: #4a9eff; /* Cool Sky Blue */
@@ -50,11 +51,11 @@ header {visibility: hidden;}
 
 /* Main App Background - Winter landscape */
 .stApp {
-    background: linear-gradient(rgba(26, 35, 50, 0.75), rgba(74, 158, 255, 0.65)),
-                url('https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?q=80&w=2676&auto=format&fit=crop') center/cover;
-    background-attachment: fixed;
-    min-height: 100vh;
-}
+        background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        color: var(--text-black);
+    }
 
 /* Main Container - Centralized and controlled width */
 .block-container {
@@ -63,20 +64,35 @@ header {visibility: hidden;}
     margin: 0 auto;
 }
 
-/* Header Section Styling (Winter Card) */
-.header-container {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    border-radius: 24px;
-    padding: 2.5rem;
-    margin-bottom: 2.5rem;
-    box-shadow: 0 10px 40px rgba(74, 158, 255, 0.25), 0 0 60px rgba(180, 224, 255, 0.15);
-    border: 2px solid var(--card-border);
-}
+
+
+
+    /* Header Section */
+    .header-container {
+        background: var(--bg-white);
+        border-radius: 16px;
+        padding: 2rem 2.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-gray);
+        box-shadow: var(--shadow-lg);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .header-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-blue), var(--accent-cyan), var(--accent-purple));
+    }
+
 
 /* Title Styling */
 h1 {
-    color: var(--text-light) !important;
+    color: var(--text-black) !important;
     font-weight: 800 !important;
     margin-bottom: 0.5rem !important;
     font-size: 2.8rem !important;
@@ -86,7 +102,7 @@ h1 {
 
 /* Subtitle/Welcome Text */
 .welcome-text {
-    color: var(--secondary-color);
+    color: var(--text-black) !important;
     font-size: 1.1rem;
     margin-bottom: 0;
     font-weight: 400;
@@ -94,14 +110,14 @@ h1 {
 }
 
 .welcome-text strong {
-    color: var(--accent-ice);
+    color: var(--text-black) !important;
     font-weight: 600;
 }
 
 /* Logout Button - Minimal/Dark Style */
 .stButton > button[key="log-outbtn"] {
-    background: var(--card-bg) !important;
-    color: var(--secondary-color) !important;
+    background: var(--primary-blue-dark) !important;
+    color: var(--text-black) !important;
     border: 1px solid var(--card-border) !important;
     border-radius: 12px !important;
     padding: 0.75rem 1.5rem !important;
@@ -114,16 +130,16 @@ h1 {
 }
 
 .stButton > button[key="log-outbtn"]:hover {
-    background: var(--accent-color) !important;
+    background: var(--primary-blue-dark) !important;
     border-color: var(--accent-color) !important;
     transform: translateY(-2px) !important;
-    color: var(--text-light) !important;
+    color: var(--text-black) !important;
     box-shadow: 0 6px 15px rgba(74, 158, 255, 0.4) !important;
 }
 
 /* Section Headers (Steps) */
 h2 {
-    color: var(--text-light) !important;
+    color: var(--text-black) !important;
     font-weight: 700 !important;
     margin-top: 3rem !important;
     margin-bottom: 1.5rem !important;
@@ -139,8 +155,8 @@ h2 {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-ice) 100%);
-    color: white;
+    background:  var(--primary-blue) !important;
+    color:  #ffffff;
     width: 45px;
     height: 45px;
     border-radius: 14px;
@@ -153,7 +169,7 @@ h2 {
 
 /* Sub-section Headers */
 h3 {
-    color: var(--text-dark) !important;
+    color: var(--text-black) !important;
     font-weight: 600 !important;
     margin-top: 1.5rem !important;
     margin-bottom: 1rem !important;
@@ -163,7 +179,7 @@ h3 {
 /* Radio Buttons - Clean and Dark/Light Contrast */
 .stRadio > label {
     font-weight: 600 !important;
-    color: var(--text-light) !important;
+    color: var(--text-black) !important;
     font-size: 1.05rem !important;
     margin-bottom: 1rem !important;
 }
@@ -187,7 +203,7 @@ h3 {
     font-weight: 500 !important;
     font-size: 1rem !important;
     cursor: pointer !important;
-    color: var(--secondary-color) !important;
+    color: var(--text-black) !important;
 }
 
 .stRadio > div > label:hover {
@@ -216,7 +232,7 @@ h3 {
     padding: 1rem 1.25rem !important;
     font-size: 1rem !important;
     transition: all 0.3s ease !important;
-    color: var(--text-dark) !important;
+    color: var(--text-black) !important;
     font-weight: 400 !important;
 }
 
@@ -232,7 +248,7 @@ h3 {
 }
 
 .stTextInput > div > div > input::placeholder {
-    color: #9ca3af !important;
+    color: var(--text-black) !important;
     opacity: 1 !important;
 }
 
@@ -244,7 +260,7 @@ h3 {
 .stRadio > label,
 .stTextArea > label {
     font-weight: 500 !important;
-    color: var(--secondary-color) !important;
+    color: var(--text-black) !important;
     font-size: 0.95rem !important;
     margin-bottom: 0.6rem !important;
     letter-spacing: 0.2px !important;
@@ -283,8 +299,8 @@ h3 {
 .stApp .stButton > button,
 .stApp button[class*="stButton"],
 .stApp div.stButton button {
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
-    color: #ffffff !important;
+    background: var(--primary-blue) !important;
+    color:#ffffff !important;
     border: none !important;
     box-shadow: 0 6px 18px rgba(74,158,255,0.28) !important;
     padding: 0.9rem 1.6rem !important;
@@ -305,7 +321,7 @@ h3 {
 /* Specific keyed buttons (your keys) — explicit overrides */
 .stApp .stButton > button[key="jb-btn"],
 .stApp button[key="jb-btn"] {
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
+    background: var(--primary-blue) !important;
     color: #ffffff !important;
     width: 100% !important;           /* keep your full-width CTA */
     padding: 1rem 2rem !important;
@@ -316,8 +332,8 @@ h3 {
 .stApp button[key="add-new-resume-btn"],
 .stApp .stButton > button[key="go-to-main-btn"],
 .stApp button[key="go-to-main-btn"] {
-    background: var(--accent-ice) !important;
-    color: var(--text-dark) !important;
+    background: var(--primary-blue) !important;
+    color:  #ffffff !important;
     box-shadow: 0 4px 12px rgba(180,224,255,0.25) !important;
 }
 
@@ -490,7 +506,7 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">2</span>Personal Information</h2>', unsafe_allow_html=True)
     
     # Wrap in a card for styling
-    st.markdown('<div class="experience-card">', unsafe_allow_html=True)
+    # st.markdown('<div class="experience-card">', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         name = st.text_input("Full Name *", placeholder="e.g., John Smith", key="name_input")
@@ -517,7 +533,7 @@ if input_method == "Manual Entry":
     
     for idx, i in enumerate(st.session_state.exp_indices):
         with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
             st.markdown(f'<p class="card-badge">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([3, 3, 1])
@@ -569,7 +585,7 @@ if input_method == "Manual Entry":
     
     for idx, i in enumerate(st.session_state.edu_indices):
         with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
             st.markdown(f'<p class="card-badge">EDUCATION {idx + 1}</p>', unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([3, 3, 1])
@@ -609,7 +625,7 @@ if input_method == "Manual Entry":
     
     for idx, i in enumerate(st.session_state.cert_indices):
         with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
             st.markdown(f'<p class="card-badge">CERTIFICATION {idx + 1}</p>', unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([3, 3, 1])
@@ -647,7 +663,7 @@ if input_method == "Manual Entry":
     
     for idx, i in enumerate(st.session_state.project_indices):
         with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
             st.markdown(f'<p class="card-badge">PROJECT {idx + 1}</p>', unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([3, 3, 1])

@@ -5,7 +5,8 @@ import re
 
 # Page configuration
 st.set_page_config(page_title="Loging Page", layout="wide", initial_sidebar_state="collapsed")
-# hide_streamlit_elements()
+st.cache_data.clear()  # ✅ Clears Streamlit's memory cache
+st.cache_resource.clear()  # ✅ Clears resource cache
 
 # Initialize session state
 if 'mode' not in st.session_state:

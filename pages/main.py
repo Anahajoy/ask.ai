@@ -1,5 +1,6 @@
 import streamlit as st
-from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, save_user_resume
+from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, save_user_resume,load_skills_from_json
+
 
 
 # Initialize session state variables
@@ -12,11 +13,7 @@ if "cert_indices" not in st.session_state:
 if "project_indices" not in st.session_state:
     st.session_state.project_indices = [0]
 
-# --- Custom CSS for Black/White/Grey Theme with Tangerine Accent ---
-# The background image URL provided is a placeholder. You'll need to update 
-# the 'url()' in the .stApp selector below to the actual URL you use for your 
-# login page's best background, or a similar image for consistency.
-# --- Custom CSS for Winter Theme ---
+
 st.markdown("""
 <style>
             
@@ -503,7 +500,8 @@ if input_method == "Manual Entry":
         # Placeholder for utility function call
         # roles_list = get_all_roles_from_llm() 
         # role = st.multiselect("Target Role *", options=roles_list, help="Select the job role(s) you're targeting")
-        all_skills_list = ["Python", "JavaScript", "SQL", "Cloud Computing", "Project Management", "Data Analysis"] # Placeholder list
+        all_skills_list = load_skills_from_json()
+
         skills = st.multiselect(
             "Your Core Skills *",
             options=all_skills_list,
@@ -526,10 +524,8 @@ if input_method == "Manual Entry":
             with col1:
                 company_name = st.text_input("Company Name", key=f"company_{i}", placeholder="e.g., Google Inc.")
                 position_name = st.text_input("Position", key=f"position_{i}", placeholder="e.g., Senior Developer")
-                
-                # Placeholder for utility function call
-                # exp_skills_list = get_all_skills_from_llm()
-                exp_skills_list = ["Team Leadership", "Frontend", "Backend", "Agile", "DevOps"] # Placeholder list
+
+                exp_skills_list = load_skills_from_json()    
                 exp_skills = st.multiselect(
                     "Skills Used (Experience)",
                     options=exp_skills_list,

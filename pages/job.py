@@ -2,7 +2,7 @@ import streamlit as st
 import json
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 
-# --- Modern Professional Theme CSS ---
+# --- Modern Dark Professional Theme CSS ---
 st.markdown("""
 <style>
     [data-testid="stSidebar"] {display: none;}
@@ -11,49 +11,42 @@ st.markdown("""
 
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    /* Color Palette Variables */
     :root {
-        --primary-blue: #2563eb;
-        --primary-blue-dark: #1e40af;
-        --primary-blue-light: #3b82f6;
-        --accent-cyan: #06b6d4;
-        --accent-purple: #8b5cf6;
-        --bg-white: #ffffff;
-        --bg-gray-50: #f9fafb;
-        --bg-gray-100: #f3f4f6;
-        --text-black: #111827;
-        --text-gray-700: #374151;
-        --text-gray-600: #4b5563;
-        --text-gray-500: #6b7280;
-        --border-gray: #e5e7eb;
-        --border-gray-light: #f3f4f6;
-        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        --accent-gradient: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F);
+        --accent-solid1: #00BFFF;
+        --accent-solid2: #00FF7F;
+
+        --bg-dark: #0a0a0a;
+        --bg-darker: #121212;
+        --bg-gray: #1a1a1a;
+        --text-white: #FFFFFF;
+        --text-gray: #e0e0e0;
+        --border-gray: #333333;
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
     }
 
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    /* App Background - Clean White */
+    /* Background */
     .stApp {
-        background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
-        background-attachment: fixed;
+        background: var(--bg-dark);
         min-height: 100vh;
-        color: var(--text-black);
+        color: var(--text-white);
     }
 
     .block-container {
         max-width: 900px;
         padding: 3rem 2rem;
         margin: 0 auto;
+        color: var(--text-white);
     }
 
-    /* Header Section */
+    /* Header */
     .header-section {
-        background: var(--bg-white);
+        background: var(--bg-darker);
         border-radius: 16px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
@@ -61,6 +54,7 @@ st.markdown("""
         box-shadow: var(--shadow-lg);
         position: relative;
         overflow: hidden;
+        color: var(--text-white);
     }
 
     .header-section::before {
@@ -70,22 +64,21 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--primary-blue), var(--accent-cyan), var(--accent-purple));
+        background: var(--accent-gradient);
     }
 
     h2 {
-        color: var(--text-black) !important;
+        color: var(--accent-solid1) !important;
         font-weight: 700 !important;
         font-size: 2rem !important;
         display: flex;
         align-items: center;
         gap: 1rem;
-        margin: 0 !important;
     }
 
     .step-badge {
-        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light));
-        color: white;
+        background: var(--accent-gradient);
+        color: var(--text-white);
         width: 48px;
         height: 48px;
         border-radius: 12px;
@@ -93,99 +86,44 @@ st.markdown("""
         line-height: 48px;
         font-weight: 700;
         font-size: 1.3rem;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 191, 255, 0.3);
     }
 
-    /* Returning User Alert */
+    /* Returning user alert */
     .returning-user-alert {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-        border: 1px solid #93c5fd;
-        border-left: 4px solid var(--primary-blue);
+        background: linear-gradient(135deg, #1b1b1b, #222222);
+        border: 1px solid #444444;
+        border-left: 4px solid var(--accent-solid1);
         border-radius: 12px;
         padding: 1.5rem 2rem;
         margin-bottom: 2rem;
         box-shadow: var(--shadow-md);
+        color: var(--text-white);
     }
 
-    .returning-user-alert h3 {
-        color: var(--text-black) !important;
-        font-size: 1.3rem !important;
-        font-weight: 600 !important;
-        margin-bottom: 0.5rem;
-    }
-
-    .returning-user-alert p {
-        color: var(--text-gray-700) !important;
-        font-size: 0.95rem;
-        line-height: 1.6;
-        margin: 0;
-    }
-
-    /* Content Container */
+    /* Container */
     .content-container {
-        background: var(--bg-white);
+        background: var(--bg-darker);
         border-radius: 16px;
         padding: 2.5rem;
         box-shadow: var(--shadow-lg);
         border: 1px solid var(--border-gray);
+        color: var(--text-white);
     }
 
-    /* Labels - Black Text */
-    label, .stApp label, .stRadio label, .stRadio > label, .stTextArea label {
-        color: var(--text-black) !important;
+    /* Labels */
+    label, .stApp label {
+        color: var(--text-white) !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
-        margin-bottom: 0.8rem !important;
-        letter-spacing: -0.01em;
-    }
-    
-    /* Radio Button Styling */
-    .stRadio > div {
-        background: var(--bg-gray-50);
-        padding: 1rem;
-        border-radius: 12px;
-        border: 1px solid var(--border-gray);
-        gap: 1rem;
-    }
-    
-    .stRadio > div > label {
-        background: var(--bg-white);
-        border: 2px solid var(--border-gray);
-        border-radius: 10px;
-        padding: 0.75rem 1.25rem;
-        margin: 0.25rem;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-    
-    .stRadio > div > label:hover {
-        border-color: var(--primary-blue);
-        background: var(--bg-gray-50);
-    }
-    
-    .stRadio > div > label > div {
-        color: var(--text-black) !important;
-        font-weight: 500 !important;
-    }
-    
-    .stRadio > div > label > div[data-baseweb="radio"] > div {
-        background-color: var(--bg-white) !important;
-        border-color: var(--primary-blue) !important;
-        border-width: 2px !important;
-    }
-    
-    .stRadio > div > label > div[data-baseweb="radio"] > div:first-child {
-        background-color: var(--primary-blue) !important;
     }
 
-    /* Button Styling */
-    .stApp .stButton > button,
-    .stApp button[class*="stButton"],
-    .stApp div.stButton button {
-        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light)) !important;
-        color: white !important;
+    /* Buttons */
+    .stApp .stButton > button {
+        background: var(--accent-gradient) !important;
+        color: var(--text-white) !important;
         border: none !important;
-        box-shadow: var(--shadow-md) !important;
+        box-shadow: var(--shadow-md);
         padding: 0.75rem 1.5rem !important;
         font-weight: 600 !important;
         border-radius: 10px !important;
@@ -194,155 +132,69 @@ st.markdown("""
         font-size: 0.95rem !important;
     }
 
-    .stApp .stButton > button > div > p,
-    .stApp .stButton > button > span,
-    .stApp button > div > p {
-        color: white !important;
-        font-weight: 600 !important;
+    .stApp .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        opacity: 0.9;
     }
 
-    .stApp .stButton > button[key="jb-btn"],
-    .stApp button[key="jb-btn"] {
-        background: linear-gradient(135deg, var(--primary-blue), var(--accent-cyan)) !important;
-        width: 100% !important;
-        padding: 1rem 2rem !important;
-        font-size: 1rem !important;
-        font-weight: 700 !important;
+    /* Special buttons */
+    .stApp .stButton > button[key="add-new-resume-btn"] {
+        background: var(--bg-gray) !important;
+        color: var(--accent-solid1) !important;
+        border: 2px solid var(--accent-solid1) !important;
     }
 
-    .stApp .stButton > button[key="add-new-resume-btn"],
-    .stApp button[key="add-new-resume-btn"] {
-        background: var(--bg-white) !important;
-        color: var(--primary-blue) !important;
-        border: 2px solid var(--primary-blue) !important;
-        box-shadow: var(--shadow-sm) !important;
-    }
-
-    .stApp .stButton > button[key="add-new-resume-btn"]:hover,
-    .stApp button[key="add-new-resume-btn"]:hover {
-        background: var(--bg-gray-50) !important;
-        border-color: var(--primary-blue-dark) !important;
-    }
-
-    .stApp .stButton > button[key="go-to-main-btn"],
-    .stApp button[key="go-to-main-btn"] {
-        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light)) !important;
-        color: white !important;
-    }
-
-    .stApp .stButton > button:hover,
-    .stApp button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: var(--shadow-lg) !important;
-    }
-
-    /* Text Areas - White Background with Black Text */
-    textarea, .stTextArea > div > div > textarea {
-        background: var(--bg-white) !important;
-        border: 2px solid var(--border-gray) !important;
-        border-radius: 12px !important;
-        color: var(--text-black) !important;
-        padding: 1rem !important;
-        font-size: 0.95rem !important;
-        line-height: 1.6 !important;
-        transition: all 0.2s ease;
-        font-weight: 400 !important;
-    }
-    
-    textarea::placeholder {
-        color: var(--text-gray-500) !important;
-        opacity: 1 !important;
-    }
-
-    textarea:focus {
-        border-color: var(--primary-blue) !important;
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1), var(--shadow-md) !important;
-        background: var(--bg-white) !important;
-        outline: none !important;
-    }
-    
-    .stTextArea small, .help-text {
-        color: var(--text-gray-600) !important;
-        font-size: 0.85rem !important;
+    .stApp .stButton > button[key="add-new-resume-btn"]:hover {
+        background: #222222 !important;
     }
 
     /* File Uploader */
     .stFileUploader {
-        background: var(--bg-gray-50) !important;
-        border: 2px dashed var(--border-gray) !important;
-        border-radius: 12px !important;
-        padding: 2.5rem !important;
+        background: var(--bg-gray);
+        border: 2px dashed var(--border-gray);
+        border-radius: 12px;
+        padding: 2.5rem;
         transition: 0.3s ease;
+        color: var(--text-white);
     }
 
     .stFileUploader:hover {
-        border-color: var(--primary-blue) !important;
-        background: var(--bg-white) !important;
+        border-color: var(--accent-solid1);
         box-shadow: var(--shadow-md);
     }
-    
-    .stFileUploader label {
-        color: var(--text-black) !important;
-        font-weight: 600 !important;
-    }
-    
-    .stFileUploader section {
-        color: var(--text-gray-600) !important;
-    }
-    
+
     .stFileUploader section button {
-        background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light)) !important;
-        color: white !important;
-        border: none !important;
+        background: var(--accent-gradient) !important;
+        color: var(--text-white) !important;
         border-radius: 8px !important;
         padding: 0.6rem 1.2rem !important;
-        font-weight: 600 !important;
-    }
-    
-    .stFileUploader section small {
-        color: var(--text-gray-500) !important;
+        font-weight: 600;
     }
 
-    /* Success/Error Messages */
-    .stSuccess, .stError, .stWarning {
+    /* Textarea */
+    textarea, .stTextArea > div > div > textarea {
+        background: var(--bg-gray) !important;
+        border: 2px solid var(--border-gray) !important;
         border-radius: 12px !important;
-        padding: 1rem 1.2rem !important;
-        font-weight: 500;
-        border-left: 4px solid;
+        color: var(--text-white) !important;
+        padding: 1rem !important;
+        transition: all 0.2s ease;
     }
 
-    .stSuccess {
-        background: #f0fdf4 !important;
-        border-color: #22c55e !important;
-        color: #166534 !important;
+    textarea:focus {
+        border-color: var(--accent-solid1) !important;
+        box-shadow: 0 0 0 3px rgba(0,191,255,0.15);
     }
 
-    .stError {
-        background: #fef2f2 !important;
-        border-color: #ef4444 !important;
-        color: #991b1b !important;
-    }
-    
-    .stWarning {
-        background: #fffbeb !important;
-        border-color: #f59e0b !important;
-        color: #92400e !important;
-    }
-
-    /* Spinner */
-    .stSpinner > div {
-        border-top-color: var(--primary-blue) !important;
-    }
-
-    /* Help text paragraphs */
-    p.help-text {
-        color: var(--text-gray-600) !important;
-        font-size: 0.875rem;
-        margin-top: 0.5rem;
-    }
+    /* Success/Error/Warning messages */
+    .stSuccess {background: #0f2d0f !important; border-left: 4px solid #22c55e; color: var(--text-white);}
+    .stError {background: #2a0a0a !important; border-left: 4px solid #ef4444; color: var(--text-white);}
+    .stWarning {background: #2a1a00 !important; border-left: 4px solid #f59e0b; color: var(--text-white);}
 
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # Check if user is logged in

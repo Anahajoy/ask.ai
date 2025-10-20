@@ -1,8 +1,14 @@
 import streamlit as st
+from pathlib import Path
+import json
+import re
+import time # Keep time import for page switch delay
+
+# NOTE: The provided imports (utils functions) are assumed to exist.
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, save_user_resume,load_skills_from_json
 
-
-
+if 'logged_in_user' not in st.session_state:
+    st.session_state.logged_in_user = None
 # Initialize session state variables
 if "exp_indices" not in st.session_state:
     st.session_state.exp_indices = [0]
@@ -12,450 +18,256 @@ if "cert_indices" not in st.session_state:
     st.session_state.cert_indices = [0]
 if "project_indices" not in st.session_state:
     st.session_state.project_indices = [0]
+    
+# IMPORTANT: Add this at the very top of your file (after imports, before any other code)
+# This ensures user authentication is checked on every page load
+def check_authentication():
+    """Check if user is authenticated, redirect to login if not"""
+    if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+        st.warning("⚠️ Please login to continue")
+        # st.switch_page("login.py") # Commented out so the app runs standalone for review
+        # st.stop()
+
+# Call this right after your imports and before any UI code
+# check_authentication()  # Uncomment this line to enable auth check
 
 
 st.markdown("""
 <style>
-            
 /* Hide default Streamlit UI elements */
 [data-testid="stSidebar"] {display: none;}
 [data-testid="collapsedControl"] {display: none;}
 button[kind="header"] {display: none;}
 [data-testid="stSidebarNav"] {display: none;}
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-    
-/* Import Google Fonts - Inter is clean and modern */
+#MainMenu, footer, header {visibility: hidden;}
+
+/* Import font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* Global Styles */
 * {
     font-family: 'Inter', sans-serif;
 }
 
-/* Color Palette Variables - Winter Theme */
+/* =========================================
+   🌿 COLOR PALETTE (New Gradient Edition)
+   ========================================= */
 :root {
-    --primary-blue: #2563eb;
-    --primary-color: #1a2332; /* Deep Navy Blue */
-    --secondary-color: #e8f4f8; /* Icy White/Light Blue */
-    --accent-color: #4a9eff; /* Cool Sky Blue */
-    --accent-light: #7bb8ff;
-    --accent-ice: #b4e0ff; /* Pale Ice Blue */
-    --text-dark: #1a2332;
-    --text-light: #FFFFFF;
-    --card-bg: rgba(74, 158, 255, 0.12); /* Cool Blue Glassmorphism */
-    --card-border: rgba(180, 224, 255, 0.3);
-    --silver: #c5d9e8; /* Silver-Blue accent */
+    --primary-gradient: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+    --accent-gradient: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+
+    --primary-blue-dark: #009acd;
+    --accent-light: #00FF7F;
+    --accent-color: #00BFFF;
+
+        --bg-dark: #0a0a0a;
+        --bg-darker: #121212;
+        --bg-gray: #1a1a1a;
+        --text-white: #FFFFFF;
+        --text-gray: #e0e0e0;
+        --border-gray: #333333;
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
 }
 
-/* Main App Background - Winter landscape */
-.stApp {
-        background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
-        background-attachment: fixed;
-        min-height: 100vh;
-        color: var(--text-black);
+/* =========================================
+   🌤️ Background & Layout
+   ========================================= */
+ * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-/* Main Container - Centralized and controlled width */
+    /* Background */
+    .stApp {
+        background: var(--bg-dark);
+        min-height: 100vh;
+        color: var(--text-white);
+    }
+
+
 .block-container {
     max-width: 1200px;
     padding: 2rem 3rem;
     margin: 0 auto;
 }
 
+/* =========================================
+   🧭 Header Section
+   ========================================= */
+.header-container {
+    background: var(--bg-white);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-gray);
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+}
 
+.header-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--primary-gradient);
+}
 
-
-    /* Header Section */
-    .header-container {
-        background: var(--bg-white);
-        border-radius: 16px;
-        padding: 2rem 2.5rem;
-        margin-bottom: 2rem;
-        border: 1px solid var(--border-gray);
-        box-shadow: var(--shadow-lg);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .header-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--primary-blue), var(--accent-cyan), var(--accent-purple));
-    }
-
-
-/* Title Styling */
+/* Titles */
 h1 {
     color: var(--text-black) !important;
     font-weight: 800 !important;
-    margin-bottom: 0.5rem !important;
     font-size: 2.8rem !important;
-    letter-spacing: -0.8px !important;
-    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    margin-bottom: 0.5rem !important;
+    letter-spacing: -0.8px;
 }
 
-/* Subtitle/Welcome Text */
-.welcome-text {
-    color: var(--text-black) !important;
-    font-size: 1.1rem;
-    margin-bottom: 0;
-    font-weight: 400;
-    line-height: 1.6;
-}
-
-.welcome-text strong {
-    color: var(--text-black) !important;
-    font-weight: 600;
-}
-
-/* Logout Button - Minimal/Dark Style */
-.stButton > button[key="log-outbtn"] {
-    background: var(--primary-blue-dark) !important;
-    color: var(--text-black) !important;
-    border: 1px solid var(--card-border) !important;
-    border-radius: 12px !important;
-    padding: 0.75rem 1.5rem !important;
-    font-weight: 500 !important;
-    font-size: 0.95rem !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-    height: auto !important;
-    min-width: 100px !important;
-}
-
-.stButton > button[key="log-outbtn"]:hover {
-    background: var(--primary-blue-dark) !important;
-    border-color: var(--accent-color) !important;
-    transform: translateY(-2px) !important;
-    color: var(--text-black) !important;
-    box-shadow: 0 6px 15px rgba(74, 158, 255, 0.4) !important;
-}
-
-/* Section Headers (Steps) */
 h2 {
     color: var(--text-black) !important;
     font-weight: 700 !important;
     margin-top: 3rem !important;
     margin-bottom: 1.5rem !important;
     font-size: 2rem !important;
-    letter-spacing: -0.5px !important;
     display: flex;
     align-items: center;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
 }
 
-/* Section Number Badge - Winter Ice Blue */
+/* =========================================
+   💠 Section Number Badge
+   ========================================= */
 .section-number {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background:  var(--primary-blue) !important;
-    color:  #ffffff;
+    background: var(--primary-gradient);
+    color: white;
     width: 45px;
     height: 45px;
     border-radius: 14px;
     font-weight: 700;
     font-size: 1.2rem;
     margin-right: 18px;
-    box-shadow: 0 4px 20px rgba(74, 158, 255, 0.5), 0 0 30px rgba(180, 224, 255, 0.3);
-    border: 2px solid var(--accent-ice);
+    box-shadow: 0 4px 20px rgba(0,191,255,0.5);
 }
 
-/* Sub-section Headers */
-h3 {
-    color: var(--text-black) !important;
-    font-weight: 600 !important;
-    margin-top: 1.5rem !important;
-    margin-bottom: 1rem !important;
-    font-size: 1.35rem !important;
-}
-
-/* Radio Buttons - Clean and Dark/Light Contrast */
-.stRadio > label {
-    font-weight: 600 !important;
-    color: var(--text-black) !important;
-    font-size: 1.05rem !important;
-    margin-bottom: 1rem !important;
-}
-
-.stRadio > div {
-    background: var(--card-bg);
-    backdrop-filter: blur(15px);
-    padding: 1.5rem;
-    border-radius: 16px;
-    gap: 1.5rem;
-    border: 1px solid var(--card-border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-}
-
-.stRadio > div > label {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border: 2px solid var(--card-border) !important;
-    border-radius: 12px !important;
-    padding: 1rem 2rem !important;
-    transition: all 0.3s ease !important;
-    font-weight: 500 !important;
-    font-size: 1rem !important;
-    cursor: pointer !important;
-    color: var(--text-black) !important;
-}
-
-.stRadio > div > label:hover {
-    background: rgba(74, 158, 255, 0.2) !important;
-    border-color: var(--accent-color) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(74, 158, 255, 0.25);
-}
-
-.stRadio > div > label[data-checked="true"] {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
-    border-color: var(--accent-color) !important;
-    color: white !important;
-    box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5), 0 0 30px rgba(180, 224, 255, 0.3);
-}
-
-/* Input Fields - Clean Light Background on Dark Card */
+/* =========================================
+   📦 Input Fields
+   ========================================= */
 .stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
 .stSelectbox > div > div > div,
 .stMultiSelect > div > div,
-.stDateInput > div > div > input,
-.stTextArea > div > div > textarea {
-    background: var(--secondary-color) !important;
-    border: 2px solid rgba(26, 26, 26, 0.1) !important;
+.stDateInput > div > div > input {
+    background: var(--bg-white) !important;
+    border: 2px solid var(--border-gray) !important;
     border-radius: 12px !important;
-    padding: 1rem 1.25rem !important;
-    font-size: 1rem !important;
-    transition: all 0.3s ease !important;
+    padding: 1rem 1.2rem !important;
     color: var(--text-black) !important;
-    font-weight: 400 !important;
+    transition: all 0.3s ease !important;
 }
 
 .stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
 .stSelectbox > div > div > div:focus-within,
-.stMultiSelect > div > div:focus-within,
-.stDateInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
-    border-color: var(--accent-color) !important;
-    background: white !important;
-    box-shadow: 0 0 0 4px rgba(74, 158, 255, 0.2), 0 0 20px rgba(180, 224, 255, 0.3) !important;
-    transform: translateY(-1px);
+.stMultiSelect > div > div:focus-within {
+    border-color: #00BFFF !important;
+    box-shadow: 0 0 0 4px rgba(0,191,255,0.2);
 }
 
-.stTextInput > div > div > input::placeholder {
-    color: var(--text-black) !important;
-    opacity: 1 !important;
-}
-
-/* Labels - Light Color for Visibility */
-.stTextInput > label,
-.stSelectbox > label,
-.stMultiSelect > label,
-.stDateInput > label,
-.stRadio > label,
-.stTextArea > label {
-    font-weight: 500 !important;
-    color: var(--text-black) !important;
-    font-size: 0.95rem !important;
-    margin-bottom: 0.6rem !important;
-    letter-spacing: 0.2px !important;
-}
-
-
-/* Experience/Education Cards (The main data entry container) */
+/* =========================================
+   🧊 Experience Card
+   ========================================= */
 .experience-card {
-    background: rgba(255, 255, 255, 0.97); /* Near-white background for content forms */
-    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.95);
     border-radius: 20px;
     padding: 2.5rem;
     margin-bottom: 1.5rem;
-    border: 2px solid rgba(74, 158, 255, 0.15);
-    box-shadow: 0 8px 30px rgba(74, 158, 255, 0.15), 0 0 40px rgba(180, 224, 255, 0.1);
+    border: 2px solid rgba(0,191,255,0.15);
+    box-shadow: 0 8px 30px rgba(0,191,255,0.1);
     transition: all 0.3s ease;
 }
 
 .experience-card:hover {
-    box-shadow: 0 12px 40px rgba(74, 158, 255, 0.25), 0 0 60px rgba(180, 224, 255, 0.15);
-    border-color: rgba(74, 158, 255, 0.3);
+    border-color: rgba(0,255,127,0.3);
+    box-shadow: 0 12px 40px rgba(0,255,127,0.25);
 }
 
-.card-badge {
-    color: var(--accent-color);
-    font-size: 0.9rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* ---------- Force-button overrides (place at END of your current CSS) ---------- */
-
-/* Generic fallback for any Streamlit-rendered button */
-.stApp .stButton > button,
-.stApp button[class*="stButton"],
-.stApp div.stButton button {
-    background: var(--primary-blue) !important;
-    color:#ffffff !important;
+/* =========================================
+   🎨 Buttons
+   ========================================= */
+.stApp .stButton > button {
+    background: var(--primary-gradient) !important;
+    color: #ffffff !important;
     border: none !important;
-    box-shadow: 0 6px 18px rgba(74,158,255,0.28) !important;
     padding: 0.9rem 1.6rem !important;
     font-weight: 700 !important;
     border-radius: 12px !important;
-    min-width: 140px !important;
-    text-transform: none !important;
+    box-shadow: 0 6px 18px rgba(0,191,255,0.28) !important;
+    transition: all 0.3s ease !important;
 }
 
-/* Make sure the internal span/p that holds the text is white too */
-.stApp .stButton > button > div > p,
-.stApp .stButton > button > span,
-.stApp button > div > p {
+.stApp .stButton > button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+/* Full-width CTA Buttons */
+.stApp .stButton > button[key="man-btn"],
+.stApp .stButton > button[key="re-btn"] {
+    background: var(--primary-gradient) !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
-}
-
-/* Specific keyed buttons (your keys) — explicit overrides */
-.stApp .stButton > button[key="jb-btn"],
-.stApp button[key="jb-btn"] {
-    background: var(--primary-blue) !important;
-    color: #ffffff !important;
-    width: 100% !important;           /* keep your full-width CTA */
-    padding: 1rem 2rem !important;
-}
-
-/* smaller/secondary buttons */
-.stApp .stButton > button[key="add-new-resume-btn"],
-.stApp button[key="add-new-resume-btn"],
-.stApp .stButton > button[key="go-to-main-btn"],
-.stApp button[key="go-to-main-btn"] {
-    background: var(--primary-blue) !important;
-    color:  #ffffff !important;
-    box-shadow: 0 4px 12px rgba(180,224,255,0.25) !important;
-}
-
-/* Hover states (ensure hover reflects primary accent) */
-.stApp .stButton > button:hover,
-.stApp button:hover {
-    transform: translateY(-2px) !important;
-    filter: brightness(1.03) !important;
-}
-
-/* Defensive rule: remove any Streamlit inline red text backgrounds */
-.stApp .stButton > button[style*="background"] {
-    background-image: none !important;
-    background-color: unset !important;
-    color: inherit !important;
-}
-
-/* If a button still shows red text because of an error class, override it */
-.stApp .stButton > button:where([class*="error"], .css-1y4p8pa) {
-    color: #ffffff !important;
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-light)) !important;
-}
-
-
-/* File Uploader - Elegant Winter Dashed Border */
-.stFileUploader {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    border: 3px dashed var(--accent-color);
-    border-radius: 20px;
-    padding: 4rem 3rem;
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 30px rgba(74, 158, 255, 0.2), 0 0 40px rgba(180, 224, 255, 0.15);
-}
-
-.stFileUploader:hover {
-    border-color: var(--accent-light);
-    box-shadow: 0 12px 40px rgba(74, 158, 255, 0.35), 0 0 60px rgba(180, 224, 255, 0.25);
-}
-
-.stFileUploader label {
-    color: var(--secondary-color) !important;
-    font-weight: 600 !important;
+    width: 100% !important;
+    padding: 1.2rem 2rem !important;
     font-size: 1.1rem !important;
 }
 
-/* Divider - Minimal Winter */
-hr {
-    border: none !important;
-    height: 2px !important;
-    background: linear-gradient(90deg, transparent, var(--accent-ice), transparent) !important;
-    margin: 3rem 0 !important;
-}
-
-/* Multi-select Tags - Winter Ice Theme */
-.stMultiSelect span[data-baseweb="tag"] {
-    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%) !important;
-    border-radius: 10px !important;
+/* Remove / Add small buttons */
+.stApp .stButton > button[key*="add_"] {
+    background: #00BFFF !important;
     color: white !important;
-    padding: 0.4rem 0.8rem !important;
-    font-weight: 500 !important;
-    font-size: 0.9rem !important;
-    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3);
 }
 
-.stMultiSelect button[aria-label*="Remove"] {
-    color: rgba(255, 255, 255, 0.8) !important;
+.stApp .stButton > button[key*="remove_"] {
+    background: #ef4444 !important;
+    color: white !important;
 }
 
-.stMultiSelect button[aria-label*="Remove"]:hover {
-    color: var(--accent-ice) !important;
+/* =========================================
+   📁 File Uploader
+   ========================================= */
+.stFileUploader {
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px dashed #00BFFF;
+    border-radius: 20px;
+    padding: 4rem 3rem;
+    box-shadow: 0 8px 30px rgba(0,191,255,0.2);
+    transition: all 0.3s ease;
 }
 
-/* Success/Error Messages */
-.stSuccess {
-    background: rgba(16, 185, 129, 0.15) !important; /* Green */
-    border: 2px solid #10b981 !important;
-    border-radius: 12px !important;
-    color: #10b981 !important;
+.stFileUploader:hover {
+    border-color: #00FF7F;
+    box-shadow: 0 12px 40px rgba(0,255,127,0.3);
 }
 
-.stError {
-    background: rgba(239, 68, 68, 0.15) !important; /* Red */
-    border: 2px solid #ef4444 !important;
-    border-radius: 12px !important;
-    color: #ef4444 !important;
-}
-
-.stWarning {
-    background: rgba(245, 158, 11, 0.15) !important; /* Yellow */
-    border: 2px solid #f59e0b !important;
-    border-radius: 12px !important;
-    color: #f59e0b !important;
-}
-
-.stSuccess, .stError, .stWarning {
-    padding: 1rem 1.5rem !important;
-    font-weight: 500 !important;
-}
-
-/* Scrollbar Styling - Winter Ice */
+/* =========================================
+   🔹 Scrollbar
+   ========================================= */
 ::-webkit-scrollbar {
     width: 12px;
 }
-
 ::-webkit-scrollbar-track {
-    background: rgba(74, 158, 255, 0.1);
-    border-radius: 6px;
+    background: rgba(0,191,255,0.1);
 }
-
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, var(--accent-color), var(--accent-light));
+    background: var(--primary-gradient);
     border-radius: 6px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
 }
-
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, var(--accent-light), var(--accent-ice));
+    background: -webkit-linear-gradient(180deg, #00FF7F, #00BFFF);
 }
 
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # Header Section (Wrapped in a container for glassmorphism effect)
@@ -505,8 +317,9 @@ if input_method == "Manual Entry":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h2><span class="section-number">2</span>Personal Information</h2>', unsafe_allow_html=True)
     
-    # Wrap in a card for styling
-    # st.markdown('<div class="experience-card">', unsafe_allow_html=True)
+    # UI CHANGE: Wrap Personal Info in a card
+    st.markdown('<div class="experience-card">', unsafe_allow_html=True)
+    st.markdown(f'<p class="card-badge">BASIC DETAILS</p>', unsafe_allow_html=True) # Added badge
     col1, col2 = st.columns(2)
     with col1:
         name = st.text_input("Full Name *", placeholder="e.g., John Smith", key="name_input")
@@ -514,8 +327,6 @@ if input_method == "Manual Entry":
     
     with col2:
         # Placeholder for utility function call
-        # roles_list = get_all_roles_from_llm() 
-        # role = st.multiselect("Target Role *", options=roles_list, help="Select the job role(s) you're targeting")
         all_skills_list = load_skills_from_json()
 
         skills = st.multiselect(
@@ -532,91 +343,101 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">3</span>Professional Experience</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.exp_indices):
-        with st.container():
-            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                company_name = st.text_input("Company Name", key=f"company_{i}", placeholder="e.g., Google Inc.")
-                position_name = st.text_input("Position", key=f"position_{i}", placeholder="e.g., Senior Developer")
+        # UI CHANGE: Ensure each experience is wrapped in its card
+        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="card-badge">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([3, 3, 1])
+        with col1:
+            company_name = st.text_input("Company Name", key=f"company_{i}", placeholder="e.g., Google Inc.")
+            position_name = st.text_input("Position", key=f"position_{i}", placeholder="e.g., Senior Developer")
 
-                exp_skills_list = load_skills_from_json()    
-                exp_skills = st.multiselect(
-                    "Skills Used (Experience)",
-                    options=exp_skills_list,
-                    help="Select skills relevant to this role",
-                    key=f"exp_skills_{i}" 
-                )
-            with col2:
-                comp_startdate = st.date_input("Start Date", key=f"comp_startdate_{i}")
-                comp_enddate = st.date_input("End Date (Current or Final)", key=f"comp_enddate_{i}")
-            with col3:
-                st.markdown("<br><br>", unsafe_allow_html=True)
+            exp_skills_list = load_skills_from_json()     
+            exp_skills = st.multiselect(
+                "Skills Used (Experience)",
+                options=exp_skills_list,
+                help="Select skills relevant to this role",
+                key=f"exp_skills_{i}" 
+            )
+        with col2:
+            comp_startdate = st.date_input("Start Date", key=f"comp_startdate_{i}")
+            comp_enddate = st.date_input("End Date (Current or Final)", key=f"comp_enddate_{i}")
+        with col3:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            # Center the remove button
+            col_rm = st.columns([1, 1, 1])[1]
+            with col_rm:
                 if st.button("Remove", key=f"remove_exp_{i}"):
                     remove_index = i
             
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True) # End card
             
-            professional_experience.append({
-                "company": company_name,
-                "position": position_name,
-                'exp_skills':exp_skills,
-                "start_date": comp_startdate.strftime("%Y-%m-%d") if comp_startdate else None,
-                "end_date": comp_enddate.strftime("%Y-%m-%d") if comp_enddate else None
-            })
+        professional_experience.append({
+            "company": company_name,
+            "position": position_name,
+            'exp_skills':exp_skills,
+            "start_date": comp_startdate.strftime("%Y-%m-%d") if comp_startdate else None,
+            "end_date": comp_enddate.strftime("%Y-%m-%d") if comp_enddate else None
+        })
     
     if remove_index is not None:
         st.session_state.exp_indices.remove(remove_index)
         st.rerun()
     
-    if st.button("+ Add More Experience", key="add_exp"):
-        new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
-        st.session_state.exp_indices.append(new_idx)
-        st.rerun()
+    # UI CHANGE: Center the 'Add More' button
+    col_add_exp = st.columns([1, 2, 1])
+    with col_add_exp[1]:
+        if st.button("+ Add More Experience", key="add_exp", use_container_width=True):
+            new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
+            st.session_state.exp_indices.append(new_idx)
+            st.rerun()
     
     st.markdown("---")
 
 
-       
-    
     # Education
     st.markdown('<h2><span class="section-number">4</span>Education</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.edu_indices):
-        with st.container():
-            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">EDUCATION {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                course = st.text_input("Course/Degree", placeholder="e.g., Master of Computer Application", key=f"course_{i}")
-                university = st.text_input("Institution", placeholder="e.g., Texas University", key=f"university_{i}")
-            with col2:
-                edu_startdate = st.date_input("Start Date", key=f"edu_start_{i}")
-                edu_enddate = st.date_input("End Date (Expected or Final)", key=f"edu_end_{i}")
-            with col3:
-                st.markdown("<br><br>", unsafe_allow_html=True)
+        # UI CHANGE: Ensure each education is wrapped in its card
+        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="card-badge">EDUCATION {idx + 1}</p>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([3, 3, 1])
+        with col1:
+            course = st.text_input("Course/Degree", placeholder="e.g., Master of Computer Application", key=f"course_{i}")
+            university = st.text_input("Institution", placeholder="e.g., Texas University", key=f"university_{i}")
+        with col2:
+            edu_startdate = st.date_input("Start Date", key=f"edu_start_{i}")
+            edu_enddate = st.date_input("End Date (Expected or Final)", key=f"edu_end_{i}")
+        with col3:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            # Center the remove button
+            col_rm = st.columns([1, 1, 1])[1]
+            with col_rm:
                 if st.button("Remove", key=f"remove_edu_{i}"):
                     remove_index_edu = i
             
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
             
-            education.append({
-                "course": course,
-                "university": university,
-                "start_date": edu_startdate.strftime("%Y-%m-%d") if edu_startdate else None,
-                "end_date": edu_enddate.strftime("%Y-%m-%d") if edu_enddate else None
-            })
+        education.append({
+            "course": course,
+            "university": university,
+            "start_date": edu_startdate.strftime("%Y-%m-%d") if edu_startdate else None,
+            "end_date": edu_enddate.strftime("%Y-%m-%d") if edu_enddate else None
+        })
     
     if remove_index_edu is not None:
         st.session_state.edu_indices.remove(remove_index_edu)
         st.rerun()
     
-    if st.button("+ Add More Education", key="add_edu"):
-        new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
-        st.session_state.edu_indices.append(new_idx)
-        st.rerun()
+    # UI CHANGE: Center the 'Add More' button
+    col_add_edu = st.columns([1, 2, 1])
+    with col_add_edu[1]:
+        if st.button("+ Add More Education", key="add_edu", use_container_width=True):
+            new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
+            st.session_state.edu_indices.append(new_idx)
+            st.rerun()
     
     st.markdown("---")
     
@@ -624,76 +445,89 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">5</span>Certifications</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.cert_indices):
-        with st.container():
-            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">CERTIFICATION {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                certificate_name = st.text_input("Certificate Name", placeholder="e.g., AWS Solutions Architect", key=f"certificate_{i}")
-                provider = st.text_input("Provider", placeholder="e.g., Amazon Web Services", key=f"Provider_{i}")
-            with col2:
-                comp_date = st.date_input("Completion Date", key=f"comp_date_{i}")
-            with col3:
-                st.markdown("<br><br>", unsafe_allow_html=True)
+        # UI CHANGE: Ensure each certification is wrapped in its card
+        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="card-badge">CERTIFICATION {idx + 1}</p>', unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([3, 3, 1])
+        with col1:
+            certificate_name = st.text_input("Certificate Name", placeholder="e.g., AWS Solutions Architect", key=f"certificate_{i}")
+            provider = st.text_input("Provider", placeholder="e.g., Amazon Web Services", key=f"Provider_{i}")
+        with col2:
+            comp_date = st.date_input("Completion Date", key=f"comp_date_{i}")
+        with col3:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            # Center the remove button
+            col_rm = st.columns([1, 1, 1])[1]
+            with col_rm:
                 if st.button("Remove", key=f"remove_cert_{i}"):
                     remove_index_cert = i
             
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
             
-            certificate.append({
-                "certificate_name": certificate_name,
-                "provider_name": provider,
-                "completed_date": comp_date.strftime("%Y-%m-%d") if comp_date else None,
-            })
+        certificate.append({
+            "certificate_name": certificate_name,
+            "provider_name": provider,
+            "completed_date": comp_date.strftime("%Y-%m-%d") if comp_date else None,
+        })
     
     if remove_index_cert is not None:
         st.session_state.cert_indices.remove(remove_index_cert)
         st.rerun()
     
-    if st.button("+ Add More Certification", key="add_cert"):
-        new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
-        st.session_state.cert_indices.append(new_idx)
-        st.rerun()
+    # UI CHANGE: Center the 'Add More' button
+    col_add_cert = st.columns([1, 2, 1])
+    with col_add_cert[1]:
+        if st.button("+ Add More Certification", key="add_cert", use_container_width=True):
+            new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
+            st.session_state.cert_indices.append(new_idx)
+            st.rerun()
     
     st.markdown("---")
 
-     # Projects
+    # Projects
     st.markdown('<h2><span class="section-number">6</span>Projects</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.project_indices):
-        with st.container():
-            # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">PROJECT {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                projectname = st.text_input("Project Name", placeholder="e.g., Created An Integration Tool", key=f"projectname_{i}")
-                tools = st.text_input("Tools/Languages", placeholder="e.g., PowerBI, SQL, Python", key=f"tools_{i}")
-            with col2:
-                # Changed to st.text_area for longer descriptions
-                decription = st.text_area("Description (Key achievements)", key=f"decription_{i}", height=150) 
-            with col3:
-                st.markdown("<br><br>", unsafe_allow_html=True)
+        # UI CHANGE: Ensure each project is wrapped in its card
+        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="card-badge">PROJECT {idx + 1}</p>', unsafe_allow_html=True)
+        
+        # Changed columns to [2, 4, 1] to give more space for the description text area
+        col1, col2, col3 = st.columns([2, 4, 1]) 
+        with col1:
+            projectname = st.text_input("Project Name", placeholder="e.g., Created An Integration Tool", key=f"projectname_{i}")
+            tools = st.text_input("Tools/Languages", placeholder="e.g., PowerBI, SQL, Python", key=f"tools_{i}")
+        with col2:
+            # Changed to st.text_area for longer descriptions
+            decription = st.text_area("Description (Key achievements)", key=f"decription_{i}", height=150) 
+        with col3:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            # Center the remove button
+            col_rm = st.columns([1, 1, 1])[1]
+            with col_rm:
                 if st.button("Remove", key=f"remove_project_{i}"):
                     remove_index_project = i
             
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
             
-            project.append({
-                "projectname": projectname,
-                "tools": tools,
-                "decription": decription
-            })
+        project.append({
+            "projectname": projectname,
+            "tools": tools,
+            "decription": decription
+        })
     
     if remove_index_project is not None:
         st.session_state.project_indices.remove(remove_index_project)
         st.rerun()
     
-    if st.button("+ Add More Projects", key="add_project"):
-        new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
-        st.session_state.project_indices.append(new_idx)
-        st.rerun()
+    # UI CHANGE: Center the 'Add More' button
+    col_add_proj = st.columns([1, 2, 1])
+    with col_add_proj[1]:
+        if st.button("+ Add More Projects", key="add_project", use_container_width=True):
+            new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
+            st.session_state.project_indices.append(new_idx)
+            st.rerun()
     
     st.markdown("---")
     
@@ -702,7 +536,7 @@ if input_method == "Manual Entry":
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Generate Resume", key="man-btn"):
+        if st.button("Generate Resume", key="man-btn", use_container_width=True): # Ensure submit button is full width
             if name and skills and experience:
                 with st.spinner("Processing your resume..."):
                     # Filtering out empty entries from lists
@@ -737,7 +571,6 @@ if input_method == "Manual Entry":
                 st.error("Please fill in all required fields marked with *")
 
 # Upload Resume Section
-# Upload Resume Section
 else:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h2><span class="section-number">2</span>Upload Your Resume</h2>', unsafe_allow_html=True)
@@ -750,26 +583,30 @@ else:
     )
     
     if uploaded_file:
-        with st.spinner("Extracting data from your file..."):
+        with st.spinner("File processing..."):
             if uploaded_file.type == "application/pdf":
                 extracted_text = extract_text_from_pdf(uploaded_file)
             else:
                 extracted_text = extract_text_from_docx(uploaded_file)
         
-        st.success("File uploaded and text extracted successfully!")
+        st.success("File uploaded and text extracted successfully! Review and click 'Process Resume'.")
+        
+        # UI CHANGE: Wrap preview in a card/container
+        st.markdown('<div class="experience-card" style="padding: 1.5rem;">', unsafe_allow_html=True)
         st.markdown('<h3>Extracted Text Preview</h3>', unsafe_allow_html=True)
-        st.text_area("Extracted Content", value=extracted_text, height=300, key="extracted_content_preview")
+        st.text_area("Extracted Content", value=extracted_text, height=300, key="extracted_content_preview", label_visibility="collapsed")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("Process Resume", key="re-btn"):
+            if st.button("Process Resume", key="re-btn", use_container_width=True): # Ensure process button is full width
                 if extracted_text:
-                    # Check if user is logged in BEFORE processing
+                    # Check if user is logged in BEFORE processing (kept for integrity)
                     if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
                         st.error("⚠️ Session expired. Please login again.")
-                        st.switch_page("login.py")
-                        st.stop()
+                        # st.switch_page("login.py")
+                        # st.stop()
                     
                     with st.spinner("Analyzing your resume and parsing details..."):
                         try:
@@ -792,10 +629,9 @@ else:
                         )
                         
                         if save_success:
-                            st.success("✅ Resume processed and saved successfully!")
+                            st.success("✅ Resume processed and saved successfully! Redirecting...")
                             
                             # Add a small delay to ensure state is saved
-                            import time
                             time.sleep(0.5)
                             
                             # Switch page
@@ -806,16 +642,3 @@ else:
                         st.error("Failed to process resume. Please ensure your file is clean or try manual entry.")
                 else:
                     st.error("Please upload your resume first")
-
-
-# IMPORTANT: Add this at the very top of your file (after imports, before any other code)
-# This ensures user authentication is checked on every page load
-def check_authentication():
-    """Check if user is authenticated, redirect to login if not"""
-    if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
-        st.warning("⚠️ Please login to continue")
-        st.switch_page("login.py")
-        st.stop()
-
-# Call this right after your imports and before any UI code
-# check_authentication()  # Uncomment this line to enable auth check

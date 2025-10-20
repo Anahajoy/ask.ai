@@ -75,154 +75,152 @@ RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications
 
 
 def apply_custom_css():
-    """Applies custom CSS for a modern dark theme with white text and Teal accent."""
-    ACCENT_TEAL = "#4ECDC4"
-    
-    st.markdown(f"""
-        <style>
-            
-        /* Hides Streamlit Navigation/Pages */
-        [data-testid="stSidebarNav"] {{
-            display: none !important;
-        }}
-        
-        /* Background */
-        .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.9)),
-                        url('https://images.unsplash.com/photo-1702835124686-fd1faac06b8d?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=870') center/cover;
-            background-attachment: fixed;
-            color: #FFFFFF;
-        }}
+    """Applies full dark theme with white text and teal/blue accents."""
+    st.markdown("""
+    <style>
+    /* ============================
+    🌑 Full Dark Theme for Streamlit
+    ============================ */
 
-        /* Main content box - Dark Glassmorphism */
-        .main-content {{
-            background-color: rgba(0, 0, 0, 0.6);
-            padding: 30px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            max-width: 900px;
-            margin: 40px auto;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #FFFFFF;
-        }}
+    /* --- App Background --- */
+    body, [data-testid="stAppViewContainer"], .main-content {
+        background-color: #0a0a0a !important; /* Black background */
+        color: #FFFFFF !important; /* White text */
+        font-family: 'Poppins', sans-serif !important;
+    }
 
-        /* Section headers (Teal accent) */
-        .resume-section h2 {{
-            color: {ACCENT_TEAL};
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-            margin-bottom: 15px;
-            padding-bottom: 5px;
-            font-weight: 700;
-            font-size: 1.5em;
-        }}
+    /* --- Header --- */
+    [data-testid="stHeader"] {
+        background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        box-shadow: 0 3px 10px rgba(0,255,255,0.1);
+    }
 
-        h1 {{
-            color: #FFFFFF;
-            font-size: 2.8em;
-            margin-bottom: 5px;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-        }}
-        
-        h3 {{
-            color: {ACCENT_TEAL};
-            margin-top: 0;
-            font-weight: 500;
-        }}
+    /* --- Sidebar --- */
+    [data-testid="stSidebar"] {
+        background-color: #111111 !important; /* Dark sidebar */
+        color: #FFFFFF !important;
+        padding: 1rem;
+    }
 
-        /* Contact info */
-        .contact-info {{
-            color: #B0B0B0;
-            font-size: 1em;
-            margin-bottom: 25px;
-            font-weight: 300;
-        }}
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3, 
+    [data-testid="stSidebar"] h4, 
+    [data-testid="stSidebar"] .stCaption,
+    [data-testid="stSidebar"] label {
+        color: #FFFFFF !important;
+    }
 
-        /* Item styles */
-        .item-title {{ font-weight: bold; color: #FFFFFF; font-size: 1.2em; margin-top: 15px; margin-bottom: 3px; }}
-        .item-subtitle {{ font-style: italic; color: #CCCCCC; font-size: 1.05em; margin-bottom: 5px; }}
-        .item-details {{ color: #DDDDDD; font-size: 0.95em; margin-bottom: 6px; }}
-        .bullet-list {{ list-style-type: disc; padding-left: 20px; }}
-        .bullet-list li {{ margin-bottom: 6px; line-height: 1.5; color: #E0E0E0; }}
-        
-        /* Skills Items */
-        .skill-list {{
-            list-style: none;
-            padding: 0;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-            margin-bottom: 15px;
-        }}
-        .skill-item {{ 
-            background-color: #333333;
-            color: {ACCENT_TEAL};
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.9em; 
-            font-weight: 500;
-            border: 1px solid rgba(78, 205, 196, 0.3);
-        }}
-        
-        /* Text inputs and text areas */
-        .stTextInput > div > div > input,
-        .stTextArea > div > div > textarea {{
-            background-color: #2c2c2c;
-            color: #FFFFFF;
-            border: 1px solid #444444;
-            border-radius: 8px;
-            padding: 10px;
-        }}
-        .stTextInput > div > div > input:focus,
-        .stTextArea > div > div > textarea:focus {{
-            border-color: {ACCENT_TEAL};
-            box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.4);
-        }}
-        
-        /* Expander styling */
-        .streamlit-expanderHeader {{
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            margin-top: 10px;
-            padding: 10px 15px;
-            color: #FFFFFF;
-        }}
-        
-        /* Sidebar Buttons */
-        [data-testid="stSidebar"] button {{
-            background-color: #333333;
-            color: white;
-            font-weight: 500;
-            border-radius: 8px;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            transition: all 0.2s ease-in-out;
-            border: 1px solid #444444;
-        }}
-        
-        /* Primary Button */
-        [data-testid="stSidebar"] button[kind="primary"] {{
-            background-color: {ACCENT_TEAL}; 
-            border: none;
-            color: #1a1a1a;
-            font-weight: 700;
-        }}
-        [data-testid="stSidebar"] button[kind="primary"]:hover {{
-            background-color: #61E8E0;
-            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
-            transform: translateY(-2px);
-        }}
+    [data-testid="stSidebar"] .stSelectbox, 
+    [data-testid="stSidebar"] .stColorPicker, 
+    [data-testid="stSidebar"] input {
+        background-color: #1a1a1a !important;
+        color: #FFFFFF !important;
+    }
 
-        [data-testid="stSidebar"] button:hover {{
-            background-color: #444444;
-            transform: translateY(-1px);
-        }}
+    [data-testid="stSidebar"] button {
+        background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+        color: #FFFFFF !important;
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.65rem;
+        border: none;
+        width: 100%;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+    }
 
-        </style>
+    [data-testid="stSidebar"] button:hover {
+        background: linear-gradient(45deg, #00FF7F, #00BFFF) !important;
+        color: #000000 !important;
+        transform: scale(1.02);
+    }
+
+    /* --- Headings --- */
+    h1, h2, h3, h4, h5, h6 {
+        color: #00BFFF !important; /* Blue accent */
+        font-weight: 600 !important;
+    }
+
+    h1 {
+        font-size: 2rem !important;
+    }
+
+    /* --- Buttons --- */
+    div.stButton > button {
+        background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+        color: #FFFFFF !important;
+        border: none;
+        border-radius: 10px;
+        padding: 0.65rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0,255,127,0.35);
+        color: #000000 !important;
+    }
+
+    /* --- Inputs --- */
+    input, textarea, select {
+        background-color: #1a1a1a !important;
+        color: #FFFFFF !important;
+        border: 1px solid #00BFFF !important;
+        border-radius: 10px !important;
+        padding: 0.5rem !important;
+    }
+
+    input:focus, textarea:focus, select:focus {
+        outline: none !important;
+        border-color: #00FF7F !important;
+        box-shadow: 0 0 0 3px rgba(0,255,127,0.3) !important;
+    }
+
+    /* --- Cards / Containers --- */
+    div[data-testid="stHorizontalBlock"], .template-card, .resume-section {
+        background-color: #1a1a1a !important;
+        border-radius: 15px;
+        box-shadow: 0 6px 20px rgba(0,255,127,0.1);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: #FFFFFF !important;
+    }
+
+    /* --- Template Preview --- */
+    .ats-page {
+        background-color: #121212 !important;
+        color: #FFFFFF !important;
+        padding: 15px;
+        border-radius: 12px;
+    }
+    .ats-page h1, .ats-page h2, .ats-page h3, .ats-page h4 {
+        color: #00BFFF !important;
+    }
+    .ats-page p, .ats-page li, .ats-page span {
+        color: #FFFFFF !important;
+    }
+    .ats-page a {
+        color: #00FF7F !important;
+    }
+
+    /* --- Lists / Skills --- */
+    .skill-list li {
+        color: #FFFFFF !important;
+        margin-bottom: 3px;
+    }
+
+    /* --- Footer & Header --- */
+    footer, header { visibility: hidden !important; }
+
+    </style>
     """, unsafe_allow_html=True)
+
+
+
 
 
 def format_section_title(key):

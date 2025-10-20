@@ -1410,7 +1410,25 @@ def app_download():
 
     # --- Sidebar ---
     with st.sidebar:
+        st.subheader("⚙️ Template Settings")
         
+        color_name = st.selectbox(
+            'Choose Accent Color:',
+            list(ATS_COLORS.keys()),
+            key='download_sys_color_select'
+        )
+        primary_color = ATS_COLORS[color_name]
+        
+        custom_color = st.color_picker(
+            'Custom Color (Advanced):',
+            primary_color,
+            key='download_sys_color_picker'
+        )
+        
+        if custom_color != primary_color:
+            primary_color = custom_color
+        
+        st.markdown("---")
         st.markdown("### 💾 Download Options")
         
         # Download buttons
@@ -1420,12 +1438,6 @@ def app_download():
             # Safely get CSS and HTML with defaults
             template_css = current_template.get('css', '')
             template_html = current_template.get('html', '')
-            color_name = st.selectbox(
-                        'Choose Accent Color:',
-                        list(ATS_COLORS.keys()),
-                        key='sys_color_select'
-                    )
-            primary_color = ATS_COLORS[color_name]
             
             # Update preview with selected color
             if st.session_state.get("selected_template_preview") or st.session_state.get("template_source") == 'temp_upload':

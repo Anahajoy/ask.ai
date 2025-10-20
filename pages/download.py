@@ -540,7 +540,7 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
         b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.html"
-    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00BFFF; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
+    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00FA9A; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
     return href
 
 
@@ -706,7 +706,7 @@ xmlns='http://www.w3.org/TR/REC-html40'>
     doc_html = f"""
     <a href="data:application/msword;base64,{b64_data}" download="{filename}"
        style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
-              background-color: #4682B4; color: white; border-radius: 5px; 
+              background-color: #00FFFF; color: white; border-radius: 5px; 
               display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
         <strong>📄 Download Template DOC (.doc)</strong>
     </a>
@@ -780,7 +780,7 @@ def get_text_download_link(data, filename_suffix=""):
     b64_data = base64.b64encode(text_content.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_ATS_Plain_Text{filename_suffix}.txt"
-    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #4169E1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
+    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
     return href
 
 # def generate_pptx_file(data):
@@ -973,150 +973,205 @@ def app_download():
     ACCENT_COLOR = "#6ea8fe" # Softer, bright blue
 
     st.markdown(f"""
-        <style>
-            /* ============================
-            🌟 Soft & Bright Theme V3 (Clean Background)
-            ============================ */
-            :root {{
-                --primary-color: #2c3e50; /* Softer dark blue for text/contrast */
-                --secondary-color: #f0f8ff; /* Very light, almost white background */
-                --accent-color: #6ea8fe; /* Soft, bright blue accent */
-                --accent-light: #9ed4ff; /* Lighter soft blue */
-                --accent-ice: #e0f2ff; /* Very pale icy blue */
-                --text-dark: #2c3e50;
-                --text-light: #FFFFFF;
-                --card-bg: rgba(255, 255, 255, 0.9); /* Opaque white for crisp cards */
-                --card-border: rgba(158, 212, 255, 0.5); /* Soft blue border */
-                --soft-shadow: rgba(44, 62, 80, 0.15); /* Soft shadow for depth */
-                --button-gradient-start: #6fa8fe;
-                --button-gradient-end: #a0d1ff;
-            }}
+    <style>
+        /* ============================
+        🌟 Dark Blue-Green Theme
+        ============================ */
+        :root {{
+            --primary-color: #00BFFF; /* Deep sky blue */
+            --secondary-color: #000000; /* Black background */
+            --accent-color: #00FF7F; /* Spring green */
+            --accent-light: #66FFB2; /* Lighter green-blue */
+            --accent-ice: #0a0a0a; /* Dark icy color for borders */
+            --text-dark: #FFFFFF; /* Text on dark background */
+            --text-light: #FFFFFF;
+            --card-bg: rgba(20, 20, 20, 0.9); /* Dark card background */
+            --card-border: rgba(0, 255, 127, 0.5); /* Soft green border */
+            --soft-shadow: rgba(0, 255, 127, 0.15); /* Soft shadow for depth */
+            --button-gradient: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F);
+        }}
 
-            /* HIDE NAVIGATION */
-            [data-testid="stSidebarNav"] {{
-                display: none !important;
-            }}
+        /* HIDE NAVIGATION */
+        [data-testid="stSidebarNav"] {{
+            display: none !important;
+        }}
 
-            /* APP BACKGROUND - SOLID LIGHT COLOR WITH SUBTLE TEXTURE */
-            .stApp {{
-                /* Use a very light, solid color for the main background */
-                background-color: var(--secondary-color); 
+        .stApp {{
+            background-color: var(--secondary-color);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-dark);
+            font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }}
+
+        /* PREVIEW IFRAME BACKGROUND FIX */
+        iframe {{
+            background: linear-gradient(135deg, #e6f9ff 0%, #f0fff4 100%) !important;
+            border-radius: 12px;
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 8px 25px var(--soft-shadow);
+        }}
+        /* TEMPLATE CARDS */
+        .template-card {{
+            background: var(--card-bg);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--card-border);
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 8px 25px var(--soft-shadow);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: var(--text-dark);
+        }}
+
+        .template-card:hover {{
+            box-shadow: 0 12px 35px rgba(0, 255, 127, 0.4);
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+        }}
+
+        /* HEADINGS */
+        h1, h2, h3, h4 {{
+            color: var(--primary-color);
+            font-weight: 700;
+        }}
+
+        .template-card h3 {{
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 1.4em;
+        }}
+
+        /* BADGE */
+        .saved-badge {{
+            background: var(--accent-light);
+            color: var(--primary-color);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(102, 255, 178, 0.5);
+        }}
+
+        /* BUTTONS */
+        .stButton>button {{
+            background: var(--button-gradient);
+            color: var(--text-light);
+            border: none;
+            border-radius: 12px;
+            padding: 0.8rem 1.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            box-shadow: 0 5px 18px rgba(0, 255, 127, 0.4);
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 280px;
+            margin-top: auto;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }}
+
+        .stButton>button:hover {{
+            background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
+            box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);
+            transform: translateY(-4px) scale(1.02);
+            color: var(--text-dark);
+        }}
+
+        /* INPUT FIELDS */
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea {{
+            background-color: #1a1a1a; /* Dark input background */
+            color: var(--text-light);
+            border: 1px solid var(--accent-ice);
+            border-radius: 10px;
+            padding: 14px;
+            box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2);
+        }}
+
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {{
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(0, 255, 127, 0.4);
+        }}
                 
-                /* Optional: Add a subtle texture image, or remove this line for pure solid color */
-                background-image: url('https://www.transparenttextures.com/patterns/white-diamond.png');
-                background-attachment: fixed;
-                
-                color: var(--text-dark);
-                font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            }}
-            
-            /* STREAMLIT MAIN CONTAINER ALIGNMENT AND PADDING (Kept for alignment) */
-            .main {{
-                padding-top: 2.5rem; 
-                padding-bottom: 2.5rem;
-            }}
-            
-            .block-container {{
-                padding-left: 2rem;
-                padding-right: 2rem;
-                padding-top: 1.5rem;
-                padding-bottom: 1.5rem;
-                max-width: 1100px;
-                margin-left: auto;
-                margin-right: auto;
-            }}
+                /* ============================
+        Dark Sidebar Styling
+        ============================ */
+        /* Sidebar background */
+        [data-testid="stSidebar"] {{
+            background-color: #000000 !important; /* Black background */
+            color: #FFFFFF; /* White text by default */
+            padding: 1rem;
+        }}
 
-            /* TEMPLATE CARDS - CRISP WHITE GLASS EFFECT */
-            .template-card {{
-                background: var(--card-bg); /* Opaque white for better contrast and brightness */
-                backdrop-filter: blur(10px); /* Less blur since the background is solid */
-                border: 1px solid var(--card-border);
-                padding: 25px; 
-                border-radius: 18px; 
-                box-shadow: 0 8px 25px var(--soft-shadow); /* Slightly stronger shadow to lift the card */
-                margin-bottom: 25px; 
-                transition: all 0.3s ease;
-                text-align: center;
-                min-height: 180px; 
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-            }}
+        /* Sidebar headings, subheaders */
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h4,
+        [data-testid="stSidebar"] .css-1d391kg p {{
+            color: #FFFFFF !important;
+        }}
 
-            .template-card:hover {{
-                box-shadow: 0 12px 35px rgba(110, 168, 254, 0.4); 
-                transform: translateY(-5px); 
-                border-color: var(--accent-color);
-            }}
-            
-            /* HEADINGS - HIGH CONTRAST */
-            h1, h2, h3, h4 {{
-                color: var(--primary-color);
-                font-weight: 700;
-            }}
-            
-            .template-card h3 {{
-                color: var(--primary-color); 
-                font-weight: 600;
-                margin-bottom: 5px;
-                font-size: 1.4em;
-            }}
+        /* Sidebar selectbox and color picker */
+        [data-testid="stSidebar"] .stSelectbox, 
+        [data-testid="stSidebar"] .stColorPicker {{
+            background-color: #1a1a1a !important; /* Dark input background */
+            color: #FFFFFF !important; /* White text */
+        }}
 
-            /* BADGE - VIBRANT AND CLEAN */
-            .saved-badge {{
-                background: var(--accent-light); 
-                color: var(--primary-color); 
-                padding: 5px 12px;
-                border-radius: 15px;
-                font-weight: 700;
-                box-shadow: 0 2px 10px rgba(158, 212, 255, 0.5); 
-            }}
+        /* Sidebar buttons */
+        [data-testid="stSidebar"] button {{
+            background: linear-gradient(45deg, #00BFFF, #00FF7F);
+            color: #FFFFFF;
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            border: none;
+            width: 100%;
+            transition: all 0.3s ease;
+        }}
 
-            /* BUTTONS - REMAINS VIBRANT */
-            .stButton>button {{
-                background: linear-gradient(145deg, var(--button-gradient-start), var(--button-gradient-end)); 
-                color: var(--text-light); 
-                border: none;
-                border-radius: 12px;
-                padding: 0.8rem 1.8rem;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.8px;
-                box-shadow: 0 5px 18px rgba(110, 168, 254, 0.4);
-                transition: all 0.3s ease;
-                width: 100%;
-                max-width: 280px;
-                margin-top: auto;
-                margin-left: auto;
-                margin-right: auto;
-                display: block;
-            }}
+        [data-testid="stSidebar"] button:hover {{
+            background: linear-gradient(45deg, #00FF7F, #00BFFF);
+            color: #000000;
+            transform: scale(1.02);
+        }}
 
-            .stButton>button:hover {{
-                background: linear-gradient(145deg, var(--button-gradient-end), var(--button-gradient-start));
-                box-shadow: 0 8px 25px rgba(158, 212, 255, 0.8); 
-                transform: translateY(-4px) scale(1.02); 
-                color: var(--text-dark); 
-            }}
+        /* Sidebar horizontal lines */
+        [data-testid="stSidebar"] hr {{
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }}
 
-            /* INPUT FIELDS - CLEAN AND SUBTLE */
-            .stTextInput > div > div > input,
-            .stTextArea > div > div > textarea {{
-                background-color: var(--text-light); /* Pure white input */
-                color: var(--text-dark);
-                border: 1px solid var(--accent-ice);
-                border-radius: 10px;
-                padding: 14px;
-                box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
-            }}
-            .stTextInput > div > div > input:focus,
-            .stTextArea > div > div > textarea:focus {{
-                border-color: var(--accent-color);
-                box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.4); 
-            }}
+        /* Sidebar captions */
+        [data-testid="stSidebar"] .stCaption {{
+            color: #FFFFFF !important;
+        }}
+                    /* Make selectbox label text white in sidebar */
+        [data-testid="stSidebar"] label, 
+        [data-testid="stSidebar"] .stSelectbox label {{
+            color: #FFFFFF !important;
+        }}
 
-        </style>
-    """, unsafe_allow_html=True)
+        /* Make selectbox options text dark (optional) if using dark dropdown) */
+        [data-testid="stSidebar"] .stSelectbox div[role="listbox"] div {{
+            color: #000000;
+        }}
+        
+
+
+    </style>
+""", unsafe_allow_html=True)
+
+
 
 
     final_data = st.session_state.get('final_resume_data')
@@ -1146,7 +1201,7 @@ def app_download():
     st.markdown("""
     <div style="text-align: center;">
         <h1>📄 Resume Template Manager</h1>
-        <p style="color: gray; font-size: 16px;">
+        <p style="color: white; font-size: 16px;">
             <b>System Templates • Saved Templates • Upload Custom Templates</b>
         </p>
     </div>

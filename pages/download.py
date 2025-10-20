@@ -1151,66 +1151,66 @@ def app_download():
         </p>
     </div>
     """, unsafe_allow_html=True)
-    with st.sidebar:
-                    st.subheader("⚙️ Template Settings")
+#     with st.sidebar:
+#                     st.subheader("⚙️ Template Settings")
                     
-                    color_name = st.selectbox(
-                        'Choose Accent Color:',
-                        list(ATS_COLORS.keys()),
-                        key='sys_color_select'
-                    )
-                    primary_color = ATS_COLORS[color_name]
+#                     color_name = st.selectbox(
+#                         'Choose Accent Color:',
+#                         list(ATS_COLORS.keys()),
+#                         key='sys_color_select'
+#                     )
+#                     primary_color = ATS_COLORS[color_name]
                     
-                    custom_color = st.color_picker(
-                        'Custom Color (Advanced):',
-                        primary_color,
-                        key='sys_color_picker'
-                    )
+#                     custom_color = st.color_picker(
+#                         'Custom Color (Advanced):',
+#                         primary_color,
+#                         key='sys_color_picker'
+#                     )
                     
-                    if custom_color != primary_color:
-                        primary_color = custom_color
+#                     if custom_color != primary_color:
+#                         primary_color = custom_color
                     
                     
-                    st.markdown("---")
-                    st.markdown("### 💾 Download Options")
+#                     st.markdown("---")
+#                     st.markdown("### 💾 Download Options")
                     
-                    # Download buttons
-# Check if a template has been selected
-                    if st.session_state.get("selected_template_config"):
+#                     # Download buttons
+# # Check if a template has been selected
+#                     if st.session_state.get("selected_template_config"):
 
-                        st.markdown(get_html_download_link(
-                            final_data, 
-                            primary_color, 
-                            st.session_state.selected_template_config
-                        ), unsafe_allow_html=True)
+#                         st.markdown(get_html_download_link(
+#                             final_data, 
+#                             primary_color, 
+#                             st.session_state.selected_template_config
+#                         ), unsafe_allow_html=True)
                         
-                        # Uncomment if you want PDF support
-                        # st.markdown(get_pdf_download_link(
-                        #     final_data, 
-                        #     primary_color, 
-                        #     st.session_state.selected_template_config
-                        # ), unsafe_allow_html=True)
+#                         # Uncomment if you want PDF support
+#                         # st.markdown(get_pdf_download_link(
+#                         #     final_data, 
+#                         #     primary_color, 
+#                         #     st.session_state.selected_template_config
+#                         # ), unsafe_allow_html=True)
                         
-                        st.markdown(get_doc_download_link(
-                            final_data, 
-                            primary_color, 
-                            st.session_state.selected_template_config
-                        ), unsafe_allow_html=True)
+#                         st.markdown(get_doc_download_link(
+#                             final_data, 
+#                             primary_color, 
+#                             st.session_state.selected_template_config
+#                         ), unsafe_allow_html=True)
                         
-                        st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
+#                         st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
 
-                    else:
-                        st.info("👆 Please select a template first to enable download links.")
+#                     else:
+#                         st.info("👆 Please select a template first to enable download links.")
 
-                    # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
+#                     # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
                     
-                    st.markdown("---")
-                    st.caption("### 💡 Download Tips:")
-                    st.caption("**HTML:** Best for web viewing")
-                    st.caption("**PDF:** Open HTML → Print → Save as PDF")
-                    st.caption("**DOC:** Edit in Microsoft Word")
-                    # st.caption("**PPTX:** Present resume in PowerPoint")
-                    st.caption("**TXT:** Maximum ATS compatibility")
+#                     st.markdown("---")
+#                     st.caption("### 💡 Download Tips:")
+#                     st.caption("**HTML:** Best for web viewing")
+#                     st.caption("**PDF:** Open HTML → Print → Save as PDF")
+#                     st.caption("**DOC:** Edit in Microsoft Word")
+#                     # st.caption("**PPTX:** Present resume in PowerPoint")
+#                     st.caption("**TXT:** Maximum ATS compatibility")
                 
     # Create tabs
     tab1, tab3 = st.tabs(["🎨 System Templates", "📤 Upload New Template"])
@@ -1243,6 +1243,12 @@ def app_download():
             st.markdown("---")
             st.markdown(f"### Preview: {st.session_state.selected_template}")
             template_config = st.session_state.selected_template_config
+            color_name = st.selectbox(
+                        'Choose Accent Color:',
+                        list(ATS_COLORS.keys()),
+                        key='sys_color_select'
+                    )
+            primary_color = ATS_COLORS[color_name]
             css = template_config['css_generator'](primary_color)
             html_content = template_config['html_generator'](final_data)
             
@@ -1258,122 +1264,208 @@ def app_download():
 
     
     # --- TAB 3: UPLOAD NEW TEMPLATE ---
+   # --- TAB 3: UPLOAD NEW TEMPLATE ---
     with tab3:
-            st.markdown("## 📤 Upload or Manage Templates")
+        st.markdown("## 📤 Upload or Manage Templates")
 
-            # 1️⃣ Upload Section
-            # st.markdown("### 📎 Upload a New HTML Template")
-            uploaded_file = st.file_uploader(
-                "Upload an HTML file",
-                type=['html'],
-                key="template_upload"
-            )
+        # Initialize uploaded_templates early
+        if 'uploaded_templates' not in st.session_state:
+            st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
 
-            if uploaded_file is not None:
-                st.success(f"✅ File uploaded: {uploaded_file.name}")
+        # 1️⃣ Upload Section
+        uploaded_file = st.file_uploader(
+            "Upload an HTML file",
+            type=['html'],
+            key="template_upload"
+        )
 
-                with st.spinner("Parsing template..."):
-                    parsed_template = parse_uploaded_file(uploaded_file)
+        if uploaded_file is not None:
+            st.success(f"✅ File uploaded: {uploaded_file.name}")
 
-                # ✅ Store upload preview in session state
-                st.session_state.upload_preview_html = f"""
-                    <style>{parsed_template.get('css', '')}</style>
-                    <div class="ats-page">{generate_generic_html(final_data)}</div>
-                """
-                st.session_state.upload_preview_name = f"Uploaded: {uploaded_file.name}"
+            with st.spinner("Parsing template..."):
+                parsed_template = parse_uploaded_file(uploaded_file)
 
-                # Template name input and save button
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    template_name = st.text_input(
-                        "Template Name:",
-                        value=f"Uploaded_{uploaded_file.name.split('.')[0]}",
-                        key="upload_template_name"
-                    )
+            # Store parsed template for preview and download (before saving)
+            st.session_state.temp_upload_config = {
+                'name': f"Uploaded_{uploaded_file.name.split('.')[0]}",
+                'css': parsed_template.get('css', ''),
+                'html': parsed_template.get('html', ''),
+                'original_filename': uploaded_file.name
+            }
 
-                with col2:
-                    if st.button("💾 Save Template", use_container_width=True):
-                        template_id = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                        st.session_state.uploaded_templates[template_id] = {
-                            'name': template_name,
-                            'css': parsed_template.get('css', ''),
-                            'html': parsed_template.get('html', ''),
-                            'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            'original_filename': uploaded_file.name
-                        }
+            # Template name input and save button
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                template_name = st.text_input(
+                    "Template Name:",
+                    value=f"Uploaded_{uploaded_file.name.split('.')[0]}",
+                    key="upload_template_name"
+                )
 
-                        # Save to JSON
-                        save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
-                        st.success(f"✅ Template '{template_name}' saved!")
+            with col2:
+                if st.button("💾 Save Template", use_container_width=True):
+                    template_id = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    st.session_state.uploaded_templates[template_id] = {
+                        'name': template_name,
+                        'css': parsed_template.get('css', ''),
+                        'html': parsed_template.get('html', ''),
+                        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'original_filename': uploaded_file.name
+                    }
 
-                        # Clear upload preview after saving
-                        del st.session_state['upload_preview_html']
-                        del st.session_state['upload_preview_name']
+                    # Save to JSON
+                    save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+                    st.success(f"✅ Template '{template_name}' saved!")
 
-                        # Set as selected template
-                        st.session_state.selected_template = template_name
-                        st.session_state.selected_template_config = st.session_state.uploaded_templates[template_id]
-                        st.session_state.template_source = 'uploaded'
-                        st.session_state.current_upload_id = template_id
-                        st.rerun()
+                    # Set the saved template as selected
+                    st.session_state.selected_template_config = st.session_state.uploaded_templates[template_id]
+                    st.session_state.selected_template = template_name
+                    st.session_state.template_source = 'saved'
+                    st.session_state.current_upload_id = template_id
+                    
+                    # Update preview to show saved template
+                    st.session_state.selected_template_preview = f"""
+                        <style>{parsed_template.get('css', '')}</style>
+                        <div class="ats-page">{generate_generic_html(final_data)}</div>
+                    """
+                    
+                    # Clear temp upload config since it's now saved
+                    if 'temp_upload_config' in st.session_state:
+                        del st.session_state.temp_upload_config
+                    
+                    st.rerun()
 
-            # 2️⃣ Load Saved Templates
-            if 'uploaded_templates' not in st.session_state:
-                st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
+            # Show preview for uploaded file (before saving) - Always show when file is uploaded
+            preview_html = f"""
+                <style>{parsed_template.get('css', '')}</style>
+                <div class="ats-page">{generate_generic_html(final_data)}</div>
+            """
+            st.markdown("### 🔍 Template Preview (Not Saved Yet)")
+            st.components.v1.html(preview_html, height=1000, scrolling=True)
+            
+            # Enable downloads for unsaved upload
+            st.session_state.selected_template_config = st.session_state.temp_upload_config
+            st.session_state.template_source = 'temp_upload'
 
-            if st.session_state.uploaded_templates:
-                st.markdown("### 🗂️ Your Saved Templates")
-                cols = st.columns(3)
-                for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
-                    with cols[idx % 3]:
-                        st.markdown(f"""
-                        <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
-                            <h4>{template_data['name']}</h4>
-                            <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
-                            <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+        # 2️⃣ Load Saved Templates
+        if st.session_state.uploaded_templates:
+            st.markdown("### 🗂️ Your Saved Templates")
+            cols = st.columns(3)
+            for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
+                with cols[idx % 3]:
+                    st.markdown(f"""
+                    <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
+                        <h4>{template_data['name']}</h4>
+                        <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
+                        <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button(f"Use", key=f"use_{template_id}", use_container_width=True):
-                                st.session_state.selected_template_preview = f"""
-                                    <style>{template_data['css']}</style>
-                                    <div class="ats-page">{generate_generic_html(final_data)}</div>
-                                """
-                                st.session_state.selected_template = template_data['name']
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button(f"Use", key=f"use_{template_id}", use_container_width=True):
+                            # Clear temp upload config when using a saved template
+                            if 'temp_upload_config' in st.session_state:
+                                del st.session_state.temp_upload_config
+                            
+                            st.session_state.selected_template_preview = f"""
+                                <style>{template_data['css']}</style>
+                                <div class="ats-page">{generate_generic_html(final_data)}</div>
+                            """
+                            st.session_state.selected_template = template_data['name']
+                            st.session_state.selected_template_config = template_data
+                            st.session_state.template_source = 'saved'
+                            st.session_state.current_upload_id = template_id
+                            st.rerun()  # Added rerun
 
-                        with col2:
-                            if st.button(f"Delete", key=f"delete_{template_id}", use_container_width=True):
-                                del st.session_state.uploaded_templates[template_id]
-                                save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
-                                st.success(f"✅ Deleted '{template_data['name']}'")
-                                st.rerun()
-
-                st.markdown("---")
-
-            # 3️⃣ Preview Section (Always show uploaded preview if exists, else saved template)
-# 3️⃣ Preview Section (saved template preview first, then uploaded preview)
-            preview_html = None
-            preview_name = None
-
-            if st.session_state.get("selected_template_preview"):
-                preview_html = st.session_state.selected_template_preview
-                preview_name = st.session_state.selected_template
-            elif st.session_state.get("upload_preview_html"):
-                preview_html = st.session_state.upload_preview_html
-                preview_name = st.session_state.upload_preview_name
-
-            if preview_html:
-                st.markdown(f"### 🔍 Template Preview — **{preview_name}**")
-                st.components.v1.html(preview_html, height=1000, scrolling=True)
-
+                    with col2:
+                        if st.button(f"Delete", key=f"delete_{template_id}", use_container_width=True):
+                            # Clear selection if deleting currently selected template
+                            if st.session_state.get('current_upload_id') == template_id:
+                                st.session_state.pop('selected_template_preview', None)
+                                st.session_state.pop('selected_template', None)
+                                st.session_state.pop('selected_template_config', None)
+                                st.session_state.pop('current_upload_id', None)
+                            
+                            del st.session_state.uploaded_templates[template_id]
+                            save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+                            st.success(f"✅ Deleted '{template_data['name']}'")
+                            st.rerun()
 
             st.markdown("---")
-            if st.button("⬅️ Go Back to Editor", use_container_width=True):
-                switch_page("create")
 
+        # 3️⃣ Preview Section - Show ONLY saved template preview (after clicking Use)
+        if st.session_state.get("selected_template_preview") and st.session_state.get("template_source") == 'saved':
+            st.markdown(f"### 🔍 Template Preview — **{st.session_state.selected_template}**")
+            st.components.v1.html(st.session_state.selected_template_preview, height=1000, scrolling=True)
 
+        st.markdown("---")
+        if st.button("⬅️ Go Back to Editor", use_container_width=True):
+            switch_page("create")
+
+    # --- Sidebar ---
+    with st.sidebar:
+        st.subheader("⚙️ Template Settings")
+        
+        color_name = st.selectbox(
+            'Choose Accent Color:',
+            list(ATS_COLORS.keys()),
+            key='download_sys_color_select'
+        )
+        primary_color = ATS_COLORS[color_name]
+        
+        custom_color = st.color_picker(
+            'Custom Color (Advanced):',
+            primary_color,
+            key='download_sys_color_picker'
+        )
+        
+        if custom_color != primary_color:
+            primary_color = custom_color
+        
+        st.markdown("---")
+        st.markdown("### 💾 Download Options")
+        
+        # Download buttons
+        if st.session_state.get("selected_template_config"):
+            current_template = st.session_state.selected_template_config
+            
+            # Safely get CSS and HTML with defaults
+            template_css = current_template.get('css', '')
+            template_html = current_template.get('html', '')
+            
+            # Update preview with selected color
+            if st.session_state.get("selected_template_preview") or st.session_state.get("template_source") == 'temp_upload':
+                preview_html = f"""
+                    <style>{template_css.replace('{primary_color}', primary_color) if template_css else ''}</style>
+                    <div class="ats-page">{generate_generic_html(final_data)}</div>
+                """
+                # Update preview to reflect color change
+                if st.session_state.get("template_source") != 'temp_upload':
+                    st.session_state.selected_template_preview = preview_html
+
+            st.markdown(get_html_download_link(
+                final_data, 
+                primary_color, 
+                st.session_state.selected_template_config
+            ), unsafe_allow_html=True)
+            
+            st.markdown(get_doc_download_link(
+                final_data, 
+                primary_color, 
+                st.session_state.selected_template_config
+            ), unsafe_allow_html=True)
+            
+            st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
+        else:
+            st.info("👆 Please select a template first to enable download links.")
+
+        st.markdown("---")
+        st.caption("### 💡 Download Tips:")
+        st.caption("**HTML:** Best for web viewing")
+        st.caption("**PDF:** Open HTML → Print → Save as PDF")
+        st.caption("**DOC:** Edit in Microsoft Word")
+        st.caption("**TXT:** Maximum ATS compatibility")
 
 if __name__ == '__main__':
     app_download()

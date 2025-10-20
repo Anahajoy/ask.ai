@@ -737,6 +737,7 @@ if input_method == "Manual Entry":
                 st.error("Please fill in all required fields marked with *")
 
 # Upload Resume Section
+# Upload Resume Section
 else:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h2><span class="section-number">2</span>Upload Your Resume</h2>', unsafe_allow_html=True)
@@ -764,8 +765,13 @@ else:
         with col2:
             if st.button("Process Resume", key="re-btn"):
                 if extracted_text:
+                    # Check if user is logged in BEFORE processing
+                    if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+                        st.error("⚠️ Session expired. Please login again.")
+                        st.switch_page("login.py")
+                        st.stop()
+                    
                     with st.spinner("Analyzing your resume and parsing details..."):
-                        # Ensure you have a check for the utility function's behavior
                         try:
                             parsed_data = extract_details_from_text(extracted_text)
                         except Exception as e:
@@ -773,20 +779,43 @@ else:
                             parsed_data = None
                     
                     if parsed_data:
+                        # Store in session state FIRST
                         st.session_state.resume_source = parsed_data
                         st.session_state.resume_processed = True
-
-                        st.success("Resume processed and details captured successfully!")
-                        if 'logged_in_user' in st.session_state:
-                            save_success = save_user_resume(st.session_state.logged_in_user, parsed_data, input_method="Upload")
-                            if save_success:
-                                st.success("Resume data saved to profile!")
-                            else:
-                                st.warning("Resume created but couldn't save to profile")
-
-                        st.switch_page("pages/job.py")
-
+                        st.session_state.input_method = "Upload"  # Store input method
+                        
+                        # Then save to file
+                        save_success = save_user_resume(
+                            st.session_state.logged_in_user, 
+                            parsed_data, 
+                            input_method="Upload"
+                        )
+                        
+                        if save_success:
+                            st.success("✅ Resume processed and saved successfully!")
+                            
+                            # Add a small delay to ensure state is saved
+                            import time
+                            time.sleep(0.5)
+                            
+                            # Switch page
+                            st.switch_page("pages/job.py")
+                        else:
+                            st.error("❌ Failed to save resume. Please try again.")
                     else:
                         st.error("Failed to process resume. Please ensure your file is clean or try manual entry.")
                 else:
                     st.error("Please upload your resume first")
+
+
+# IMPORTANT: Add this at the very top of your file (after imports, before any other code)
+# This ensures user authentication is checked on every page load
+def check_authentication():
+    """Check if user is authenticated, redirect to login if not"""
+    if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+        st.warning("⚠️ Please login to continue")
+        st.switch_page("login.py")
+        st.stop()
+
+# Call this right after your imports and before any UI code
+# check_authentication()  # Uncomment this line to enable auth check

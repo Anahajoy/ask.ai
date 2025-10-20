@@ -1234,7 +1234,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
 
 def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""
-    user_data_file = Path(__file__).parent.parent / "user_resume_data.json"
+    user_data_file = "user_resume_data.json"
 
     # Convert date objects to strings
     def convert_dates(obj):

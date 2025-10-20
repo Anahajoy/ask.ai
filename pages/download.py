@@ -1206,68 +1206,7 @@ def app_download():
         </p>
     </div>
     """, unsafe_allow_html=True)
-#     with st.sidebar:
-#                     st.subheader("⚙️ Template Settings")
-                    
-#                     color_name = st.selectbox(
-#                         'Choose Accent Color:',
-#                         list(ATS_COLORS.keys()),
-#                         key='sys_color_select'
-#                     )
-#                     primary_color = ATS_COLORS[color_name]
-                    
-#                     custom_color = st.color_picker(
-#                         'Custom Color (Advanced):',
-#                         primary_color,
-#                         key='sys_color_picker'
-#                     )
-                    
-#                     if custom_color != primary_color:
-#                         primary_color = custom_color
-                    
-                    
-#                     st.markdown("---")
-#                     st.markdown("### 💾 Download Options")
-                    
-#                     # Download buttons
-# # Check if a template has been selected
-#                     if st.session_state.get("selected_template_config"):
-
-#                         st.markdown(get_html_download_link(
-#                             final_data, 
-#                             primary_color, 
-#                             st.session_state.selected_template_config
-#                         ), unsafe_allow_html=True)
-                        
-#                         # Uncomment if you want PDF support
-#                         # st.markdown(get_pdf_download_link(
-#                         #     final_data, 
-#                         #     primary_color, 
-#                         #     st.session_state.selected_template_config
-#                         # ), unsafe_allow_html=True)
-                        
-#                         st.markdown(get_doc_download_link(
-#                             final_data, 
-#                             primary_color, 
-#                             st.session_state.selected_template_config
-#                         ), unsafe_allow_html=True)
-                        
-#                         st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
-
-#                     else:
-#                         st.info("👆 Please select a template first to enable download links.")
-
-#                     # st.markdown(get_pptx_download_link(final_data), unsafe_allow_html=True)
-                    
-#                     st.markdown("---")
-#                     st.caption("### 💡 Download Tips:")
-#                     st.caption("**HTML:** Best for web viewing")
-#                     st.caption("**PDF:** Open HTML → Print → Save as PDF")
-#                     st.caption("**DOC:** Edit in Microsoft Word")
-#                     # st.caption("**PPTX:** Present resume in PowerPoint")
-#                     st.caption("**TXT:** Maximum ATS compatibility")
-                
-    # Create tabs
+#     
     tab1, tab3 = st.tabs(["🎨 System Templates", "📤 Upload New Template"])
 
     # --- TAB 1: SYSTEM TEMPLATES ---
@@ -1471,25 +1410,7 @@ def app_download():
 
     # --- Sidebar ---
     with st.sidebar:
-        st.subheader("⚙️ Template Settings")
         
-        color_name = st.selectbox(
-            'Choose Accent Color:',
-            list(ATS_COLORS.keys()),
-            key='download_sys_color_select'
-        )
-        primary_color = ATS_COLORS[color_name]
-        
-        custom_color = st.color_picker(
-            'Custom Color (Advanced):',
-            primary_color,
-            key='download_sys_color_picker'
-        )
-        
-        if custom_color != primary_color:
-            primary_color = custom_color
-        
-        st.markdown("---")
         st.markdown("### 💾 Download Options")
         
         # Download buttons

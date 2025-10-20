@@ -2,30 +2,80 @@ import streamlit as st
 from utils import rewrite_resume_for_job, analyze_and_improve_resume, rewrite_resume_for_job_manual
 from streamlit_extras.switch_page_button import switch_page 
 from copy import deepcopy
+import hashlib
+import json
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
-# del st.session_state['enhanced_resume']
 
+# --- ADDED: State Management Functions ---
+
+def get_resume_hash(resume_data):
+    """Generate a hash of resume data to detect changes"""
+    resume_str = json.dumps(resume_data, sort_keys=True, default=str)
+    return hashlib.md5(resume_str.encode()).hexdigest()
+
+def should_regenerate_resume():
+    """Check if we need to regenerate the enhanced resume"""
+    current_user = st.session_state.get('logged_in_user')
+    resume_data = st.session_state.get('resume_source')
+    jd_data = st.session_state.get('job_description')
+    
+    # Check 1: No enhanced resume exists
+    if 'enhanced_resume' not in st.session_state:
+        return True
+    
+    # Check 2: User changed
+    if st.session_state.get('last_resume_user') != current_user:
+        return True
+    
+    # Check 3: Resume source data changed
+    current_resume_hash = get_resume_hash(resume_data) if resume_data else None
+    if st.session_state.get('last_resume_hash') != current_resume_hash:
+        return True
+    
+    # Check 4: Job description changed
+    current_jd_hash = get_resume_hash(jd_data) if jd_data else None
+    if st.session_state.get('last_jd_hash') != current_jd_hash:
+        return True
+    
+    return False
+
+def generate_enhanced_resume():
+    """Generate enhanced resume and store metadata"""
+    resume_data = st.session_state.get('resume_source')
+    jd_data = st.session_state.get('job_description')
+    input_method = st.session_state.get("input_method", "Manual Entry")
+    current_user = st.session_state.get('logged_in_user')
+    
+    # Generate enhanced resume based on input method
+    if input_method == "Manual Entry":
+        enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
+    else:
+        enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
+    
+    # Store the enhanced resume and metadata
+    st.session_state['enhanced_resume'] = enhanced_resume
+    st.session_state['last_resume_user'] = current_user
+    st.session_state['last_resume_hash'] = get_resume_hash(resume_data) if resume_data else None
+    st.session_state['last_jd_hash'] = get_resume_hash(jd_data) if jd_data else None
+    
+    return enhanced_resume
 
 # --- Configuration & Data Retrieval ---
 resume_data = st.session_state.get('resume_source')
 jd_data = st.session_state.get('job_description')
+input_method = st.session_state.get("input_method", "Manual Entry")
 
-input_method = st.session_state.get("input_method", "Manual Entry") # Added .get() for robustness
-
-if 'enhanced_resume' not in st.session_state:
-    if input_method == "Manual Entry":
-        sample_enhanced_resume_data = rewrite_resume_for_job_manual(resume_data, jd_data)
-    else:
-        sample_enhanced_resume_data = rewrite_resume_for_job(resume_data, jd_data)
-    st.session_state['enhanced_resume'] = sample_enhanced_resume_data
+# MODIFIED: Smart regeneration logic
+if should_regenerate_resume():
+    with st.spinner("Generating optimized resume..."):
+        generate_enhanced_resume()
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
 
 def apply_custom_css():
     """Applies custom CSS for a modern dark theme with white text and Teal accent."""
-    # Define the new accent color
     ACCENT_TEAL = "#4ECDC4"
     
     st.markdown(f"""
@@ -59,7 +109,7 @@ def apply_custom_css():
 
         /* Section headers (Teal accent) */
         .resume-section h2 {{
-            color: {ACCENT_TEAL}; /* Updated accent color */
+            color: {ACCENT_TEAL};
             text-transform: uppercase;
             letter-spacing: 2px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.3);
@@ -77,7 +127,7 @@ def apply_custom_css():
         }}
         
         h3 {{
-            color: {ACCENT_TEAL}; /* Job title color */
+            color: {ACCENT_TEAL};
             margin-top: 0;
             font-weight: 500;
         }}
@@ -97,7 +147,7 @@ def apply_custom_css():
         .bullet-list {{ list-style-type: disc; padding-left: 20px; }}
         .bullet-list li {{ margin-bottom: 6px; line-height: 1.5; color: #E0E0E0; }}
         
-        /* Skills Items (FIXED: No Yellow) */
+        /* Skills Items */
         .skill-list {{
             list-style: none;
             padding: 0;
@@ -108,8 +158,8 @@ def apply_custom_css():
             margin-bottom: 15px;
         }}
         .skill-item {{ 
-            background-color: #333333; /* Dark pill background */
-            color: {ACCENT_TEAL}; /* Teal text color */
+            background-color: #333333;
+            color: {ACCENT_TEAL};
             padding: 6px 12px;
             border-radius: 8px;
             font-size: 0.9em; 
@@ -117,7 +167,7 @@ def apply_custom_css():
             border: 1px solid rgba(78, 205, 196, 0.3);
         }}
         
-        /* Text inputs and text areas (Dark mode styling for contrast) */
+        /* Text inputs and text areas */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {{
             background-color: #2c2c2c;
@@ -132,7 +182,7 @@ def apply_custom_css():
             box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.4);
         }}
         
-        /* Expander styling for edit mode */
+        /* Expander styling */
         .streamlit-expanderHeader {{
             background-color: rgba(255, 255, 255, 0.1);
             border-radius: 8px;
@@ -141,9 +191,9 @@ def apply_custom_css():
             color: #FFFFFF;
         }}
         
-        /* Sidebar Buttons (FIXED: No Brown, using dark gray/Teal) */
+        /* Sidebar Buttons */
         [data-testid="stSidebar"] button {{
-            background-color: #333333; /* Dark Gray */
+            background-color: #333333;
             color: white;
             font-weight: 500;
             border-radius: 8px;
@@ -153,7 +203,7 @@ def apply_custom_css():
             border: 1px solid #444444;
         }}
         
-        /* Primary Button (GENERATE RESUME) */
+        /* Primary Button */
         [data-testid="stSidebar"] button[kind="primary"] {{
             background-color: {ACCENT_TEAL}; 
             border: none;
@@ -201,7 +251,6 @@ def render_basic_details(data, is_edit):
         data['summary'] = st.text_area("Summary", data.get('summary', ''), height=150, key="edit_summary")
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        # ✅ Ensure name & job title show
         st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
         if data.get('job_title'):
             st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
@@ -235,35 +284,26 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
             if subtitle:
                 html_content += f'<div class="item-subtitle">{subtitle}</div>'
 
-        # ✅ Include duration/date
         duration = item.get('duration') or f"{item.get('start_date', '')} - {item.get('end_date', '')}"
         if duration.strip() != '-':
             html_content += f'<div class="item-details"><em>{duration}</em></div>'
 
-        # ✅ Rest content
-        
-        # Look for the main bulleted list/description first (keys like 'description', 'overview')
         main_description_list = item.get('description') or item.get('overview')
         if isinstance(main_description_list, list) and main_description_list:
             bullet_html = "".join([f"<li>{line}</li>" for line in main_description_list])
             html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
         
-        # Then, show any remaining string details (e.g., location, GPA)
         for k, v in item.items():
             if isinstance(v, str) and v.strip() and k not in detail_keys_to_skip + ['duration', 'start_date', 'end_date']:
-                # Format to look like a small detail point
                 formatted_k = format_section_title(k)
                 html_content += f'<div class="item-details">**{formatted_k}:** {v}</div>'
-
 
         html_content += "</div>"
         return html_content
     else:
         edited_item = item.copy()
         
-        # Use an ordered list of fields for better UX in edit mode
         edit_fields = list(item.keys())
-        # Prioritize key fields
         priority_fields = ['title', 'name', 'company', 'institution', 'degree', 'issuer', 'duration', 'start_date', 'end_date', 'description', 'overview']
         
         ordered_fields = []
@@ -271,7 +311,7 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
             if field in edit_fields:
                 ordered_fields.append(field)
                 edit_fields.remove(field)
-        ordered_fields.extend(edit_fields) # Add the rest
+        ordered_fields.extend(edit_fields)
         
         for k in ordered_fields:
             v = item[k]
@@ -292,13 +332,11 @@ def render_generic_section(section_key, data_list, is_edit):
     st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
 
     for i, item in enumerate(data_list):
-        # Check if the item has been removed in a previous rerun
         if i >= len(st.session_state['enhanced_resume'].get(section_key, [])):
              continue 
 
         with st.container(border=False):
             
-            # Generate a meaningful title for the expander
             expander_title_parts = [
                 item.get('title'),
                 item.get('name'),
@@ -309,13 +347,10 @@ def render_generic_section(section_key, data_list, is_edit):
             expander_title = next((t for t in expander_title_parts if t), f"{section_title[:-1]} Item {i+1}")
 
             if is_edit:
-                
                 with st.expander(f"📝 Edit: **{expander_title}**", expanded=False):
-                    # NOTE: Deepcopy item before passing to render_list_item to prevent modifying state mid-render
                     temp_item = deepcopy(item) 
                     edited_item = render_list_item(temp_item, i, f"{section_key}_edit_{i}", section_title, is_edit=True)
                     
-                    # Update the state only after all fields have been processed
                     if edited_item:
                         st.session_state['enhanced_resume'][section_key][i] = edited_item
                     
@@ -323,7 +358,6 @@ def render_generic_section(section_key, data_list, is_edit):
                         st.session_state['enhanced_resume'][section_key].pop(i)
                         st.rerun()
                 
-                # Show the view-mode rendering outside the expander for real-time preview
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
             else:
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
@@ -346,14 +380,11 @@ def render_skills_section(data, is_edit):
                 
                 edited_text = st.text_area(f"Edit {skill_type}", skill_text, height=100, key=f"skills_edit_{skill_type}")
                 
-                # Update the data list in session state directly
                 st.session_state['enhanced_resume']['skills'][skill_type] = [line.strip() for line in edited_text.split('\n') if line.strip()]
     
-    # Render view mode
     for skill_type, skill_list in skills_data.items():
         if skill_list:
             st.markdown(f"**{format_section_title(skill_type)}:**", unsafe_allow_html=True)
-            # Use list tag <ul> with custom class for horizontal flow
             skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skill_list])
             st.markdown(f'<ul class="skill-list">{skills_html}</ul>', unsafe_allow_html=True)
 
@@ -367,31 +398,19 @@ def add_new_item(section_key, default_item):
     st.session_state['enhanced_resume'][section_key].append(default_item)
     st.rerun()
 
-# --- MODIFIED FUNCTION: Save and Improve (with Skills Preservation) ---
-
+# MODIFIED: Save and Improve with hash update
 def save_and_improve():
-    """
-    Calls auto_improve_resume on the current session state data and updates 
-    the session state, preserving user's manual edits/deletions in the skills section.
-    """
-    # Use deepcopy to ensure we are working with a copy of the data
+    """Calls auto_improve_resume and updates session state."""
     data = deepcopy(st.session_state['enhanced_resume'])
-    
-    # 1. Capture the user's current, manually edited skills before improvement
     user_skills_before = deepcopy(data.get('skills', {}))
-    
-    # Retrieve job description for context-aware improvement
     job_description = st.session_state.get('job_description', '') 
 
     with st.spinner('Calling LLM to perform auto-improvement...'):
-        # 2. Call the auto_improve_resume function from utils.py
         improved_data = analyze_and_improve_resume(data, job_description)
     
-    # --- 3. SKILLS MERGING LOGIC: Preserve user deletions/edits ---
+    # Skills merging logic
     llm_skills_after = improved_data.get('skills', {})
     merged_skills = {}
-
-    # Identify all skill categories present in EITHER the user's data OR the LLM's data
     all_categories = set(user_skills_before.keys()) | set(llm_skills_after.keys())
 
     for category in all_categories:
@@ -400,44 +419,30 @@ def save_and_improve():
         
         user_set = set(user_list)
         llm_set = set(llm_list)
-        
-        # Start with the user's current skills for this category (preserving deletions)
         final_skills_set = user_set.copy()
         
-        # Add any skills from the LLM's response that the user doesn't currently have.
         for skill in llm_set:
             if skill not in final_skills_set:
                 final_skills_set.add(skill)
                 
         merged_skills[category] = sorted(list(final_skills_set))
 
-    # Update the improved data with the merged skills
     improved_data['skills'] = merged_skills
-    
-    # --- END SKILLS MERGING LOGIC ---
-    
-    # Update the editor content with the final, merged improved data
     st.session_state['enhanced_resume'] = improved_data
+    
+    # Update hash so it doesn't regenerate
+    st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
+    
     st.success("Resume content saved and improved! Check the updated details below.")
 
-# --- Generate and Switch Function ---
-
 def generate_and_switch():
-    """
-    Performs final analysis (if any remaining) or just saves the current state 
-    as the final resume data and switches to the download page.
-    """
+    """Performs final analysis and switches to download page."""
     data = st.session_state['enhanced_resume']
     
-    # 1. Call final analysis/quality check (using the function defined in utils)
     with st.spinner('Performing final analysis and generating download data...'):
-        # This uses the same function, assuming the LLM handles final formatting/checks if needed
         finalized_data = analyze_and_improve_resume(data) 
     
-    # 2. Save the finalized data to be retrieved by download.py
     st.session_state['final_resume_data'] = finalized_data
-    
-    # 3. Switch the page
     switch_page("download")
 
 # --- Main Streamlit App Layout ---
@@ -447,6 +452,12 @@ def main():
     data = st.session_state['enhanced_resume']
 
     st.sidebar.title("Resume Tools 🛠️")
+    
+    # ADDED: Show regeneration info
+    with st.sidebar.expander("ℹ️ Resume Status", expanded=False):
+        st.caption(f"**User:** {st.session_state.get('logged_in_user', 'Unknown')}")
+        st.caption(f"**Last Updated:** {st.session_state.get('last_resume_user', 'Never')}")
+    
     if st.sidebar.button("✨ **Save & Auto-Improve**", use_container_width=True):
         save_and_improve()
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
@@ -468,8 +479,12 @@ def main():
             st.rerun()
 
     st.sidebar.markdown("---")
-    if st.sidebar.button("Reset Resume (Use with Caution!)"):
-        del st.session_state['enhanced_resume']
+    if st.sidebar.button("🔄 Regenerate from Source"):
+        # Force regeneration
+        if 'enhanced_resume' in st.session_state:
+            del st.session_state['enhanced_resume']
+        if 'last_resume_hash' in st.session_state:
+            del st.session_state['last_resume_hash']
         st.rerun()
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
@@ -487,7 +502,6 @@ def main():
             else:
                 render_generic_section(key, data[key], is_edit=is_edit_mode)
 
-    # Render any unlisted custom sections
     for key, value in data.items():
         if key not in rendered_keys and key not in ["name", "email", "phone", "location", "summary", "job_title"]:
             if isinstance(value, list):
@@ -496,7 +510,6 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)
 
 if __name__ == '__main__':
-    # Ensure dependencies are available before running main
     if 'job_description' not in st.session_state or 'resume_source' not in st.session_state:
         st.error("Missing job description or resume source. Please go back to the main page.")
         if st.button("Go to Home"):

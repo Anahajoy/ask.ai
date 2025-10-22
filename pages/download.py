@@ -1260,7 +1260,7 @@ def app_download():
     # --- TAB 3: UPLOAD NEW TEMPLATE ---
    # --- TAB 3: UPLOAD NEW TEMPLATE ---
     with tab3:
-        st.markdown("## 📤 Upload or Manage Templates")
+        # st.markdown("## 📤 Upload or Manage Templates")
 
         # Initialize uploaded_templates early
         if 'uploaded_templates' not in st.session_state:

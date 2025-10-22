@@ -1284,10 +1284,15 @@ def save_user_resume(email, resume_data, input_method=None):
         return False
     
 def get_user_template_path(user_email):
-            """Return the JSON path for the given user's templates."""
-            os.makedirs(TEMPLATES_DIR, exist_ok=True)
-            safe_email = user_email.replace("@", "_at_").replace(".", "_dot_")
-            return os.path.join(TEMPLATES_DIR, f"{safe_email}.json")
+    """Return the JSON path for the given user's templates."""
+    if not user_email:
+        raise ValueError("❌ user_email is None — make sure the user is logged in before saving templates.")
+    
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    safe_email = user_email.replace("@", "_at_").replace(".", "_dot_")
+    return os.path.join(TEMPLATES_DIR, f"{safe_email}.json")
+
+
 
 def load_user_templates(user_email):
             """Load templates from JSON file for the logged-in user."""

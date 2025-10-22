@@ -53,7 +53,7 @@ def generate_enhanced_resume():
     else:
         enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
 
-    st.write(enhanced_resume)
+    # st.write(enhanced_resume)
     
     # Store the enhanced resume and metadata
     st.session_state['enhanced_resume'] = enhanced_resume

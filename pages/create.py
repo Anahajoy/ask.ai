@@ -52,6 +52,8 @@ def generate_enhanced_resume():
         enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
     else:
         enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
+
+    st.write(enhanced_resume)
     
     # Store the enhanced resume and metadata
     st.session_state['enhanced_resume'] = enhanced_resume
@@ -61,10 +63,10 @@ def generate_enhanced_resume():
     
     return enhanced_resume
 
-# --- Configuration & Data Retrieval ---
-resume_data = st.session_state.get('resume_source')
-jd_data = st.session_state.get('job_description')
-input_method = st.session_state.get("input_method", "Manual Entry")
+# # --- Configuration & Data Retrieval ---
+# resume_data = st.session_state.get('resume_source')
+# jd_data = st.session_state.get('job_description')
+# input_method = st.session_state.get("input_method", "Manual Entry")
 
 # MODIFIED: Smart regeneration logic
 if should_regenerate_resume():
@@ -267,14 +269,37 @@ def render_basic_details(data, is_edit):
             st.markdown('</div>', unsafe_allow_html=True)
 
 
+def format_date(date_string):
+    """
+    Converts date from YYYY-MM-DD to MMM YYYY format.
+    Example: "2025-10-14" -> "Oct 2025"
+    """
+    if not date_string or date_string.strip() == '':
+        return ''
+    
+    try:
+        from datetime import datetime
+        date_obj = datetime.strptime(date_string, '%Y-%m-%d')
+        return date_obj.strftime('%b %Y')
+    except:
+        return date_string  # Return original if parsing fails
+
+
 def render_list_item(item, index, key_prefix, section_title, is_edit=True):
     """Generic list item renderer for both edit and view modes."""
-    title_keys = ['name', 'title', 'degree', 'institution', 'company'] 
-    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview', 'issuer']
+    title_keys = ['name', 'title', 'degree', 'institution', 'company', 'position']  # ADDED 'position'
+    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview', 'issuer', 'position', 'start_date', 'end_date']  # ADDED 'position'
 
     if not is_edit:
         html_content = "<div>"
-        main_title = next((item[k] for k in title_keys if k in item and item[k]), None)
+        
+        # MODIFIED: Check for position field first
+        main_title = None
+        if 'position' in item and item['position']:
+            main_title = item['position']
+        else:
+            main_title = next((item[k] for k in title_keys if k in item and item[k]), None)
+        
         if main_title:
             html_content += f'<div class="item-title">{main_title}</div>'
             subtitle_keys = ['institution', 'company', 'issuer']
@@ -282,8 +307,15 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
             if subtitle:
                 html_content += f'<div class="item-subtitle">{subtitle}</div>'
 
-        duration = item.get('duration') or f"{item.get('start_date', '')} - {item.get('end_date', '')}"
-        if duration.strip() != '-':
+        # MODIFIED: Format dates to MMM YYYY
+        duration = item.get('duration')
+        if not duration:
+            start_date = format_date(item.get('start_date', ''))
+            end_date = format_date(item.get('end_date', ''))
+            if start_date or end_date:
+                duration = f"{start_date} - {end_date}"
+        
+        if duration and duration.strip() != '-':
             html_content += f'<div class="item-details"><em>{duration}</em></div>'
 
         main_description_list = item.get('description') or item.get('overview')
@@ -302,7 +334,8 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
         edited_item = item.copy()
         
         edit_fields = list(item.keys())
-        priority_fields = ['title', 'name', 'company', 'institution', 'degree', 'issuer', 'duration', 'start_date', 'end_date', 'description', 'overview']
+        # MODIFIED: Added 'position' to priority fields
+        priority_fields = ['position', 'title', 'name', 'company', 'institution', 'degree', 'issuer', 'duration', 'start_date', 'end_date', 'description', 'overview']
         
         ordered_fields = []
         for field in priority_fields:

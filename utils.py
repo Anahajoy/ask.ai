@@ -1231,6 +1231,14 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
 
     return rewritten_resume
 
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def is_valid_phone(phone):
+    pattern = r'^\+?\d{7,15}$'
+    return re.match(pattern, phone) is not None
+
 
 def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""

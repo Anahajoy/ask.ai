@@ -1,7 +1,7 @@
 import streamlit as st
 from pathlib import Path
 import json
-import re
+from utils import is_valid_email,is_valid_phone
 import time # Keep time import for page switch delay
 
 # NOTE: The provided imports (utils functions) are assumed to exist.
@@ -324,7 +324,8 @@ if input_method == "Manual Entry":
     with col1:
         name = st.text_input("Full Name *", placeholder="e.g., John Smith", key="name_input")
         experience = st.text_input("Years of Experience *", placeholder="e.g., 5", key="experience_input")
-    
+        phone = st.text_input("Phone number *",placeholder= "e.g., +91 ",key = "phone")
+       
     with col2:
         # Placeholder for utility function call
         all_skills_list = load_skills_from_json()
@@ -335,6 +336,7 @@ if input_method == "Manual Entry":
             help="Select all relevant skills",
             key="general_skills"
         )
+        email = st.text_input ("email *",placeholder="e.g., google@gmail.com", key = "email")
     st.markdown('</div>', unsafe_allow_html=True) # End card
     
     st.markdown("---")
@@ -536,39 +538,46 @@ if input_method == "Manual Entry":
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Generate Resume", key="man-btn", use_container_width=True): # Ensure submit button is full width
-            if name and skills and experience:
-                with st.spinner("Processing your resume..."):
-                    # Filtering out empty entries from lists
-                    filtered_experience = [p for p in professional_experience if p["company"] and p["position"]]
-                    filtered_education = [e for e in education if e["course"] and e["university"]]
-                    filtered_certificate = [c for c in certificate if c["certificate_name"]]
-                    filtered_project = [p for p in project if p["projectname"]]
-                    
-                    user_data = {
-                        'name': name,
-                        'skills': skills,
-                        'experience': experience,
-                        'professional_experience': filtered_experience,
-                        'education': filtered_education,
-                        'certificate': filtered_certificate,
-                        'project': filtered_project
-                    }
+        if st.button("Generate Resume", key="man-btn", use_container_width=True):
+            if not is_valid_email(email):
+                    st.error("Please enter a valid email address")
+            elif not is_valid_phone(phone):
+                 st.error("Please enter a valid phone number")
+            else : # Ensure submit button is full width
+                if name and skills and experience:
+                    with st.spinner("Processing your resume..."):
+                        # Filtering out empty entries from lists
+                        filtered_experience = [p for p in professional_experience if p["company"] and p["position"]]
+                        filtered_education = [e for e in education if e["course"] and e["university"]]
+                        filtered_certificate = [c for c in certificate if c["certificate_name"]]
+                        filtered_project = [p for p in project if p["projectname"]]
+                        
+                        user_data = {
+                            'name': name,
+                            'skills': skills,
+                            'experience': experience,
+                            'phone':phone,
+                            'email': email,
+                            'professional_experience': filtered_experience,
+                            'education': filtered_education,
+                            'certificate': filtered_certificate,
+                            'project': filtered_project
+                        }
 
-                st.session_state.resume_source = user_data
-                st.success("Resume data saved successfully!")
+                    st.session_state.resume_source = user_data
+                    st.success("Resume data saved successfully!")
 
-                if 'logged_in_user' in st.session_state:
-                    save_success = save_user_resume(st.session_state.logged_in_user, user_data, input_method="Manual Entry")
-                    if save_success:
-                        st.success("Resume processed and saved to profile!")
-                    else:
-                        st.warning("Resume processed but couldn't save to profile")
+                    if 'logged_in_user' in st.session_state:
+                        save_success = save_user_resume(st.session_state.logged_in_user, user_data, input_method="Manual Entry")
+                        if save_success:
+                            st.success("Resume processed and saved to profile!")
+                        else:
+                            st.warning("Resume processed but couldn't save to profile")
 
-                st.switch_page("pages/job.py")
+                    st.switch_page("pages/job.py")
 
-            else:
-                st.error("Please fill in all required fields marked with *")
+                else:
+                    st.error("Please fill in all required fields marked with *")
 
 # Upload Resume Section
 else:

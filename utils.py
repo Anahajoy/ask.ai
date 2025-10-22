@@ -902,7 +902,6 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
             return resume_data
 
         improved_data = json.loads(response_text[json_start:json_end])
-        st.success("🤖 Content successfully refined and improved using Llama API.")
         return improved_data
 
     except requests.exceptions.RequestException as e:

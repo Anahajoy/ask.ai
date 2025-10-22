@@ -15,7 +15,7 @@ if 'mode' not in st.session_state:
     st.session_state.mode = 'login'  # 'login' or 'register'
 
 users_file = Path(__file__).parent / "users.json"
-user_data_file = Path(__file__).parent / "user_resume_data.json"
+user_data_file = "user_resume_data.json"
 
 def load_users():
     try:
@@ -284,6 +284,7 @@ with st.container(border=False):
                             
                             if user_resume and len(user_resume) > 0:
                                 st.session_state.resume_source = user_resume
+                                st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
                                 st.success(f"Welcome back, {st.session_state.username}! Loading your saved resume...")
                                 time.sleep(1)
                                 st.switch_page("pages/job.py")

@@ -119,17 +119,23 @@ def generate_enhanced_resume():
     """Generate enhanced resume and store metadata"""
     resume_data = st.session_state.get('resume_source')
     jd_data = st.session_state.get('job_description')
-    input_method = st.session_state.get("input_method", "Manual Entry")
+    input_method = st.session_state.get(
+    "input_method", 
+    resume_data.get("input_method", "Manual Entry")
+)
     current_user = st.session_state.get('logged_in_user')
+    # st.write("input method",input_method)
     
     # Generate enhanced resume based on input method
     if input_method == "Manual Entry":
         enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
+        # st.write("manual entry resume")
     else:
         enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
+        # st.write("normal entry resume")
 
     # st.write(enhanced_resume)
-    
+    # st.write(enhanced_resume)
     # Store the enhanced resume and metadata
     st.session_state['enhanced_resume'] = enhanced_resume
     st.session_state['last_resume_user'] = current_user
@@ -138,12 +144,6 @@ def generate_enhanced_resume():
     
     return enhanced_resume
 
-# # --- Configuration & Data Retrieval ---
-# resume_data = st.session_state.get('resume_source')
-# jd_data = st.session_state.get('job_description')
-# input_method = st.session_state.get("input_method", "Manual Entry")
-
-# MODIFIED: Smart regeneration logic
 if should_regenerate_resume():
     with st.spinner("Generating optimized resume..."):
         generate_enhanced_resume()

@@ -204,8 +204,13 @@ if 'logged_in_user' not in st.session_state:
 
 # Get resume data from session state
 resume_data = st.session_state.get("resume_source", {})
-input_method = resume_data.get("input_method", "Manual Entry") 
+input_method = st.session_state.get(
+    "input_method", 
+    resume_data.get("input_method", "Manual Entry")
+)
+# input_method = resume_data.get("input_method", "Manual Entry") 
 st.session_state["input_method"] = input_method
+st.write(input_method)
 
 
 # --- Header Section ---

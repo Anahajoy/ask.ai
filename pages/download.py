@@ -479,7 +479,14 @@ def parse_uploaded_file(uploaded_file):
     
     try:
         if file_type == 'html':
-            content = uploaded_file.read().decode('utf-8')
+            import chardet
+            raw_data = uploaded_file.read()
+            detected = chardet.detect(raw_data)
+            encoding = detected["encoding"] or "utf-8"
+
+    # Decode safely — ignore errors if any
+            content = raw_data.decode(encoding, errors="ignore")
+
             return extract_template_from_html(content)
         elif file_type in ['doc', 'docx']:
             st.warning("DOC/DOCX parsing coming soon. Using default template for now.")
@@ -1443,7 +1450,7 @@ def app_download():
             if st.session_state.get("selected_template_preview") or st.session_state.get("template_source") == 'temp_upload':
                 preview_html = f"""
                     <style>{template_css.replace('{primary_color}', primary_color) if template_css else ''}</style>
-                    <div class="ats-page">{generate_generic_html(final_data)}</div>
+                    <div class="ats-page">{generate_generic_html()}</div>
                 """
                 # Update preview to reflect color change
                 if st.session_state.get("template_source") != 'temp_upload':

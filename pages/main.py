@@ -568,6 +568,7 @@ if input_method == "Manual Entry":
                     st.success("Resume data saved successfully!")
 
                     if 'logged_in_user' in st.session_state:
+                        st.session_state.input_method = "Manual Entry" 
                         save_success = save_user_resume(st.session_state.logged_in_user, user_data, input_method="Manual Entry")
                         if save_success:
                             st.success("Resume processed and saved to profile!")
@@ -598,7 +599,7 @@ else:
             else:
                 extracted_text = extract_text_from_docx(uploaded_file)
         
-        st.success("File uploaded and text extracted successfully! Review and click 'Process Resume'.")
+        # st.success("File uploaded and text extracted successfully! Review and click 'Process Resume'.")
         
         # UI CHANGE: Wrap preview in a card/container
         st.markdown('<div class="experience-card" style="padding: 1.5rem;">', unsafe_allow_html=True)
@@ -628,13 +629,13 @@ else:
                         # Store in session state FIRST
                         st.session_state.resume_source = parsed_data
                         st.session_state.resume_processed = True
-                        st.session_state.input_method = "Upload"  # Store input method
+                        st.session_state.input_method = "Upload Entry"  # Store input method
                         
                         # Then save to file
                         save_success = save_user_resume(
                             st.session_state.logged_in_user, 
                             parsed_data, 
-                            input_method="Upload"
+                            input_method="Upload Entry"
                         )
                         
                         if save_success:

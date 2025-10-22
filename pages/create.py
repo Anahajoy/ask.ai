@@ -493,21 +493,24 @@ def main():
         save_and_improve()
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
         generate_and_switch()
+    is_edit_mode = st.sidebar.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+    if not st.session_state.get('edit_toggle', False):
+        st.sidebar.info("⚠️ Enable Edit Mode to add new items, For saving the newly added content disable the Enable Edit Mode")
+    else:
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("➕ Add New Section Items")
+        st.sidebar.button("Add New Experience", on_click=add_new_item, args=('experience', {"title": "New Job Title", "company": "New Company", "duration": "YYYY - YYYY", "description": ["New responsibility 1."]}))
+        st.sidebar.button("Add New Education", on_click=add_new_item, args=('education', {"institution": "New University", "degree": "New Degree", "duration": "YYYY - YYYY"}))
+        st.sidebar.button("Add New Certification", on_click=add_new_item, args=('certifications', {"name": "New Certification Name", "issuer": "Issuing Body"}))
+        st.sidebar.button("Add New Project", on_click=add_new_item, args=('projects', {"name": "New Project Title", "description": ["Project detail 1.", "Project detail 2."]}))
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("➕ Add New Section Items")
-    st.sidebar.button("Add New Experience", on_click=add_new_item, args=('experience', {"title": "New Job Title", "company": "New Company", "duration": "YYYY - YYYY", "description": ["New responsibility 1."]}))
-    st.sidebar.button("Add New Education", on_click=add_new_item, args=('education', {"institution": "New University", "degree": "New Degree", "duration": "YYYY - YYYY"}))
-    st.sidebar.button("Add New Certification", on_click=add_new_item, args=('certifications', {"name": "New Certification Name", "issuer": "Issuing Body"}))
-    st.sidebar.button("Add New Project", on_click=add_new_item, args=('projects', {"name": "New Project Title", "description": ["Project detail 1.", "Project detail 2."]}))
-
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Custom Section Management")
-    new_section_key = st.sidebar.text_input("Add a New Section Key (e.g., 'awards')")
-    if st.sidebar.button("Add Custom List Section"):
-        if new_section_key and new_section_key.lower() not in data:
-            data[new_section_key.lower()] = []
-            st.rerun()
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("Custom Section Management")
+        new_section_key = st.sidebar.text_input("Add a New Section Key (e.g., 'awards')")
+        if st.sidebar.button("Add Custom List Section"):
+            if new_section_key and new_section_key.lower() not in data:
+                data[new_section_key.lower()] = []
+                st.rerun()
 
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Regenerate from Source"):
@@ -519,7 +522,7 @@ def main():
         st.rerun()
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
-    is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+    # is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
     st.markdown("---")
 
     render_basic_details(data, is_edit=is_edit_mode)

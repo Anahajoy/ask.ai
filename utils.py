@@ -1308,3 +1308,263 @@ def save_user_templates(user_email, templates):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(templates, f, indent=4, ensure_ascii=False)
+
+
+import re
+from collections import Counter
+
+def calculate_ats_score(resume_data, job_description):
+    """
+    Calculate ATS score based on keyword matching between resume and JD.
+    Returns a score out of 100 and breakdown details.
+    """
+    if not job_description or not resume_data:
+        return {"score": 0, "breakdown": {}, "missing_keywords": []}
+    
+    # FIXED: Handle job_description if it's a dict
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = job_description
+    
+    # Extract keywords from job description
+    jd_keywords = extract_keywords(jd_text)
+    
+    # Extract all text from resume
+    resume_text = extract_resume_text(resume_data)
+    resume_keywords = extract_keywords(resume_text)
+    
+    # Calculate matching
+    matched_keywords = jd_keywords.intersection(resume_keywords)
+    match_percentage = (len(matched_keywords) / len(jd_keywords) * 100) if jd_keywords else 0
+    
+    # Calculate breakdown by sections
+    breakdown = {
+        "skills_match": calculate_skills_match(resume_data.get('skills', {}), jd_text),
+        "experience_match": calculate_text_match(
+            extract_section_text(resume_data.get('experience', [])), 
+            jd_text
+        ),
+        "keyword_match": match_percentage
+    }
+    
+    # Calculate overall score (weighted)
+    overall_score = (
+        breakdown["skills_match"] * 0.4 +
+        breakdown["experience_match"] * 0.3 +
+        breakdown["keyword_match"] * 0.3
+    )
+    
+    # Find missing important keywords
+    missing_keywords = list(jd_keywords - resume_keywords)[:10]  # Top 10 missing
+    
+    return {
+        "score": round(overall_score, 1),
+        "breakdown": breakdown,
+        "matched_keywords": list(matched_keywords)[:15],
+        "missing_keywords": missing_keywords
+    }
+
+
+def extract_jd_text(jd_dict):
+    """Extract text from job description dictionary."""
+    if not isinstance(jd_dict, dict):
+        return str(jd_dict)
+    
+    text_parts = []
+    
+    # Common JD fields
+    jd_fields = [
+        'job_title', 'title', 'position', 
+        'description', 'job_description',
+        'responsibilities', 'requirements', 
+        'qualifications', 'skills_required',
+        'preferred_skills', 'experience_required',
+        'summary', 'overview', 'about_role'
+    ]
+    
+    # Extract text from all fields
+    for field in jd_fields:
+        if field in jd_dict:
+            value = jd_dict[field]
+            if isinstance(value, str):
+                text_parts.append(value)
+            elif isinstance(value, list):
+                text_parts.extend([str(item) for item in value])
+    
+    # If no specific fields found, extract all string values
+    if not text_parts:
+        for key, value in jd_dict.items():
+            if isinstance(value, str):
+                text_parts.append(value)
+            elif isinstance(value, list):
+                text_parts.extend([str(item) for item in value if item])
+    
+    return ' '.join(text_parts)
+
+
+def extract_keywords(text):
+    """Extract meaningful keywords from text."""
+    if not text:
+        return set()
+    
+    # Ensure text is a string
+    if not isinstance(text, str):
+        text = str(text)
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove special characters and split into words
+    words = re.findall(r'\b[a-z]{3,}\b', text)
+    
+    # Common stop words to exclude
+    stop_words = {
+        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was',
+        'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may',
+        'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'she', 'use', 'way',
+        'about', 'after', 'also', 'back', 'been', 'before', 'being', 'both', 'could',
+        'each', 'from', 'have', 'here', 'into', 'just', 'like', 'more', 'most', 'only',
+        'other', 'over', 'such', 'than', 'that', 'them', 'then', 'there', 'these',
+        'they', 'this', 'through', 'time', 'very', 'were', 'what', 'when', 'where',
+        'which', 'while', 'will', 'with', 'would', 'your', 'work', 'using', 'able'
+    }
+    
+    # Filter out stop words and keep meaningful keywords
+    keywords = {word for word in words if word not in stop_words and len(word) > 3}
+    
+    return keywords
+
+
+def extract_resume_text(resume_data):
+    """Extract all text content from resume data."""
+    text_parts = []
+    
+    # Add summary
+    if resume_data.get('summary'):
+        text_parts.append(resume_data['summary'])
+    
+    # Add skills
+    skills = resume_data.get('skills', {})
+    for skill_list in skills.values():
+        if isinstance(skill_list, list):
+            text_parts.extend(skill_list)
+    
+    # Add experience
+    for exp in resume_data.get('experience', []):
+        if exp.get('position'):
+            text_parts.append(exp['position'])
+        if exp.get('title'):
+            text_parts.append(exp['title'])
+        if exp.get('description'):
+            if isinstance(exp['description'], list):
+                text_parts.extend(exp['description'])
+            else:
+                text_parts.append(str(exp['description']))
+    
+    # Add projects
+    for proj in resume_data.get('projects', []):
+        if proj.get('name'):
+            text_parts.append(proj['name'])
+        if proj.get('description'):
+            if isinstance(proj['description'], list):
+                text_parts.extend(proj['description'])
+            else:
+                text_parts.append(str(proj['description']))
+    
+    # Add education
+    for edu in resume_data.get('education', []):
+        if edu.get('degree'):
+            text_parts.append(edu['degree'])
+        if edu.get('course'):
+            text_parts.append(edu['course'])
+    
+    # Add certifications
+    for cert in resume_data.get('certifications', []):
+        if cert.get('certificate_name') or cert.get('name'):
+            text_parts.append(cert.get('certificate_name') or cert.get('name'))
+    
+    return ' '.join([str(part) for part in text_parts])
+
+
+def extract_section_text(section_list):
+    """Extract text from a list section."""
+    text_parts = []
+    for item in section_list:
+        if isinstance(item, dict):
+            for value in item.values():
+                if isinstance(value, str):
+                    text_parts.append(value)
+                elif isinstance(value, list):
+                    text_parts.extend([str(v) for v in value])
+    return ' '.join(text_parts)
+
+
+def calculate_skills_match(resume_skills, job_description):
+    """Calculate how many resume skills match the job description."""
+    if not resume_skills or not job_description:
+        return 0
+    
+    # Ensure job_description is a string
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = str(job_description)
+    
+    jd_lower = jd_text.lower()
+    total_skills = 0
+    matched_skills = 0
+    
+    for skill_category, skills_list in resume_skills.items():
+        if isinstance(skills_list, list):
+            for skill in skills_list:
+                total_skills += 1
+                if str(skill).lower() in jd_lower:
+                    matched_skills += 1
+    
+    return (matched_skills / total_skills * 100) if total_skills > 0 else 0
+
+
+def calculate_text_match(text, job_description):
+    """Calculate keyword match percentage between text and JD."""
+    if not text or not job_description:
+        return 0
+    
+    # Ensure inputs are strings
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = str(job_description)
+    
+    text_keywords = extract_keywords(text)
+    jd_keywords = extract_keywords(jd_text)
+    
+    if not jd_keywords:
+        return 0
+    
+    matched = text_keywords.intersection(jd_keywords)
+    return (len(matched) / len(jd_keywords) * 100)
+
+
+def get_score_color(score):
+    """Return color based on score."""
+    if score >= 80:
+        return "#00FF7F"  # Green
+    elif score >= 60:
+        return "#FFD700"  # Gold
+    elif score >= 40:
+        return "#FFA500"  # Orange
+    else:
+        return "#FF6347"  # Red
+
+
+def get_score_label(score):
+    """Return label based on score."""
+    if score >= 80:
+        return "Excellent Match"
+    elif score >= 60:
+        return "Good Match"
+    elif score >= 40:
+        return "Fair Match"
+    else:
+        return "Needs Improvement"

@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import rewrite_resume_for_job, analyze_and_improve_resume, rewrite_resume_for_job_manual
+from utils import rewrite_resume_for_job, analyze_and_improve_resume, rewrite_resume_for_job_manual,calculate_ats_score, get_score_color, get_score_label
 from streamlit_extras.switch_page_button import switch_page 
 from copy import deepcopy
 import hashlib
@@ -7,8 +7,83 @@ import json
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
-# --- ADDED: State Management Functions ---
-
+def display_ats_score():
+    """Display ATS score card with breakdown."""
+    resume_data = st.session_state.get('enhanced_resume')
+    job_description = st.session_state.get('job_description', '')
+    
+    if not resume_data or not job_description:
+        return
+    
+    # Calculate score
+    if 'ats_score_data' not in st.session_state:
+        with st.spinner("Calculating ATS Score..."):
+            from utils import calculate_ats_score, get_score_color, get_score_label
+            score_data = calculate_ats_score(resume_data, job_description)
+            st.session_state['ats_score_data'] = score_data
+    else:
+        score_data = st.session_state['ats_score_data']
+    
+    from utils import get_score_color, get_score_label
+    
+    score = score_data['score']
+    breakdown = score_data['breakdown']
+    matched_kw = score_data.get('matched_keywords', [])
+    missing_kw = score_data.get('missing_keywords', [])
+    
+    color = get_score_color(score)
+    label = get_score_label(score)
+    
+    # Main score display - more compact
+    st.markdown(f"""
+    <div style="text-align: center; padding: 1rem 0; border-top: 2px solid; border-bottom: 2px solid; border-image: linear-gradient(90deg, transparent, #00BFFF, #00FF7F, transparent) 1; margin: 1rem 0;">
+        <h3 style="margin-bottom: 0.5rem;">ATS Match Score</h3>
+        <h1 style="font-size: 2.5rem; color: {color}; margin: 0.3rem 0;">{score}%</h1>
+        <p style="font-size: 1rem; color: {color}; margin-top: 0.3rem; font-weight: 600;">{label}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Breakdown in columns with lines instead of boxes
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"""
+        <div style="text-align: center; padding: 0.5rem; border-left: 2px solid rgba(0,191,255,0.3); transition: all 0.3s ease;">
+            <div style="font-size: 1.5rem; font-weight: 900; background: linear-gradient(45deg, #00BFFF, #00FF7F); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{round(breakdown['skills_match'])}%</div>
+            <div style="font-size: 0.8rem; color: #AAA; margin-top: 0.3rem; font-weight: 500;">Skills Match</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div style="text-align: center; padding: 0.5rem; border-left: 2px solid rgba(0,191,255,0.3); transition: all 0.3s ease;">
+            <div style="font-size: 1.5rem; font-weight: 900; background: linear-gradient(45deg, #00BFFF, #00FF7F); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{round(breakdown['experience_match'])}%</div>
+            <div style="font-size: 0.8rem; color: #AAA; margin-top: 0.3rem; font-weight: 500;">Experience Match</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div style="text-align: center; padding: 0.5rem; border-left: 2px solid rgba(0,191,255,0.3); transition: all 0.3s ease;">
+            <div style="font-size: 1.5rem; font-weight: 900; background: linear-gradient(45deg, #00BFFF, #00FF7F); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{round(breakdown['keyword_match'])}%</div>
+            <div style="font-size: 0.8rem; color: #AAA; margin-top: 0.3rem; font-weight: 500;">Keyword Match</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    
+    # Keywords section - more compact
+    with st.expander("📊 View Keywords", expanded=False):
+        if matched_kw:
+            st.markdown("**✅ Matched Keywords:**")
+            keywords_html = " ".join([f'<span style="display: inline-block; padding: 0.3rem 0.6rem; margin: 0.2rem; background: linear-gradient(45deg, #00BFFF, #00FF7F); color: #000; border-radius: 15px; font-size: 0.8rem; font-weight: 700;">{kw}</span>' for kw in matched_kw[:15]])
+            st.markdown(f'<div style="margin-top: 0.5rem;">{keywords_html}</div>', unsafe_allow_html=True)
+        
+        if missing_kw:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown("**❌ Missing Keywords:**")
+            missing_html = " ".join([f'<span style="display: inline-block; padding: 0.3rem 0.6rem; margin: 0.2rem; background: linear-gradient(45deg, #FF6347, #FF4500); color: #FFF; border-radius: 15px; font-size: 0.8rem; font-weight: 700;">{kw}</span>' for kw in missing_kw[:10]])
+            st.markdown(f'<div style="margin-top: 0.5rem;">{missing_html}</div>', unsafe_allow_html=True)
 def get_resume_hash(resume_data):
     """Generate a hash of resume data to detect changes"""
     resume_str = json.dumps(resume_data, sort_keys=True, default=str)
@@ -77,35 +152,41 @@ RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications
 
 
 def apply_custom_css():
-    """Applies full dark theme with white text and teal/blue accents."""
+    """Applies improved dark theme with gradient accents."""
     st.markdown("""
     <style>
     /* ============================
-    🌑 Full Dark Theme for Streamlit
+    🌑 Enhanced Dark Theme with Gradient
     ============================ */
 
     /* --- App Background --- */
     body, [data-testid="stAppViewContainer"], .main-content {
-        background-color: #0a0a0a !important; /* Black background */
-        color: #FFFFFF !important; /* White text */
+        background-color: #0a0a0a !important;
+        color: #FFFFFF !important;
         font-family: 'Poppins', sans-serif !important;
+    }
+    
+    [data-testid="stSidebarNav"] {
+        display: none !important;
     }
 
     /* --- Header --- */
     [data-testid="stHeader"] {
         background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
-        color: #FFFFFF !important;
+        color: #000000 !important;
         font-weight: 600 !important;
-        box-shadow: 0 3px 10px rgba(0,255,255,0.1);
+        box-shadow: 0 3px 10px rgba(0,255,255,0.3);
     }
 
     /* --- Sidebar --- */
     [data-testid="stSidebar"] {
-        background-color: #111111 !important; /* Dark sidebar */
+        background-color: #0f0f0f !important;
         color: #FFFFFF !important;
         padding: 1rem;
+        border-right: 2px solid #00BFFF;
     }
 
+    [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, 
     [data-testid="stSidebar"] h4, 
@@ -119,109 +200,305 @@ def apply_custom_css():
     [data-testid="stSidebar"] input {
         background-color: #1a1a1a !important;
         color: #FFFFFF !important;
+        border: 1px solid #00BFFF !important;
     }
 
     [data-testid="stSidebar"] button {
         background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
-        color: #FFFFFF !important;
+        color: #000000 !important;
         border-radius: 10px;
-        font-weight: 600;
+        font-weight: 700;
         padding: 0.65rem;
         border: none;
         width: 100%;
         margin-bottom: 0.5rem;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,191,255,0.3);
     }
 
     [data-testid="stSidebar"] button:hover {
         background: linear-gradient(45deg, #00FF7F, #00BFFF) !important;
         color: #000000 !important;
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,255,127,0.5);
     }
 
-    /* --- Headings --- */
+    /* --- Headings with Gradient --- */
     h1, h2, h3, h4, h5, h6 {
-        color: #00BFFF !important; /* Blue accent */
-        font-weight: 600 !important;
+        background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        font-weight: 700 !important;
+        text-shadow: 0 0 30px rgba(0,191,255,0.5);
     }
 
     h1 {
-        font-size: 2rem !important;
+        font-size: 2.5rem !important;
+    }
+
+    h2 {
+        font-size: 1.8rem !important;
     }
 
     /* --- Buttons --- */
     div.stButton > button {
         background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
-        color: #FFFFFF !important;
+        color: #000000 !important;
         border: none;
         border-radius: 10px;
-        padding: 0.65rem 1.5rem;
-        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        font-weight: 700;
         transition: all 0.3s ease;
         width: 100%;
+        box-shadow: 0 4px 15px rgba(0,191,255,0.3);
     }
 
     div.stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(0,255,127,0.35);
-        color: #000000 !important;
+        background: linear-gradient(45deg, #00FF7F, #00BFFF) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,255,127,0.5);
     }
 
     /* --- Inputs --- */
     input, textarea, select {
         background-color: #1a1a1a !important;
         color: #FFFFFF !important;
-        border: 1px solid #00BFFF !important;
+        border: 2px solid #00BFFF !important;
         border-radius: 10px !important;
-        padding: 0.5rem !important;
+        padding: 0.75rem !important;
+        transition: all 0.3s ease;
     }
 
     input:focus, textarea:focus, select:focus {
         outline: none !important;
-        border-color: #00FF7F !important;
-        box-shadow: 0 0 0 3px rgba(0,255,127,0.3) !important;
+        border: 2px solid #00FF7F !important;
+        box-shadow: 0 0 15px rgba(0,255,127,0.5) !important;
+        background-color: #0f0f0f !important;
     }
 
     /* --- Cards / Containers --- */
     div[data-testid="stHorizontalBlock"], .template-card, .resume-section {
-        background-color: #1a1a1a !important;
+        background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%) !important;
         border-radius: 15px;
-        box-shadow: 0 6px 20px rgba(0,255,127,0.1);
-        padding: 1rem;
+        box-shadow: 0 8px 25px rgba(0,191,255,0.15);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: #FFFFFF !important;
+        border: 1px solid rgba(0,191,255,0.3);
+    }
+
+    /* --- Expanders --- */
+    [data-testid="stExpander"] {
+        background-color: #1a1a1a !important;
+        border: 1px solid #00BFFF !important;
+        border-radius: 10px;
         margin-bottom: 1rem;
+    }
+
+    [data-testid="stExpander"] summary {
+        color: #FFFFFF !important;
+        font-weight: 600;
+    }
+
+    /* --- Contact Info --- */
+    .contact-info {
+        text-align: center;
+        color: #FFFFFF !important;
+        font-size: 1.1rem;
+        margin: 1rem 0;
+        padding: 0.5rem;
+        background: linear-gradient(90deg, transparent, rgba(0,191,255,0.1), transparent);
+    }
+
+    /* --- Item Titles --- */
+    .item-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        background: linear-gradient(45deg, #00BFFF, #00FF7F);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+
+    .item-subtitle {
+        font-size: 1.1rem;
+        color: #FFFFFF;
+        margin-bottom: 0.3rem;
+        font-weight: 500;
+    }
+
+    .item-details {
+        color: #CCCCCC;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    /* --- Bullet Lists --- */
+    .bullet-list, .skill-list {
+        color: #FFFFFF !important;
+        padding-left: 1.5rem;
+    }
+
+    .bullet-list li, .skill-list li {
+        color: #FFFFFF !important;
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .skill-item {
+        color: #FFFFFF !important;
+        padding: 0.3rem 0;
+    }
+
+    /* --- ATS Score Card --- */
+    .ats-score-card {
+        background: transparent;
+        padding: 1rem 0;
+        margin: 1rem 0;
+        border-top: 2px solid;
+        border-bottom: 2px solid;
+        border-image: linear-gradient(90deg, transparent, #00BFFF, #00FF7F, transparent) 1;
+    }
+    
+    .score-main {
+        text-align: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(0,191,255,0.2);
+    }
+    
+    .score-number {
+        font-size: 2.5rem;
+        font-weight: 900;
+        margin: 0.3rem 0;
+        text-shadow: 0 0 20px currentColor;
+    }
+    
+    .score-label {
+        font-size: 1rem;
+        margin-top: 0.3rem;
+        font-weight: 600;
+    }
+    
+    .score-breakdown {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-top: 1rem;
+        padding: 0.5rem 0;
+    }
+    
+    .score-item {
+        text-align: center;
+        padding: 0.5rem;
+        background: transparent;
+        border-left: 2px solid rgba(0,191,255,0.3);
+        transition: all 0.3s ease;
+    }
+
+    .score-item:hover {
+        border-left-color: #00BFFF;
+        padding-left: 0.8rem;
+    }
+    
+    .score-item-value {
+        font-size: 1.5rem;
+        font-weight: 900;
+        background: linear-gradient(45deg, #00BFFF, #00FF7F);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .score-item-label {
+        font-size: 0.8rem;
+        color: #AAAAAA;
+        margin-top: 0.3rem;
+        font-weight: 500;
+    }
+    
+    .keywords-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(0,191,255,0.3);
+    }
+    
+    .keyword-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        margin: 0.3rem;
+        background: linear-gradient(45deg, #00BFFF, #00FF7F);
+        color: #000000;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,191,255,0.3);
+    }
+
+    .keyword-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,191,255,0.5);
+    }
+    
+    .missing-keyword-badge {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        margin: 0.3rem;
+        background: linear-gradient(45deg, #FF6347, #FF4500);
+        color: #FFFFFF;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(255,99,71,0.3);
+    }
+
+    .missing-keyword-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(255,99,71,0.5);
+    }
+
+    /* --- Checkbox --- */
+    [data-testid="stCheckbox"] {
         color: #FFFFFF !important;
     }
 
-    /* --- Template Preview --- */
-    .ats-page {
-        background-color: #121212 !important;
+    /* --- Info/Warning/Success Messages --- */
+    [data-testid="stAlert"] {
+        background-color: #1a1a1a !important;
+        border-left: 4px solid #00BFFF !important;
         color: #FFFFFF !important;
-        padding: 15px;
-        border-radius: 12px;
-    }
-    .ats-page h1, .ats-page h2, .ats-page h3, .ats-page h4 {
-        color: #00BFFF !important;
-    }
-    .ats-page p, .ats-page li, .ats-page span {
-        color: #FFFFFF !important;
-    }
-    .ats-page a {
-        color: #00FF7F !important;
-    }
-
-    /* --- Lists / Skills --- */
-    .skill-list li {
-        color: #FFFFFF !important;
-        margin-bottom: 3px;
     }
 
     /* --- Footer & Header --- */
-    footer, header { visibility: hidden !important; }
+    footer, header { 
+        visibility: hidden !important; 
+    }
+
+    /* --- Scrollbar --- */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #0a0a0a;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(45deg, #00BFFF, #00FF7F);
+        border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(45deg, #00FF7F, #00BFFF);
+    }
 
     </style>
     """, unsafe_allow_html=True)
-
-
 
 
 
@@ -436,7 +713,7 @@ def save_and_improve():
     user_skills_before = deepcopy(data.get('skills', {}))
     job_description = st.session_state.get('job_description', '') 
 
-    with st.spinner('Calling LLM to perform auto-improvement...'):
+    with st.spinner('performing auto-improvement...'):
         improved_data = analyze_and_improve_resume(data, job_description)
     
     # Skills merging logic
@@ -460,6 +737,8 @@ def save_and_improve():
 
     improved_data['skills'] = merged_skills
     st.session_state['enhanced_resume'] = improved_data
+    if 'ats_score_data' in st.session_state:
+        del st.session_state['ats_score_data']
     
     # Update hash so it doesn't regenerate
     st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
@@ -483,26 +762,66 @@ def main():
     data = st.session_state['enhanced_resume']
 
     st.sidebar.title("Resume Tools 🛠️")
-    
-    # ADDED: Show regeneration info
+
     with st.sidebar.expander("ℹ️ Resume Status", expanded=False):
         st.caption(f"**User:** {st.session_state.get('logged_in_user', 'Unknown')}")
         st.caption(f"**Last Updated:** {st.session_state.get('last_resume_user', 'Never')}")
-    
+
+    st.sidebar.markdown("---")
+
     if st.sidebar.button("✨ **Save & Auto-Improve**", use_container_width=True):
         save_and_improve()
+        
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
         generate_and_switch()
+
+    st.sidebar.markdown("---")
+
     is_edit_mode = st.sidebar.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+
     if not st.session_state.get('edit_toggle', False):
-        st.sidebar.info("⚠️ Enable Edit Mode to add new items, For saving the newly added content disable the Enable Edit Mode")
+        st.sidebar.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
     else:
         st.sidebar.markdown("---")
         st.sidebar.subheader("➕ Add New Section Items")
-        st.sidebar.button("Add New Experience", on_click=add_new_item, args=('experience', {"title": "New Job Title", "company": "New Company", "duration": "YYYY - YYYY", "description": ["New responsibility 1."]}))
-        st.sidebar.button("Add New Education", on_click=add_new_item, args=('education', {"institution": "New University", "degree": "New Degree", "duration": "YYYY - YYYY"}))
-        st.sidebar.button("Add New Certification", on_click=add_new_item, args=('certifications', {"name": "New Certification Name", "issuer": "Issuing Body"}))
-        st.sidebar.button("Add New Project", on_click=add_new_item, args=('projects', {"name": "New Project Title", "description": ["Project detail 1.", "Project detail 2."]}))
+        st.sidebar.button(
+            "Add New Experience", 
+            on_click=add_new_item, 
+            args=('experience', {
+                "position": "New Job Title",  # Changed 'title' to 'position'
+                "company": "New Company", 
+                "start_date": "2025-01-01",  # Changed to proper date format
+                "end_date": "2025-12-31",
+                "description": ["New responsibility 1."]
+            })
+        )
+        st.sidebar.button(
+            "Add New Education", 
+            on_click=add_new_item, 
+            args=('education', {
+                "institution": "New University", 
+                "degree": "New Degree", 
+                "start_date": "2025-01-01",
+                "end_date": "2025-12-31"
+            })
+        )
+        st.sidebar.button(
+            "Add New Certification", 
+            on_click=add_new_item, 
+            args=('certifications', {
+                "name": "New Certification Name", 
+                "issuer": "Issuing Body",
+                "completed_date": "2025-01-01"
+            })
+        )
+        st.sidebar.button(
+            "Add New Project", 
+            on_click=add_new_item, 
+            args=('projects', {
+                "name": "New Project Title", 
+                "description": ["Project detail 1.", "Project detail 2."]
+            })
+        )
 
         st.sidebar.markdown("---")
         st.sidebar.subheader("Custom Section Management")
@@ -511,6 +830,10 @@ def main():
             if new_section_key and new_section_key.lower() not in data:
                 data[new_section_key.lower()] = []
                 st.rerun()
+            elif not new_section_key:
+                st.sidebar.error("Please enter a section name")
+            else:
+                st.sidebar.warning(f"Section '{new_section_key}' already exists")
 
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Regenerate from Source"):
@@ -519,12 +842,15 @@ def main():
             del st.session_state['enhanced_resume']
         if 'last_resume_hash' in st.session_state:
             del st.session_state['last_resume_hash']
+        if 'ats_score_data' in st.session_state:
+            del st.session_state['ats_score_data']
         st.rerun()
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
     # is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
     st.markdown("---")
-
+    display_ats_score()
+    st.markdown("---")
     render_basic_details(data, is_edit=is_edit_mode)
 
     rendered_keys = set()

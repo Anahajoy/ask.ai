@@ -655,6 +655,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     """
     Rewrite the candidate's resume content to align with the job description.
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
+    Creates concise, one-page optimized content with simple language.
     """
     rewritten_resume = resume_data.copy()
 
@@ -670,7 +671,6 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
         else:
             education_list.append(item)
 
-   
     cert_data = resume_data.get("certifications", [])
     if isinstance(cert_data, list):
         certification_list.extend(cert_data)
@@ -678,7 +678,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["education"] = education_list
     rewritten_resume["certifications"] = certification_list
 
-   
+    # --- 2. Flatten skills ---
     candidate_skills = resume_data.get("skills", [])
     if isinstance(candidate_skills, list) and candidate_skills:
         if isinstance(candidate_skills[0], dict):
@@ -714,114 +714,211 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-    # --- 5. Rewrite professional summary ---
+    # --- 5. Rewrite professional summary (concise) ---
     summary_prompt = f"""
-    You are an expert career coach. Rewrite a professional summary for {resume_data.get('name','')}
-    applying for a {job_title} position at {jd_data.get('company','')}.
-    Highlight relevant skills, achievements, and experience. Use the candidate's original summary:
-    {resume_data.get('summary','')} and experience highlights: {all_exp_desc[:10]}
-    Consider the job requirements: {', '.join(required_skills)}
-    Return 2-3 sentence polished ATS-friendly summary only.
-    with out description
+    Rewrite this professional summary for a {job_title} position at {jd_data.get('company','')}.
+    
+    Original summary: {resume_data.get('summary','')}
+    Candidate's key experience: {all_exp_desc[:5]}
+    Job requirements: {', '.join(required_skills[:10])}
+    Key responsibilities: {', '.join(responsibilities[:5])}
+    
+    Requirements:
+    - 2-3 sentences maximum (45 words total)
+    - Use simple, clear language - avoid complex words like "spearheaded", "leveraged", "facilitated", "orchestrated"
+    - Use simple verbs: built, created, developed, led, managed, improved, designed
+    - Focus on skills and achievements that match the job requirements
+    - Include metrics if available in original
+    - Ensure perfect grammar and spelling
+    - Make it ATS-friendly with keywords from job description
+    
+    Return only the rewritten summary text without any description or labels.
     """
-    rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
+    rewritten_resume["summary"] = call_llm_api(summary_prompt, 150)
     rewritten_resume["job_title"] = job_title
 
-    # --- 6. Rewrite experience ---
+    # --- 6. Rewrite experience (concise and impactful) ---
     if experience:
+        # Calculate bullet limits based on experience count for one-page optimization
+        total_exp = len(experience)
+        bullets_per_role = min(4, max(2, 12 // total_exp)) if total_exp > 0 else 3
+        
         exp_prompt = f"""
-        Rewrite the candidate's experience for a {job_title} role at {jd_data.get('company','')}.
-        Include measurable achievements, relevant keywords, and ATS-friendly formatting.
-        Maintain JSON structure: description (array of strings), overview.
+        Rewrite the experience section for a {job_title} role. Simplify the language and align with job requirements.
+        
         Original Experience: {json.dumps(experience)}
-        Responsibilities: {', '.join(responsibilities)}
-        Required Skills: {', '.join(required_skills)}
-        Return ONLY valid JSON array.
+        Job Title: {job_title}
+        Job Responsibilities: {', '.join(responsibilities[:10])}
+        Required Skills: {', '.join(required_skills[:10])}
+        Job Summary: {job_summary}
+        
+        CRITICAL REQUIREMENTS:
+        - Keep maximum {bullets_per_role} bullet points per role
+        - Each bullet: 15-22 words maximum
+        - Simplify complex language: Replace words like "spearheaded", "orchestrated", "leveraged", "facilitated", "utilized" with simple verbs: built, created, developed, led, managed, improved, designed, implemented
+        - Start each bullet with a strong action verb
+        - Use simple, clear English (avoid jargon and buzzwords)
+        - Include numbers and metrics when present in original content
+        - Align content with job requirements - emphasize relevant skills and achievements
+        - Check grammar and spelling carefully
+        - Make it ATS-friendly by incorporating keywords from job description naturally
+        - Focus on impact and results that match what the job is looking for
+        
+        Example transformation:
+        BAD: "Spearheaded the design and implementation of scalable ETL pipelines leveraging Azure Data Factory, DBT, and SSIS, culminating in a 30% increase in data processing efficiency"
+        GOOD: "Built ETL pipelines using Azure Data Factory, DBT, and SSIS that improved data processing efficiency by 30%"
+        
+        Return ONLY valid JSON array with this exact structure:
+        [{{"position": "", "company": "", "duration": "", "description": ["bullet1", "bullet2"], "overview": ""}}]
         """
-        rewritten_exp_text = call_llm_api(exp_prompt, 500)
+        
+        rewritten_exp_text = call_llm_api(exp_prompt, 700)
         try:
             json_start = rewritten_exp_text.find('[')
             json_end = rewritten_exp_text.rfind(']') + 1
             rewritten_experience = json.loads(rewritten_exp_text[json_start:json_end])
+            
             for exp in rewritten_experience:
                 desc = exp.get("description", [])
+                
+                # Enforce bullet point limits
+                if isinstance(desc, list):
+                    desc = desc[:bullets_per_role]
+                    exp["description"] = desc
+                
                 if not desc or (isinstance(desc, list) and not any(line.strip() for line in desc)):
                     position = exp.get("position", "Professional")
                     company = exp.get("company", "A Company")
-                    placeholder_desc = generate_basic_description(position, company, candidate_skills, call_llm_api)
+                    placeholder_desc = generate_basic_description(position, company, candidate_skills, bullets_per_role, required_skills, call_llm_api)
                     exp["description"] = placeholder_desc
                     desc = placeholder_desc
+                    
                 if isinstance(desc, str):
-                    exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()][:bullets_per_role]
+                    
             rewritten_resume["experience"] = rewritten_experience
         except:
             rewritten_resume["experience"] = experience
 
-    # --- 7. Rewrite projects ---
+    # --- 7. Rewrite projects (simplify and align) ---
     if projects:
         proj_prompt = f"""
-        Rewrite the candidate's project descriptions for a {job_title} role.
-        Highlight achievements and relevant skills, keep JSON: name, description (array of strings), overview.
+        Rewrite the project descriptions to align with {job_title} role requirements. Simplify the language.
+        
         Original Projects: {json.dumps(projects)}
-        Responsibilities: {', '.join(responsibilities)}
-        Required Skills: {', '.join(required_skills)}
-        Return ONLY valid JSON array.
+        Job Title: {job_title}
+        Job Responsibilities: {', '.join(responsibilities[:10])}
+        Required Skills: {', '.join(required_skills[:10])}
+        
+        CRITICAL REQUIREMENTS:
+        - Simplify complex language - use simple verbs: built, created, developed, designed, implemented
+        - Avoid buzzwords: "leveraged", "spearheaded", "orchestrated", "facilitated", "utilized"
+        - Each bullet: 15-22 words maximum
+        - Use clear, simple English
+        - Highlight technologies and skills that match job requirements
+        - Include metrics and results when available
+        - Check grammar and spelling carefully
+        - Make it ATS-friendly with relevant keywords from job description
+        - Focus on achievements and technical skills relevant to the target role
+        
+        Return ONLY valid JSON array with this structure:
+        [{{"name": "", "description": ["bullet1", "bullet2"], "overview": ""}}]
         """
-        rewritten_proj_text = call_llm_api(proj_prompt, 400)
+        
+        rewritten_proj_text = call_llm_api(proj_prompt, 500)
         try:
             json_start = rewritten_proj_text.find('[')
             json_end = rewritten_proj_text.rfind(']') + 1
             rewritten_projects = json.loads(rewritten_proj_text[json_start:json_end])
+            
             for proj in rewritten_projects:
                 desc = proj.get("description", [])
                 if isinstance(desc, str):
                     proj["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    
             rewritten_resume["projects"] = rewritten_projects
         except:
             rewritten_resume["projects"] = projects
 
     # --- 8. Categorize and align skills ---
     skills_prompt = f"""
-    Analyze and categorize the candidate's skills for a {job_title} role.
-    Merge existing skills with required skills. Categorize into:
-    technicalSkills, tools, cloudSkills, softSkills, languages.
-    Candidate Skills: {', '.join(candidate_skills[:30])}
-    Required Skills: {', '.join(required_skills)}
-    Return ONLY a JSON object with above categories.
+    Analyze and categorize the candidate's skills for a {job_title} role at {jd_data.get('company','')}.
+    
+    Candidate's Current Skills: {', '.join(candidate_skills[:35])}
+    Job Required Skills: {', '.join(required_skills)}
+    Job Responsibilities: {', '.join(responsibilities[:8])}
+    
+    Requirements:
+    - Prioritize skills that match job requirements
+    - Include relevant candidate skills
+    - Add required skills from job description if candidate has related experience
+    - Remove outdated or irrelevant skills
+    - Organize into these categories: technicalSkills, tools, cloudSkills, softSkills, languages
+    - Each category should have 5-10 relevant skills
+    - Make skills ATS-friendly by using exact terminology from job description when applicable
+    
+    Return ONLY a valid JSON object with the five categories above.
+    Example: {{"technicalSkills": ["Python", "SQL"], "tools": ["Power BI", "Azure Data Factory"], "cloudSkills": ["Azure", "AWS"], "softSkills": ["Communication", "Problem Solving"], "languages": ["English", "Spanish"]}}
     """
-    skills_text = call_llm_api(skills_prompt, 300)
+    
+    skills_text = call_llm_api(skills_prompt, 350)
     try:
         json_start = skills_text.find('{')
         json_end = skills_text.rfind('}') + 1
         parsed_skills = json.loads(skills_text[json_start:json_end])
-        categorized_skills = {k: parsed_skills.get(k, []) for k in 
-                              ["technicalSkills","tools","cloudSkills","softSkills","languages"]}
-        rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
+        
+        # Keep skills organized by category
+        categorized_skills = {}
+        for k in ["technicalSkills", "tools", "cloudSkills", "softSkills", "languages"]:
+            skills_list = parsed_skills.get(k, [])
+            if skills_list:
+                categorized_skills[k] = skills_list[:10]  # Max 10 skills per category
+                
+        rewritten_resume["skills"] = categorized_skills
     except:
         rewritten_resume["skills"] = candidate_skills
 
     return rewritten_resume
 
 
-def generate_basic_description(position: str, company: str, candidate_skills: list, call_llm_api) -> str:
+def generate_basic_description(position: str, company: str, candidate_skills: list, max_bullets: int, required_skills: list, call_llm_api) -> list:
+    """Generate concise bullet points for missing experience descriptions"""
     key_skills = candidate_skills[:5]
     prompt = f"""
-    You are a resume filler AI. Generate a single, short paragraph (2-3 sentences maximum) 
-    describing the general responsibilities for a '{position}' role at '{company}'. 
+    Generate {max_bullets} professional bullet points for a '{position}' role at '{company}'.
     
-    The description MUST incorporate these key skills: {', '.join(key_skills)}. 
+    Candidate's skills: {', '.join(key_skills)}
+    Relevant job skills: {', '.join(required_skills[:5])}
     
-    Start with an action verb and provide a summary of work done. Do not include bullet points.
-    Return ONLY the paragraph.
+    Requirements:
+    - Exactly {max_bullets} bullet points
+    - 15-20 words per bullet
+    - Start with action verbs: built, created, developed, managed, improved, designed
+    - Use simple, clear language
+    - Include what was done and the impact/result
+    - Check grammar carefully
+    - Make bullets relevant to both position and required skills
+    
+    Return ONLY a JSON array of strings.
+    Example: ["Built data pipelines using Python to process customer data", "Created Power BI dashboards for sales analytics"]
     """
-    return call_llm_api(prompt, 100)
+    
+    result = call_llm_api(prompt, 150)
+    try:
+        json_start = result.find('[')
+        json_end = result.rfind(']') + 1
+        bullets = json.loads(result[json_start:json_end])
+        return bullets[:max_bullets]
+    except:
+        return [f"Worked on {position} responsibilities using {', '.join(key_skills[:3])}"]
+
 
 # --- Helper function for LLM API ---
 def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
         "messages": [
-            {"role": "system", "content": "You are an expert AI assistant for resume optimization and job matching."},
+            {"role": "system", "content": "You are an expert resume writer specializing in ATS-friendly resumes with clear, simple language and perfect grammar."},
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.1,
@@ -838,49 +935,97 @@ def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
 
 def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str = "") -> Dict[str, Any]:
     """
-    Automatically improve resume content with better grammar, stronger action verbs,
+    Automatically improve resume content with better grammar, simple clear language,
     and professional formatting while preserving all information, using an external API.
+    Aligns content with job description when provided.
     """
     
-
     resume_text = json.dumps(resume_data, indent=2)
     
-    # The prompt now includes the job_description for context
+    # Extract job details if available
+    jd_context = ""
+    if job_description:
+        jd_context = f"""
+    **Target Job Context:**
+    {job_description}
+    
+    Use this context to:
+    - Emphasize relevant skills and experiences
+    - Incorporate job-specific keywords naturally
+    - Highlight achievements that match job requirements
+    """
+    
     prompt = f"""
-    Improve the following resume while maintaining all factual information and structure.
+    Improve the following resume content with focus on clarity, simplicity, and impact.
+    {jd_context}
     
-    Make these improvements:
-    1. Fix all grammar, spelling, and punctuation errors
-    2. Replace weak verbs with strong action verbs (Led, Spearheaded, Optimized, etc.)
-    3. Ensure consistent tense (past for previous jobs, present for current)
-    4. Improve clarity and impact of descriptions
-    5. Ensure professional tone throughout
-    6. Make descriptions more concise and impactful
-    7. Ensure consistent formatting (dates, capitalization, etc.)
+    CRITICAL IMPROVEMENTS TO MAKE:
     
-    **Job Description for Context (if available):**
-    {job_description or "N/A"}
+    1. **Simplify Language:**
+       - Replace complex words with simple, clear alternatives
+       - AVOID: spearheaded, leveraged, orchestrated, facilitated, utilized, championed, synergized
+       - USE: built, created, developed, led, managed, improved, designed, implemented
+       - Keep sentences under 22 words
+       - Use 8th grade reading level (clear and direct)
     
-    IMPORTANT:
-    - Keep the exact same JSON structure
+    2. **Grammar and Clarity:**
+       - Fix ALL grammar, spelling, and punctuation errors
+       - Ensure consistent verb tense (past for previous roles, present for current)
+       - Remove redundant words and phrases
+       - Make every sentence clear and easy to understand
+    
+    3. **Professional Impact:**
+       - Start each bullet with a strong, simple action verb
+       - Include numbers and metrics when present
+       - Focus on achievements and results, not just duties
+       - Make descriptions concise but impactful
+    
+    4. **ATS Optimization:**
+       - Use keywords from job description naturally (if provided)
+       - Ensure professional terminology is clear
+       - Maintain consistent formatting
+    
+    5. **Formatting Consistency:**
+       - Standardize date formats
+       - Consistent capitalization
+       - Proper punctuation throughout
+    
+    **Examples of Good Simplification:**
+    
+    BAD: "Spearheaded the orchestration of cross-functional stakeholders to synergize deliverables leveraging agile methodologies"
+    GOOD: "Led cross-functional teams to deliver projects using Agile, completing 15+ initiatives on time"
+    
+    BAD: "Utilized advanced data analytics to facilitate strategic decision-making processes"
+    GOOD: "Used data analytics to support business decisions, improving forecast accuracy by 25%"
+    
+    BAD: "Championed the implementation of cutting-edge technological solutions"
+    GOOD: "Implemented new technology solutions that reduced processing time by 40%"
+    
+    STRICT REQUIREMENTS:
+    - Keep the EXACT SAME JSON structure
     - Do NOT remove or add any sections
-    - Do NOT change facts, dates, or company names
-    - Only improve the language and presentation
+    - Do NOT change facts, dates, company names, or truthful information
+    - Only improve the language, grammar, and presentation
+    - Preserve all original metrics and achievements
+    - Maintain all skills, tools, and technologies mentioned
     
     Resume Data:
     {resume_text}
 
-    Return the improved resume in the EXACT SAME JSON structure, with only the text content improved.
-    Return only valid JSON.
+    Return the improved resume in the EXACT SAME JSON structure with only text content improved.
+    Return ONLY valid JSON with no additional text, explanations, or markdown formatting.
     """
 
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
         "messages": [
-            {"role": "system", "content": "You are an expert resume writer who improves content while preserving structure and facts. Return improved resume in exact same JSON format."},
+            {
+                "role": "system", 
+                "content": "You are an expert resume writer specializing in clear, simple, ATS-friendly content with perfect grammar. You improve language while preserving all facts and structure. Return only valid JSON."
+            },
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.3,
+        "temperature": 0.2,  # Lower temperature for more consistent, accurate output
         "max_tokens": 5000
     }
 
@@ -890,7 +1035,7 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
         response.raise_for_status()
         result = response.json()
         
-        # NOTE: Assumes the Llama model response structure wraps the content
+        # Extract response content
         response_text = result['choices'][0]['message']['content']
 
         # Extract JSON (robustly handle text wrapping)
@@ -898,26 +1043,32 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
         json_end = response_text.rfind('}') + 1
         
         if json_start == -1 or json_end <= json_start:
-            st.error("Could not find valid JSON in improved resume response")
+            st.error("Could not find valid JSON in improved resume response. Using original data.")
             return resume_data
 
         improved_data = json.loads(response_text[json_start:json_end])
+        
+        # Validate that key sections are preserved
+        required_keys = ['name', 'skills', 'experience']
+        for key in required_keys:
+            if key in resume_data and key not in improved_data:
+                st.warning(f"Key section '{key}' was lost during improvement. Using original data.")
+                return resume_data
+        
         return improved_data
 
     except requests.exceptions.RequestException as e:
-        # Crucial: Check API config and network connectivity
-        st.error(f"External API request failed: {str(e)}. Check your `url` and `headers` config.")
+        st.error(f"API request failed: {str(e)}. Check your API configuration and network connectivity.")
         return resume_data
     except json.JSONDecodeError as e:
-        st.error(f"Failed to parse JSON response: {str(e)}. Using original data.")
+        st.error(f"Failed to parse JSON response: {str(e)}. The API may have returned invalid JSON. Using original data.")
         return resume_data
     except KeyError as e:
-        st.error(f"Unexpected response structure from external API. Missing key: {str(e)}. Using original data.")
+        st.error(f"Unexpected API response structure. Missing key: {str(e)}. Using original data.")
         return resume_data
     except Exception as e:
-        st.error(f"Error improving resume: {str(e)}. Using original data.")
+        st.error(f"Unexpected error during resume improvement: {str(e)}. Using original data.")
         return resume_data
-
 
 
 def check_specific_section(section_name: str, section_data: Any) -> Dict[str, Any]:
@@ -981,12 +1132,11 @@ def check_specific_section(section_name: str, section_data: Any) -> Dict[str, An
 
 
 def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
-
     """
     Rewrite the candidate's resume content to align with the job description.
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
+    Creates concise content with simple language and perfect grammar.
     """
-    # del st.session_state['enhanced_resume']
     rewritten_resume = resume_data.copy()
 
     # -------------------- Education and Certifications --------------------
@@ -1026,14 +1176,16 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
 
     # -------------------- Job Info --------------------
     job_title = jd_data.get("job_title", "")
+    job_summary = jd_data.get("job_summary", "")
     responsibilities = jd_data.get("responsibilities", [])
     required_skills = jd_data.get("required_skills", [])
+    company_name = jd_data.get("company", "")
 
     rewritten_resume["job_title"] = job_title
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-# -------------------- Normalize experience data --------------------
+    # -------------------- Normalize experience data --------------------
     experience_all = []
 
     if "experience" in resume_data and isinstance(resume_data["experience"], list):
@@ -1047,7 +1199,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume.pop("professional_experience", None)
     rewritten_resume.pop("input_method", None)  # optional, if not needed
 
-# Remove duplicates based on company + position
+    # Remove duplicates based on company + position
     seen = set()
     merged_experience = []
     for exp in experience_all:
@@ -1060,24 +1212,13 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["experience"] = merged_experience
     rewritten_resume["total_experience_count"] = len(merged_experience)
 
-
-    # Remove old keys
-    resume_data.pop("experience", None)
-    resume_data.pop("professional_experience", None)
-    # resume_data.pop("input_method", None)  # Remove if not needed
-
-    # Remove duplicates based on company + position
-    seen = set()
-    merged_experience = []
-    for exp in experience_all:
-        key = (exp.get("company", ""), exp.get("position", ""))
-        if key not in seen:
-            merged_experience.append(exp)
-            seen.add(key)
-
     # -------------------- Generate Experience Descriptions --------------------
     rewritten_experience = []
     all_exp_desc = []
+    
+    # Calculate bullet limits for one-page optimization
+    total_exp = len(merged_experience)
+    bullets_per_role = min(4, max(2, 12 // total_exp)) if total_exp > 0 else 3
 
     for exp in merged_experience:
         position = exp.get("position", "Professional")
@@ -1087,15 +1228,37 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
         exp_skills = exp.get("exp_skills", [])
 
         exp_prompt = f"""
-        You are an expert career coach. Rewrite the professional experience for {resume_data.get('name','')}
-        for a {position} position at {company}, from {start_date} to {end_date}.
-        Include relevant skills naturally, achievements, and responsibilities in a human-readable way.
-        Mention the candidate's skills implicitly in the description: {', '.join(exp_skills)}
-        Consider the job requirements: {', '.join(required_skills)}
-        Return ONLY a JSON array with one object: {{"description": ["sentence1", "sentence2", ...]}}
+        Rewrite the professional experience for {resume_data.get('name','')} for a {position} position at {company}.
+        Align this with the target {job_title} role at {company_name}.
+        
+        Duration: {start_date} to {end_date}
+        Candidate's skills used in this role: {', '.join(exp_skills)}
+        Target job requirements: {', '.join(required_skills[:10])}
+        Target job responsibilities: {', '.join(responsibilities[:8])}
+        Target job summary: {job_summary}
+        
+        CRITICAL REQUIREMENTS:
+        - Generate exactly {bullets_per_role} bullet points
+        - Each bullet: 15-22 words maximum
+        - Simplify complex language - use simple action verbs: built, created, developed, led, managed, improved, designed, implemented
+        - Avoid buzzwords: "spearheaded", "orchestrated", "leveraged", "facilitated", "utilized", "championed"
+        - Start each bullet with a strong action verb
+        - Use clear, simple English (8th grade reading level)
+        - Naturally incorporate the candidate's skills and achievements
+        - Include numbers and metrics when possible
+        - Align content with target job requirements - emphasize relevant skills
+        - Check grammar and spelling carefully
+        - Make it ATS-friendly by using keywords from the target job description
+        - Focus on achievements and impact that match what the target job requires
+        
+        Example transformation:
+        BAD: "Spearheaded the orchestration of cross-functional teams to deliver strategic initiatives leveraging agile methodologies"
+        GOOD: "Led cross-functional teams to deliver projects using Agile methodology, completing 15+ initiatives on time"
+        
+        Return ONLY a JSON array with one object: {{"description": ["bullet1", "bullet2", "bullet3"]}}
         """
 
-        rewritten_exp_text = call_llm_api(exp_prompt, 500)
+        rewritten_exp_text = call_llm_api(exp_prompt, 600)
 
         try:
             json_start = rewritten_exp_text.find('[')
@@ -1103,8 +1266,12 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
             rewritten_exp_list = json.loads(rewritten_exp_text[json_start:json_end])
             rewritten_exp_obj = rewritten_exp_list[0] if rewritten_exp_list else {}
             desc = rewritten_exp_obj.get("description", [])
+            
             if isinstance(desc, str):
                 desc = [line.strip() for line in desc.split("\n") if line.strip()]
+            
+            # Enforce bullet limit
+            desc = desc[:bullets_per_role] if isinstance(desc, list) else desc
 
             new_exp = {
                 "company": company,
@@ -1114,10 +1281,10 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
                 "description": desc if desc else [f"Worked as a {position} at {company}."]
             }
             rewritten_experience.append(new_exp)
-            all_exp_desc.extend(desc)
+            all_exp_desc.extend(desc if isinstance(desc, list) else [desc])
 
         except Exception:
-            fallback_desc = [f"Worked as a {position} at {company}, utilizing skills: {', '.join(exp_skills)}."]
+            fallback_desc = [f"Worked as a {position} at {company}, using {', '.join(exp_skills[:3])}."]
             new_exp = {
                 "company": company,
                 "position": position,
@@ -1134,14 +1301,28 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
 
     # -------------------- Generate Professional Summary --------------------
     summary_prompt = f"""
-    You are an expert career coach. Rewrite a professional summary for {resume_data.get('name','')}
-    applying for a {job_title} position at {jd_data.get('company','')}.
-    Highlight relevant skills, achievements, and experience. Use the candidate's original summary:
-    {resume_data.get('summary','')} and experience highlights: {all_exp_desc[:10]}
-    Consider the job requirements: {', '.join(required_skills)}
-    Return 2-3 sentence polished ATS-friendly summary only.
+    Rewrite this professional summary for {resume_data.get('name','')} applying for a {job_title} position at {company_name}.
+    
+    Original summary: {resume_data.get('summary','')}
+    Candidate's key experience: {all_exp_desc[:8]}
+    Target job title: {job_title}
+    Job requirements: {', '.join(required_skills[:10])}
+    Key job responsibilities: {', '.join(responsibilities[:5])}
+    Job summary: {job_summary}
+    
+    CRITICAL REQUIREMENTS:
+    - 2-3 sentences maximum (45 words total)
+    - Use simple, clear language - avoid complex words like "spearheaded", "leveraged", "facilitated", "orchestrated", "championed"
+    - Use simple action verbs: built, created, developed, led, managed, improved, designed
+    - Focus on skills and achievements that directly match the target job requirements
+    - Include metrics if available in original content
+    - Ensure perfect grammar and spelling
+    - Make it ATS-friendly with keywords from the target job description
+    - Highlight experience and skills most relevant to the {job_title} role
+    
+    Return only the rewritten summary text without any labels, descriptions, or extra formatting.
     """
-    rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
+    rewritten_resume["summary"] = call_llm_api(summary_prompt, 180)
 
     # -------------------- Generate Project Descriptions --------------------
     if "project" in resume_data:
@@ -1154,21 +1335,35 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
             original_desc = proj.get("description", proj.get("decription", ""))
 
             proj_prompt = f"""
-            You are an expert career coach. Rewrite this project description for a {job_title} role:
+            Rewrite this project description to align with a {job_title} role at {company_name}.
+            
             Project Name: {project_name}
             Original Description: {original_desc}
             Tools used: {', '.join(tools_used)}
-            Highlight achievements, responsibilities, and relevant skills in a human-readable way.
-            Do NOT include the tools as a separate field in JSON, but mention them naturally in the description.
+            Target job requirements: {', '.join(required_skills[:10])}
+            Target job responsibilities: {', '.join(responsibilities[:8])}
+            
+            CRITICAL REQUIREMENTS:
+            - Simplify complex language - use simple verbs: built, created, developed, designed, implemented
+            - Avoid buzzwords: "leveraged", "spearheaded", "orchestrated", "facilitated", "utilized"
+            - Each bullet: 15-22 words maximum
+            - Use clear, simple English
+            - Naturally mention the tools used in the description (don't list them separately)
+            - Highlight technologies and skills that match the target job requirements
+            - Include metrics and results when available
+            - Check grammar and spelling carefully
+            - Make it ATS-friendly with relevant keywords from job description
+            - Focus on achievements and technical skills relevant to {job_title} role
+            
             Return ONLY a JSON array with one object:
             {{
                 "name": "{project_name}",
-                "description": ["sentence1", "sentence2", ...],
+                "description": ["bullet1", "bullet2"],
                 "overview": ""
             }}
             """
 
-            rewritten_proj_text = call_llm_api(proj_prompt, 300)
+            rewritten_proj_text = call_llm_api(proj_prompt, 350)
 
             try:
                 json_start = rewritten_proj_text.find('[')
@@ -1188,7 +1383,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
                 fallback_desc = (
                     [line.strip() for line in original_desc.split("\n") if line.strip()]
                     if isinstance(original_desc, str)
-                    else [f"Worked on {project_name} using {', '.join(tools_used)}."]
+                    else [f"Developed {project_name} using {', '.join(tools_used[:3])}."]
                 )
                 rewritten_projects.append({
                     "name": project_name,
@@ -1200,14 +1395,27 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
 
     # -------------------- Categorize Skills --------------------
     skills_prompt = f"""
-    Analyze and categorize the candidate's skills for a {job_title} role.
-    Merge existing skills with required skills. Categorize into:
-    technicalSkills, tools, cloudSkills, softSkills, languages.
-    Candidate Skills: {', '.join(candidate_skills[:30])}
-    Required Skills: {', '.join(required_skills)}
-    Return ONLY a JSON object with above categories.
+    Analyze and categorize the candidate's skills for a {job_title} role at {company_name}.
+    
+    Candidate's current skills: {', '.join(candidate_skills[:35])}
+    Job required skills: {', '.join(required_skills)}
+    Job responsibilities: {', '.join(responsibilities[:8])}
+    
+    REQUIREMENTS:
+    - Prioritize skills that directly match the target job requirements
+    - Include relevant candidate skills that align with the role
+    - Add required skills from job description if candidate has related experience
+    - Remove outdated or irrelevant skills
+    - Organize into: technicalSkills, tools, cloudSkills, softSkills, languages
+    - Each category: 5-10 most relevant skills
+    - Make skills ATS-friendly by using exact terminology from job description when applicable
+    - Focus on skills that are valuable for a {job_title} position
+    
+    Return ONLY a valid JSON object with the five categories.
+    Example: {{"technicalSkills": ["Python", "SQL"], "tools": ["Power BI", "Azure Data Factory"], "cloudSkills": ["Azure", "AWS"], "softSkills": ["Communication", "Problem Solving"], "languages": ["English"]}}
     """
-    skills_text = call_llm_api(skills_prompt, 300)
+    
+    skills_text = call_llm_api(skills_prompt, 350)
     try:
         json_start = skills_text.find('{')
         json_end = skills_text.rfind('}') + 1
@@ -1567,3 +1775,765 @@ def get_score_label(score):
         return "Fair Match"
     else:
         return "Needs Improvement"
+    
+# --- Template CSS & HTML Generation Functions (Same as before) ---
+def get_css_minimalist(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Arial', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            color: #000;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1px;
+            margin-top: 8px;
+            margin-bottom: 3px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 2px; 
+            margin-bottom: 0; 
+            line-height: 1.1; 
+            font-size: 9.5pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; 
+        }}
+        .ats-item-title-group {{ 
+            flex-grow: 1; 
+            padding-right: 8px; 
+        }}
+        .ats-item-title {{ 
+            font-weight: bold; 
+            color: #000; 
+            display: inline; 
+        }} 
+        .ats-item-subtitle {{ 
+            font-style: italic; 
+            color: #555; 
+            display: inline; 
+            font-size: 9pt;
+        }}
+        .ats-item-duration {{ 
+            font-size: 9pt; 
+            color: #666; 
+            white-space: nowrap;
+            flex-shrink: 0;
+            text-align: right; 
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc; 
+            margin-left: 18px; 
+            padding-left: 0; 
+            margin-top: 2px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 0px; 
+            line-height: 1.2; 
+        }}
+        .ats-header {{ margin-bottom: 8px; }}
+        .ats-header h1 {{ margin: 0; padding: 0; font-size: 16pt; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_horizontal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Times New Roman', serif; 
+            font-size: 9.5pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.15; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 16pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: {color}; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            border-bottom: 2px solid {color}; 
+            padding-bottom: 1px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 9pt; white-space: nowrap; color: #666; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 9pt; }}
+        .ats-bullet-list {{ list-style-type: circle; margin-left: 20px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_bold_title(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Verdana', sans-serif; 
+            font-size: 8.5pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: {color}; font-size: 15pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ 
+            font-size: 11pt; 
+            color: #555; 
+            margin: 2px 0 5px 0; 
+            text-align: center;
+        }}
+        .ats-contact {{ font-size: 8pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " • "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: #000; 
+            font-size: 10pt; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+            border-bottom: 1.5px solid #CCC; 
+        }}
+        .ats-item-header {{ 
+            margin-top: 2px; 
+            margin-bottom: 0px; 
+            line-height: 1.1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }}
+        .ats-item-title-group {{
+            flex-grow: 1;
+            padding-right: 8px;
+        }}
+        .ats-item-title {{ font-weight: bold; color: {color}; display: inline; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline; font-size: 8.5pt; }}
+        .ats-item-duration {{ 
+            font-size: 8pt; 
+            color: #666;
+            white-space: nowrap;
+            flex-shrink: 0;
+            text-align: right;
+        }}
+        .ats-bullet-list {{ list-style-type: square; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_date_below(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Calibri', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 17pt; margin: 0; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: {color}; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; }}
+        .ats-item-title {{ font-weight: bold; color: #000; display: inline-block; }}
+        .ats-item-duration {{ font-size: 8.5pt; color: {color}; display: block; font-style: italic; margin-top: 1px; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline-block; margin-left: 5px; font-size: 8.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_section_box(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Arial', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: {color}; font-size: 16pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            background-color: {color}; 
+            color: white; 
+            font-size: 10pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            padding: 2px 8px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 8.5pt; white-space: nowrap; color: #666; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 8.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_classic(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Times New Roman', serif; 
+            font-size: 10pt; 
+            color: #000; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.15; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 18pt; margin: 0; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: #000; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            border-bottom: 1px solid #000; 
+            padding-bottom: 1px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: {color}; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 9.5pt; white-space: nowrap; color: #000; }}
+        .ats-item-subtitle {{ font-style: italic; color: #000; display: block; font-size: 9.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 22px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+
+def get_css_clean_contemporary(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.35in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Calibri', 'Arial', sans-serif;
+            font-size: 9pt;
+            color: #333;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+        }}
+        .ats-header-banner {{ 
+            background-color: {color};
+            padding: 18px 0.5in;
+            margin: 0 0 20px 0;
+        }}
+        .ats-header {{ 
+            margin: 0;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 5px 0;
+            font-size: 26pt;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 500;
+            margin: 3px 0 6px 0;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: rgba(255, 255, 255, 0.95);
+            margin-top: 4px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-page-content {{
+            padding: 0 0.5in;
+        }}
+        .ats-section-title {{ 
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            padding-left: 8px;
+            border-left: 3px solid {color};
+        }}
+        .ats-item-header {{ 
+            margin-top: 8px;
+            margin-bottom: 5px;
+            line-height: 1.1;
+        }}
+        .ats-item-header-box {{
+            background-color: #f5f5f5;
+            padding: 6px 10px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .ats-item-title-group {{
+            flex-grow: 1;
+        }}
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: {color};
+            display: inline;
+        }}
+        .ats-item-subtitle {{ 
+            font-size: 9pt;
+            color: #666;
+            display: inline;
+            margin-left: 8px;
+        }}
+        .ats-item-subtitle::before {{
+            content: "• ";
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #999;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 18px;
+            padding-left: 0;
+            margin-top: 3px;
+            margin-bottom: 8px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 2px;
+            line-height: 1.4;
+            color: #555;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 5px;
+            font-size: 9pt;
+            line-height: 1.4;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: {color};
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.5;
+        }}
+        </style>
+    """
+
+def get_css_sophisticated_minimal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.4in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Helvetica Neue', 'Arial', sans-serif;
+            font-size: 9pt;
+            color: #2d2d2d;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.4in 0.55in;
+            line-height: 1.5;
+        }}
+        .ats-header {{ 
+            margin-bottom: 24px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 2px 0;
+            font-size: 30pt;
+            font-weight: 300;
+            color: #1a1a1a;
+            letter-spacing: 2px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 11pt;
+            color: #666;
+            font-weight: 400;
+            margin: 4px 0 10px 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #888;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 8px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10pt;
+            font-weight: 600;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 10px;
+            margin-bottom: 5px;
+            line-height: 1.1;
+            padding-bottom: 8px;
+        }}
+        .ats-item-title-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 3px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 600;
+            font-size: 10pt;
+            color: {color};
+            letter-spacing: 0.3px;
+        }}
+        .ats-item-subtitle {{ 
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+            display: block;
+            margin-top: 2px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #999;
+            font-weight: 400;
+            white-space: nowrap;
+        }}
+        .ats-item-divider {{
+            border-bottom: 0.5px solid #f0f0f0;
+            margin-top: 8px;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 16px;
+            padding-left: 0;
+            margin-top: 4px;
+            margin-bottom: 0px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 3px;
+            line-height: 1.5;
+            color: #4a4a4a;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 6px;
+            font-size: 9pt;
+            line-height: 1.5;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 600;
+            color: #1a1a1a;
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.6;
+            text-align: justify;
+        }}
+        </style>
+    """
+
+
+def get_css_modern_minimal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.4in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 9pt;
+            color: #2c3e50;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.4in 0.5in;
+            line-height: 1.4;
+        }}
+        .ats-header {{ 
+            margin-bottom: 25px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 4px 0;
+            font-size: 28pt;
+            font-weight: 700;
+            color: {color};
+            letter-spacing: 0.5px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: #4a5568;
+            font-weight: 500;
+            margin: 3px 0 6px 0;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #718096;
+            border-top: 1.5px solid #e2e8f0;
+            padding-top: 8px;
+            margin-top: 6px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 11pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            padding-bottom: 3px;
+            border-bottom: 2px solid {color};
+        }}
+        .ats-item-header {{ 
+            margin-top: 8px;
+            margin-bottom: 4px;
+            line-height: 1.1;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }}
+        .ats-item-title-group {{
+            flex-grow: 1;
+            padding-right: 10px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: #2d3748;
+            display: inline;
+        }}
+        .ats-item-subtitle {{ 
+            font-style: italic;
+            font-size: 9pt;
+            color: #4a5568;
+            display: inline;
+            margin-left: 6px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #718096;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 18px;
+            padding-left: 0;
+            margin-top: 3px;
+            margin-bottom: 8px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 2px;
+            line-height: 1.4;
+            color: #4a5568;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 5px;
+            font-size: 9pt;
+            line-height: 1.4;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: #2d3748;
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.5;
+            text-align: justify;
+        }}
+        </style>
+    """
+
+
+def get_css_elegant_professional(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.45in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 9pt;
+            color: #333333;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.45in 0.55in;
+            line-height: 1.45;
+        }}
+        .ats-header {{ 
+            text-align: center;
+            margin-bottom: 22px;
+            border-bottom: 2.5px double {color};
+            padding-bottom: 15px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 6px 0;
+            font-size: 30pt;
+            font-weight: 400;
+            color: {color};
+            letter-spacing: 1.5px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: #555;
+            font-style: italic;
+            margin: 4px 0 8px 0;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #666;
+            letter-spacing: 0.3px;
+            margin-top: 6px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 10px;
+            margin-bottom: 5px;
+            line-height: 1.1;
+        }}
+        .ats-item-title-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: {color};
+        }}
+        .ats-item-subtitle {{ 
+            font-style: italic;
+            font-size: 9pt;
+            color: #666;
+            display: block;
+            margin-top: 1px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #777;
+            font-style: italic;
+            white-space: nowrap;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 20px;
+            padding-left: 0;
+            margin-top: 4px;
+            margin-bottom: 10px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 3px;
+            line-height: 1.45;
+            color: #444;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 6px;
+            font-size: 9pt;
+            line-height: 1.5;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: {color};
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.55;
+            text-align: justify;
+        }}
+        </style>
+    """

@@ -743,7 +743,7 @@ def save_and_improve():
     # Update hash so it doesn't regenerate
     st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
     
-    
+    st.success("Resume content saved and improved! Check the updated details below.")
 
 def generate_and_switch():
     """Performs final analysis and switches to download page."""

@@ -13,7 +13,8 @@ from pptx.dml.color import RGBColor
 import streamlit as st
 import json, os
 from datetime import datetime
-from utils import load_user_templates,save_user_templates
+from utils import load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box
+
 
 # Define the preferred display order for sections
 RESUME_ORDER = ["summary", "experience", "education", "skills", "projects", "certifications", "achievements", "publications", "awards"]
@@ -23,7 +24,8 @@ ATS_COLORS = {
     "Professional Blue (Default)": "#1F497D",
     "Corporate Gray": "#4D4D4D",
     "Deep Burgundy": "#800020",
-    "Navy Blue": "#000080"
+    "Navy Blue": "#000080",
+    "Black":"#000000"
 }
 
 
@@ -39,300 +41,6 @@ def format_section_title(key):
     title = key.replace('_', ' ').replace('Skills', ' Skills').replace('summary', 'Summary')
     return ' '.join(word.capitalize() for word in title.split())
 
-# --- Template CSS & HTML Generation Functions (Same as before) ---
-def get_css_minimalist(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Arial', sans-serif; 
-            font-size: 9pt; 
-            color: #333; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.2; 
-        }}
-        .ats-section-title {{ 
-            font-size: 10.5pt; 
-            font-weight: bold; 
-            color: #000;
-            border-bottom: 1px solid #333;
-            padding-bottom: 1px;
-            margin-top: 8px;
-            margin-bottom: 3px;
-        }}
-        .ats-item-header {{ 
-            margin-top: 2px; 
-            margin-bottom: 0; 
-            line-height: 1.1; 
-            font-size: 9.5pt;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start; 
-        }}
-        .ats-item-title-group {{ 
-            flex-grow: 1; 
-            padding-right: 8px; 
-        }}
-        .ats-item-title {{ 
-            font-weight: bold; 
-            color: #000; 
-            display: inline; 
-        }} 
-        .ats-item-subtitle {{ 
-            font-style: italic; 
-            color: #555; 
-            display: inline; 
-            font-size: 9pt;
-        }}
-        .ats-item-duration {{ 
-            font-size: 9pt; 
-            color: #666; 
-            white-space: nowrap;
-            flex-shrink: 0;
-            text-align: right; 
-        }}
-        .ats-bullet-list {{ 
-            list-style-type: disc; 
-            margin-left: 18px; 
-            padding-left: 0; 
-            margin-top: 2px; 
-            margin-bottom: 3px; 
-        }}
-        .ats-bullet-list li {{ 
-            margin-bottom: 0px; 
-            line-height: 1.2; 
-        }}
-        .ats-header {{ margin-bottom: 8px; }}
-        .ats-header h1 {{ margin: 0; padding: 0; font-size: 16pt; }}
-        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
-        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
-
-def get_css_horizontal(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Times New Roman', serif; 
-            font-size: 9.5pt; 
-            color: #333; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.15; 
-        }}
-        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
-        .ats-header h1 {{ color: #000; font-size: 16pt; margin: 0; text-transform: uppercase; }}
-        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
-        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
-        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
-        .ats-section-title {{ 
-            color: {color}; 
-            font-size: 10.5pt; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            border-bottom: 2px solid {color}; 
-            padding-bottom: 1px; 
-            margin-top: 8px; 
-            margin-bottom: 3px; 
-        }}
-        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
-        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
-        .ats-item-duration {{ font-size: 9pt; white-space: nowrap; color: #666; }}
-        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 9pt; }}
-        .ats-bullet-list {{ list-style-type: circle; margin-left: 20px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
-        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
-
-def get_css_bold_title(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Verdana', sans-serif; 
-            font-size: 8.5pt; 
-            color: #333; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.2; 
-        }}
-        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
-        .ats-header h1 {{ color: {color}; font-size: 15pt; margin: 0; text-transform: uppercase; }}
-        .ats-job-title-header {{ 
-            font-size: 11pt; 
-            color: #555; 
-            margin: 2px 0 5px 0; 
-            text-align: center;
-        }}
-        .ats-contact {{ font-size: 8pt; margin-top: 3px; }}
-        .ats-contact span:not(:last-child)::after {{ content: " • "; white-space: pre; }}
-        .ats-section-title {{ 
-            color: #000; 
-            font-size: 10pt; 
-            font-weight: 900; 
-            text-transform: uppercase; 
-            margin-top: 8px; 
-            margin-bottom: 3px; 
-            border-bottom: 1.5px solid #CCC; 
-        }}
-        .ats-item-header {{ 
-            margin-top: 2px; 
-            margin-bottom: 0px; 
-            line-height: 1.1;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }}
-        .ats-item-title-group {{
-            flex-grow: 1;
-            padding-right: 8px;
-        }}
-        .ats-item-title {{ font-weight: bold; color: {color}; display: inline; }}
-        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline; font-size: 8.5pt; }}
-        .ats-item-duration {{ 
-            font-size: 8pt; 
-            color: #666;
-            white-space: nowrap;
-            flex-shrink: 0;
-            text-align: right;
-        }}
-        .ats-bullet-list {{ list-style-type: square; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
-        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
-
-def get_css_date_below(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Calibri', sans-serif; 
-            font-size: 9pt; 
-            color: #333; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.2; 
-        }}
-        .ats-header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }}
-        .ats-header h1 {{ color: #000; font-size: 17pt; margin: 0; }}
-        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
-        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
-        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
-        .ats-section-title {{ 
-            color: {color}; 
-            font-size: 10.5pt; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-            margin-top: 8px; 
-            margin-bottom: 3px; 
-        }}
-        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; }}
-        .ats-item-title {{ font-weight: bold; color: #000; display: inline-block; }}
-        .ats-item-duration {{ font-size: 8.5pt; color: {color}; display: block; font-style: italic; margin-top: 1px; }}
-        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline-block; margin-left: 5px; font-size: 8.5pt; }}
-        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
-        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
-
-def get_css_section_box(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Arial', sans-serif; 
-            font-size: 9pt; 
-            color: #333; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.2; 
-        }}
-        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
-        .ats-header h1 {{ color: {color}; font-size: 16pt; margin: 0; text-transform: uppercase; }}
-        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
-        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
-        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
-        .ats-section-title {{ 
-            background-color: {color}; 
-            color: white; 
-            font-size: 10pt; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            padding: 2px 8px; 
-            margin-top: 8px; 
-            margin-bottom: 3px; 
-        }}
-        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
-        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
-        .ats-item-duration {{ font-size: 8.5pt; white-space: nowrap; color: #666; }}
-        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 8.5pt; }}
-        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
-        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
-
-def get_css_classic(color):
-    return f"""
-        <style>
-        @page {{ margin: 0.3in; size: letter; }}
-        body {{ margin: 0; padding: 0; }}
-        .ats-page {{ 
-            font-family: 'Times New Roman', serif; 
-            font-size: 10pt; 
-            color: #000; 
-            max-width: 100%; 
-            margin: 0; 
-            padding: 0.3in;
-            line-height: 1.15; 
-        }}
-        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
-        .ats-header h1 {{ color: #000; font-size: 18pt; margin: 0; }}
-        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
-        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
-        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
-        .ats-section-title {{ 
-            color: #000; 
-            font-size: 10.5pt; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-            border-bottom: 1px solid #000; 
-            padding-bottom: 1px; 
-            margin-top: 8px; 
-            margin-bottom: 3px; 
-        }}
-        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
-        .ats-item-title {{ font-weight: bold; color: {color}; flex-grow: 1; }}
-        .ats-item-duration {{ font-size: 9.5pt; white-space: nowrap; color: #000; }}
-        .ats-item-subtitle {{ font-style: italic; color: #000; display: block; font-size: 9.5pt; }}
-        .ats-bullet-list {{ list-style-type: disc; margin-left: 22px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
-        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
-        .ats-skills-group {{ margin-bottom: 3px; }}
-        p {{ margin: 5px 0; }}
-        </style>
-    """
 
 from datetime import datetime
 
@@ -470,7 +178,24 @@ SYSTEM_TEMPLATES = {
     "Times New Roman Classic": {
         "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
         "css_generator": get_css_classic,
-    }
+    },
+    "Sohisticated_minimal": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_sophisticated_minimal,
+    },
+        "Clean look": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_clean_contemporary,
+    },
+            "Elegant": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_elegant_professional,
+    },
+            "Mordern Minimal": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_modern_minimal,
+    },
+    
 }
 
 def parse_uploaded_file(uploaded_file):
@@ -790,190 +515,7 @@ def get_text_download_link(data, filename_suffix=""):
     href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
     return href
 
-# def generate_pptx_file(data):
-#     """Generate a proper PPTX file with resume data."""
-#     prs = Presentation()
-#     prs.slide_width = Inches(10)
-#     prs.slide_height = Inches(7.5)
-    
-#     # Slide 1: Title slide with header info
-#     slide1 = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
-    
-#     # Add name (title)
-#     name_box = slide1.shapes.add_textbox(Inches(0.5), Inches(1), Inches(9), Inches(1))
-#     name_frame = name_box.text_frame
-#     name_frame.text = data.get('name', 'NAME MISSING')
-#     name_para = name_frame.paragraphs[0]
-#     name_para.font.size = Pt(44)
-#     name_para.font.bold = True
-#     name_para.font.color.rgb = RGBColor(31, 73, 125)  # Professional blue
-#     name_para.alignment = PP_ALIGN.CENTER
-    
-#     # Add job title
-#     if data.get('job_title'):
-#         job_box = slide1.shapes.add_textbox(Inches(0.5), Inches(2), Inches(9), Inches(0.6))
-#         job_frame = job_box.text_frame
-#         job_frame.text = data.get('job_title', '')
-#         job_para = job_frame.paragraphs[0]
-#         job_para.font.size = Pt(24)
-#         job_para.font.color.rgb = RGBColor(100, 100, 100)
-#         job_para.alignment = PP_ALIGN.CENTER
-    
-#     # Add contact info
-#     contact_parts = []
-#     if data.get('phone'):
-#         contact_parts.append(f"📱 {data.get('phone')}")
-#     if data.get('email'):
-#         contact_parts.append(f"✉️ {data.get('email')}")
-#     if data.get('location'):
-#         contact_parts.append(f"📍 {data.get('location')}")
-    
-#     contact_text = " • ".join(contact_parts)
-#     contact_box = slide1.shapes.add_textbox(Inches(0.5), Inches(3), Inches(9), Inches(0.5))
-#     contact_frame = contact_box.text_frame
-#     contact_frame.text = contact_text
-#     contact_para = contact_frame.paragraphs[0]
-#     contact_para.font.size = Pt(14)
-#     contact_para.alignment = PP_ALIGN.CENTER
-    
-#     # Add summary if exists
-#     if data.get('summary'):
-#         summary_box = slide1.shapes.add_textbox(Inches(1), Inches(4), Inches(8), Inches(2.5))
-#         summary_frame = summary_box.text_frame
-#         summary_frame.word_wrap = True
-#         summary_frame.text = data.get('summary')
-#         summary_para = summary_frame.paragraphs[0]
-#         summary_para.font.size = Pt(14)
-#         summary_para.line_spacing = 1.2
-    
-#     # Process other sections
-#     for key in RESUME_ORDER:
-#         if key == 'summary':  # Already handled
-#             continue
-            
-#         section_data = data.get(key)
-        
-#         if not section_data or (isinstance(section_data, list) and not section_data):
-#             continue
-        
-#         # Create new slide for each section
-#         slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
-        
-#         # Section title
-#         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9), Inches(0.6))
-#         title_frame = title_box.text_frame
-#         title_frame.text = format_section_title(key)
-#         title_para = title_frame.paragraphs[0]
-#         title_para.font.size = Pt(32)
-#         title_para.font.bold = True
-#         title_para.font.color.rgb = RGBColor(31, 73, 125)
-        
-#         # Add horizontal line under title
-#         line = slide.shapes.add_shape(
-#             1,  # Line shape
-#             Inches(0.5), Inches(0.95),
-#             Inches(9), Inches(0)
-#         )
-#         line.line.color.rgb = RGBColor(31, 73, 125)
-#         line.line.width = Pt(2)
-        
-#         # Content box
-#         content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(9), Inches(5.8))
-#         content_frame = content_box.text_frame
-#         content_frame.word_wrap = True
-        
-#         if key == 'skills' and isinstance(section_data, dict):
-#             for skill_type, skill_list in section_data.items():
-#                 if skill_list:
-#                     p = content_frame.add_paragraph()
-#                     p.text = f"{format_section_title(skill_type)}: {', '.join(skill_list)}"
-#                     p.font.size = Pt(14)
-#                     p.space_after = Pt(8)
-#                     p.level = 0
-                    
-#                     # Make skill type bold
-#                     run = p.runs[0]
-#                     run.font.bold = True
-        
-#         elif isinstance(section_data, list):
-#             for item in section_data:
-#                 if isinstance(item, str):
-#                     p = content_frame.add_paragraph()
-#                     p.text = item
-#                     p.font.size = Pt(14)
-#                     p.space_after = Pt(6)
-#                     p.level = 0
-#                     continue
-                
-#                 if not isinstance(item, dict):
-#                     continue
-                
-#                 # Extract item details
-#                 title_keys = ['title', 'name', 'degree']
-#                 subtitle_keys = ['company', 'institution', 'issuer', 'organization']
-#                 duration_keys = ['duration', 'date', 'period']
-                
-#                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
-#                 subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
-#                 duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
-                
-#                 # Add title paragraph
-#                 p = content_frame.add_paragraph()
-#                 title_text = main_title
-#                 if subtitle:
-#                     title_text += f" • {subtitle}"
-#                 if duration:
-#                     title_text += f" • {duration}"
-#                 p.text = title_text
-#                 p.font.size = Pt(16)
-#                 p.font.bold = True
-#                 p.font.color.rgb = RGBColor(31, 73, 125)
-#                 p.space_after = Pt(4)
-#                 p.level = 0
-                
-#                 # Add description bullets
-#                 description_list_raw = item.get('description') or item.get('achievement') or item.get('details')
-                
-#                 if description_list_raw:
-#                     if isinstance(description_list_raw, str):
-#                         description_list = [description_list_raw]
-#                     elif isinstance(description_list_raw, list):
-#                         description_list = description_list_raw
-#                     else:
-#                         description_list = None
-                    
-#                     if description_list:
-#                         for desc in description_list:
-#                             p = content_frame.add_paragraph()
-#                             p.text = desc
-#                             p.font.size = Pt(13)
-#                             p.space_after = Pt(3)
-#                             p.level = 1  # Indent for bullet points
-                
-#                 # Add spacing between items
-#                 p = content_frame.add_paragraph()
-#                 p.space_after = Pt(8)
-    
-#     # Save to BytesIO
-#     pptx_io = BytesIO()
-#     prs.save(pptx_io)
-#     pptx_io.seek(0)
-#     return pptx_io.getvalue()
 
-# def get_pptx_download_link(data, filename_suffix=""):
-#     """Generates a download link for a PPTX file."""
-#     try:
-#         pptx_data = generate_pptx_file(data)
-#         b64_data = base64.b64encode(pptx_data).decode()
-        
-#         filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.pptx"
-#         href = f'<a href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00CED1; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📊 Download PPTX (.pptx)</strong></a>'
-#         return href
-#     except Exception as e:
-#         st.error(f"Error generating PPTX: {str(e)}")
-#         return f'<p style="color: red;">Error generating PPTX file. Please try again.</p>'
-
-# --- Main Application ---
 
 def app_download():
     st.set_page_config(layout="wide", page_title="Download Resume")
@@ -1019,28 +561,57 @@ def app_download():
             box-shadow: 0 8px 25px var(--soft-shadow);
         }}
         /* TEMPLATE CARDS */
-        .template-card {{
-            background: var(--card-bg);
-            backdrop-filter: blur(5px);
-            border: 1px solid var(--card-border);
-            padding: 25px;
-            border-radius: 18px;
-            box-shadow: 0 8px 25px var(--soft-shadow);
-            margin-bottom: 25px;
-            transition: all 0.3s ease;
-            text-align: center;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            color: var(--text-dark);
-        }}
 
-        .template-card:hover {{
-            box-shadow: 0 12px 35px rgba(0, 255, 127, 0.4);
-            transform: translateY(-5px);
-            border-color: var(--accent-color);
-        }}
+
+.template-card {{
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid rgba(0, 255, 200, 0.15);
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    margin-bottom: 18px;
+    text-align: center;
+    min-height: 160px;
+    transition: all 0.25s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}}
+.template-card:hover {{
+    border-color: rgba(0, 255, 180, 0.6);
+    box-shadow: 0 6px 18px rgba(0, 255, 200, 0.25);
+    transform: translateY(-4px);
+}}
+.template-card h4 {{
+    font-size: 1em;
+    font-weight: 600;
+    color: #00f0ff;
+    margin-bottom: 4px;
+}}
+.template-card p {{
+    font-size: 0.8em;
+    color: #aaa;
+    margin-bottom: 8px;
+}}
+
+/* Only style buttons INSIDE .template-card */
+.template-card .stButton > button {{
+    background: linear-gradient(90deg, #00e0ff, #00ffa3);
+    color: black;
+    border: none;
+    padding: 6px 0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85em;
+    width: 100%;
+    transition: all 0.3s ease;
+}}
+.template-card .stButton > button:hover {{
+    background: linear-gradient(90deg, #00ffa3, #00e0ff);
+    transform: scale(1.03);
+}}
+
+
 
         /* HEADINGS */
         h1, h2, h3, h4 {{
@@ -1450,7 +1021,7 @@ def app_download():
             if st.session_state.get("selected_template_preview") or st.session_state.get("template_source") == 'temp_upload':
                 preview_html = f"""
                     <style>{template_css.replace('{primary_color}', primary_color) if template_css else ''}</style>
-                    <div class="ats-page">{generate_generic_html()}</div>
+                    <div class="ats-page">{generate_generic_html(final_data)}</div>
                 """
                 # Update preview to reflect color change
                 if st.session_state.get("template_source") != 'temp_upload':

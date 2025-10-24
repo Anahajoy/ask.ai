@@ -1241,7 +1241,7 @@ def is_valid_phone(phone):
 
 def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""
-    user_data_file = "user_resume_data.json"
+    user_data_file = Path("user_resume_data.json")
 
     # Convert date objects to strings
     def convert_dates(obj):

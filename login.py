@@ -15,7 +15,7 @@ if 'mode' not in st.session_state:
     st.session_state.mode = 'login'  # 'login' or 'register'
 
 users_file = Path(__file__).parent / "users.json"
-user_data_file = "user_resume_data.json"
+user_data_file = "ask.ai/user_resume_data.json"
 
 def load_users():
     try:

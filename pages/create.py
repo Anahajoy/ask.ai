@@ -6,7 +6,6 @@ import hashlib
 import json
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
-st.session_state.pop('enhanced_resume', None)
 
 def display_ats_score():
     """Display ATS score card with breakdown."""

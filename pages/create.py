@@ -322,19 +322,30 @@ def apply_custom_css():
         margin-bottom: 0.5rem;
     }
 
-    .item-subtitle {
-        font-size: 1.1rem;
-        color: #FFFFFF;
-        margin-bottom: 0.3rem;
-        font-weight: 500;
+.item-subtitle {
+    font-size: 1.1rem;
+    color: #00BFFF;  /* or #333 for dark gray */
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+}
+
+.item-details {
+    color: #555555;  /* darker gray so it’s visible */
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+    /* --- Bullet Lists --- */
+    .bullet-list, .item-list {
+        color: #FFFFFF !important;
+        padding-left: 1.5rem;
     }
 
-    .item-details {
-        color: #CCCCCC;
+    .bullet-list li, .item-list li {
+        color: #FFFFFF !important;
         margin-bottom: 0.5rem;
-        font-size: 0.95rem;
+        line-height: 1.6;
     }
-
     /* --- Bullet Lists --- */
     .bullet-list, .skill-list {
         color: #FFFFFF !important;
@@ -563,7 +574,12 @@ def format_date(date_string):
 
 
 def render_list_item(item, index, key_prefix, section_title, is_edit=True):
+    # Add at the top
     """Generic list item renderer for both edit and view modes."""
+    if isinstance(item, str):
+        item = {"title": item}
+
+    
     title_keys = ['name', 'title', 'degree', 'institution', 'company', 'position']  # ADDED 'position'
     detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview', 'issuer', 'position', 'start_date', 'end_date']  # ADDED 'position'
 
@@ -640,11 +656,12 @@ def render_generic_section(section_key, data_list, is_edit):
     st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
 
     for i, item in enumerate(data_list):
-        if i >= len(st.session_state['enhanced_resume'].get(section_key, [])):
-             continue 
+        if not isinstance(item, dict):
+                item = {"title": item}
+                data_list[i] = item
 
         with st.container(border=False):
-            
+            # Expander title
             expander_title_parts = [
                 item.get('title'),
                 item.get('name'),
@@ -653,7 +670,6 @@ def render_generic_section(section_key, data_list, is_edit):
                 f"{section_title[:-1]} Item {i+1}"
             ]
             expander_title = next((t for t in expander_title_parts if t), f"{section_title[:-1]} Item {i+1}")
-
             if is_edit:
                 with st.expander(f"📝 Edit: **{expander_title}**", expanded=False):
                     temp_item = deepcopy(item) 
@@ -667,6 +683,7 @@ def render_generic_section(section_key, data_list, is_edit):
                         st.rerun()
                 
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
+
             else:
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
     

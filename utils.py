@@ -1241,7 +1241,7 @@ def is_valid_phone(phone):
 
 def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""
-    user_data_file = Path("user_resume_data.json")
+    user_data_file = "user_resume_data.json"
 
     # Convert date objects to strings
     def convert_dates(obj):
@@ -1480,8 +1480,16 @@ def extract_resume_text(resume_data):
     
     # Add certifications
     for cert in resume_data.get('certifications', []):
-        if cert.get('certificate_name') or cert.get('name'):
-            text_parts.append(cert.get('certificate_name') or cert.get('name'))
+            if isinstance(cert, dict):
+                # cert is a dictionary
+                name = cert.get('certificate_name') or cert.get('name')
+            else:
+                # cert is a string
+                name = cert
+            
+            if name:
+                text_parts.append(name)
+
     
     return ' '.join([str(part) for part in text_parts])
 

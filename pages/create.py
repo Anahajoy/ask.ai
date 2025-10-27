@@ -330,33 +330,44 @@ def format_date(date_string):
 
 
 def render_list_item(item, index, key_prefix, section_title, is_edit=True):
-    # Add at the top
-    """Generic list item renderer for both edit and view modes."""
+    """Generic list item renderer for both edit and view modes with dynamic field handling."""
+    
+    # Normalize item to dict
     if isinstance(item, str):
         item = {"title": item}
-
     
-    title_keys = ['name', 'title', 'degree', 'institution', 'company', 'position']  # ADDED 'position'
-    detail_keys_to_skip = ['name', 'title', 'degree', 'company', 'institution', 'description', 'overview', 'issuer', 'position', 'start_date', 'end_date']  # ADDED 'position'
+    # Define field priority order for display
+    title_keys = ['position', 'title', 'name', 'degree', 'institution', 'company', 'certificate_name']
+    subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name']
+    detail_keys_to_skip = ['position', 'title', 'name', 'degree', 'company', 'institution', 
+                           'description', 'overview', 'issuer', 'start_date', 'end_date', 
+                           'duration', 'certificate_name', 'organization', 'provider_name',
+                           'details', 'achievement']
 
     if not is_edit:
         html_content = "<div>"
         
-        # MODIFIED: Check for position field first
+        # Get main title (first available from title_keys)
         main_title = None
-        if 'position' in item and item['position']:
-            main_title = item['position']
-        else:
-            main_title = next((item[k] for k in title_keys if k in item and item[k]), None)
+        for key in title_keys:
+            if key in item and item[key]:
+                main_title = item[key]
+                break
         
         if main_title:
             html_content += f'<div class="item-title">{main_title}</div>'
-            subtitle_keys = ['institution', 'company', 'issuer']
-            subtitle = next((item[k] for k in subtitle_keys if k in item and item[k]), None)
+            
+            # Get subtitle (first available from subtitle_keys, but not same as title)
+            subtitle = None
+            for key in subtitle_keys:
+                if key in item and item[key] and item[key] != main_title:
+                    subtitle = item[key]
+                    break
+            
             if subtitle:
                 html_content += f'<div class="item-subtitle">{subtitle}</div>'
 
-        # MODIFIED: Format dates to MMM YYYY
+        # Format dates to MMM YYYY
         duration = item.get('duration')
         if not duration:
             start_date = format_date(item.get('start_date', ''))
@@ -367,25 +378,44 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
         if duration and duration.strip() != '-':
             html_content += f'<div class="item-details"><em>{duration}</em></div>'
 
-        main_description_list = item.get('description') or item.get('overview')
-        if isinstance(main_description_list, list) and main_description_list:
-            bullet_html = "".join([f"<li>{line}</li>" for line in main_description_list])
-            html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
+        # Handle description/overview/details/achievement fields
+        description_fields = ['description', 'overview', 'details', 'achievement']
+        main_description_list = None
+        for field in description_fields:
+            if field in item:
+                main_description_list = item[field]
+                break
         
+        if main_description_list:
+            if isinstance(main_description_list, str):
+                main_description_list = [main_description_list]
+            if isinstance(main_description_list, list) and main_description_list:
+                bullet_html = "".join([f"<li>{line}</li>" for line in main_description_list if line])
+                html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
+        
+        # Display any remaining fields not in skip list
         for k, v in item.items():
-            if isinstance(v, str) and v.strip() and k not in detail_keys_to_skip + ['duration', 'start_date', 'end_date']:
+            if isinstance(v, str) and v.strip() and k not in detail_keys_to_skip + ['duration']:
                 formatted_k = format_section_title(k)
                 html_content += f'<div class="item-details">**{formatted_k}:** {v}</div>'
 
         html_content += "</div>"
         return html_content
+    
     else:
+        # EDIT MODE
         edited_item = item.copy()
         
+        # Get all fields in item
         edit_fields = list(item.keys())
-        # MODIFIED: Added 'position' to priority fields
-        priority_fields = ['position', 'title', 'name', 'company', 'institution', 'degree', 'issuer', 'duration', 'start_date', 'end_date', 'description', 'overview']
         
+        # Priority fields for ordering
+        priority_fields = ['position', 'title', 'name', 'company', 'institution', 'degree', 
+                          'certificate_name', 'issuer', 'organization', 'provider_name',
+                          'duration', 'start_date', 'end_date', 'description', 'overview', 
+                          'details', 'achievement']
+        
+        # Order fields: priority first, then rest
         ordered_fields = []
         for field in priority_fields:
             if field in edit_fields:
@@ -393,39 +423,58 @@ def render_list_item(item, index, key_prefix, section_title, is_edit=True):
                 edit_fields.remove(field)
         ordered_fields.extend(edit_fields)
         
+        # Render input fields for each field in order
         for k in ordered_fields:
             v = item[k]
             if isinstance(v, str):
-                edited_item[k] = st.text_input(format_section_title(k), v, key=f"{key_prefix}_{k}_{index}")
+                edited_item[k] = st.text_input(
+                    format_section_title(k), 
+                    v, 
+                    key=f"{key_prefix}_{k}_{index}"
+                )
             elif isinstance(v, list):
                 text = "\n".join(v)
-                edited_text = st.text_area(format_section_title(k), text, height=150, key=f"{key_prefix}_area_{k}_{index}")
+                edited_text = st.text_area(
+                    format_section_title(k), 
+                    text, 
+                    height=150, 
+                    key=f"{key_prefix}_area_{k}_{index}"
+                )
                 edited_item[k] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+        
         return edited_item
-
+    
 def render_generic_section(section_key, data_list, is_edit):
-    """Renders dynamic list sections."""
+    """Renders dynamic list sections with consistent formatting."""
     section_title = format_section_title(section_key)
-    if not data_list: return
+    if not data_list: 
+        return
 
     st.markdown('<div class="resume-section">', unsafe_allow_html=True)
     st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
 
     for i, item in enumerate(data_list):
+        # Normalize all items to dictionaries
         if not isinstance(item, dict):
+            if isinstance(item, str):
                 item = {"title": item}
-                data_list[i] = item
+            else:
+                item = {"title": str(item)}
+            data_list[i] = item  # Update the list with normalized item
 
         with st.container(border=False):
-            # Expander title
+            # Build expander title from available fields
             expander_title_parts = [
+                item.get('position'),
                 item.get('title'),
                 item.get('name'),
+                item.get('certificate_name'),
                 item.get('company'),
                 item.get('institution'),
-                f"{section_title[:-1]} Item {i+1}"
+                item.get('issuer')
             ]
             expander_title = next((t for t in expander_title_parts if t), f"{section_title[:-1]} Item {i+1}")
+            
             if is_edit:
                 with st.expander(f"📝 Edit: **{expander_title}**", expanded=False):
                     temp_item = deepcopy(item) 
@@ -438,9 +487,10 @@ def render_generic_section(section_key, data_list, is_edit):
                         st.session_state['enhanced_resume'][section_key].pop(i)
                         st.rerun()
                 
+                # Show view mode preview below edit section
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
-
             else:
+                # View mode only
                 st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)

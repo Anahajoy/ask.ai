@@ -95,34 +95,60 @@ def generate_generic_html(data, date_placement='right'):
 
         elif isinstance(section_data, list):
             for item in section_data:
+                # Normalize string items to dict
                 if isinstance(item, str) and item.strip():
-                    html += f'<ul class="ats-bullet-list"><li>{item}</li></ul>'
-                    continue
-
+                    item = {"title": item}
+                
                 if not isinstance(item, dict):
                     continue
 
-      
-                title_keys = ['title', 'name', 'degree', 'certificate_name', 'course', 'position']
+                # Define comprehensive field keys for dynamic handling
+                title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course']
                 subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
                 duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
+                description_keys = ['description', 'achievement', 'details', 'overview']
 
-                main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
-                subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
+                # Get main title (first available)
+                main_title = None
+                for k in title_keys:
+                    if k in item and item[k]:
+                        main_title = item[k]
+                        break
+                
+                # Get subtitle (first available that's not the same as title)
+                subtitle = None
+                for k in subtitle_keys:
+                    if k in item and item[k] and item[k] != main_title:
+                        subtitle = item[k]
+                        break
 
-              
+                # Get duration with proper date formatting
                 start = format_year_only(item.get('start_date', ''))
                 end = format_year_only(item.get('end_date', ''))
 
                 if start or end:
                     duration = f"{start} - {end}" if start and end else start or end
                 else:
-                    duration = next((format_year_only(item[k]) for k in duration_keys if k in item and item[k]), '')
+                    # Try other duration fields
+                    duration = None
+                    for k in duration_keys:
+                        if k in item and item[k]:
+                            duration = format_year_only(item[k])
+                            break
+                    duration = duration or ''
 
-             
+                # Skip completely empty items
                 if not main_title and not subtitle and not duration:
-                    continue
+                    # Check if there's any description content
+                    has_description = False
+                    for desc_key in description_keys:
+                        if desc_key in item and item[desc_key]:
+                            has_description = True
+                            break
+                    if not has_description:
+                        continue
 
+                # Build item HTML
                 html += '<div class="ats-item-header">'
                 if main_title or subtitle:
                     html += '<div class="ats-item-title-group">'
@@ -136,20 +162,21 @@ def generate_generic_html(data, date_placement='right'):
                     html += f'<div class="ats-item-duration">{duration}</div>'
                 html += '</div>'
 
-                # Description / Achievements
-                description_list_raw = item.get('description') or item.get('achievement') or item.get('details')
-                if description_list_raw:
-                    if isinstance(description_list_raw, str):
-                        description_list = [description_list_raw]
-                    elif isinstance(description_list_raw, list):
-                        description_list = description_list_raw
-                    else:
-                        description_list = None
+                # Description / Achievements - check all possible description fields
+                description_list = None
+                for desc_key in description_keys:
+                    if desc_key in item and item[desc_key]:
+                        description_list_raw = item[desc_key]
+                        if isinstance(description_list_raw, str):
+                            description_list = [description_list_raw]
+                        elif isinstance(description_list_raw, list):
+                            description_list = description_list_raw
+                        break
 
-                    if description_list:
-                        bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line.strip()])
-                        if bullet_html:
-                            html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+                if description_list:
+                    bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
+                    if bullet_html:
+                        html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
 
     return html
 

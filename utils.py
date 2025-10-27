@@ -1889,14 +1889,15 @@ def get_css_clean_contemporary(color):
             padding: 0;
             line-height: 1.4;
         }}
-        .ats-header-banner {{ 
-            background-color: {color};
-            padding: 18px 0.5in;
-            margin: 0 0 20px 0;
-        }}
+        
+        /* Colored header box/banner */
         .ats-header {{ 
-            margin: 0;
+            background-color: {color};
+            padding: 20px 0.5in;
+            margin: 0 0 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
+        
         .ats-header h1 {{ 
             margin: 0 0 5px 0;
             font-size: 26pt;
@@ -1904,24 +1905,29 @@ def get_css_clean_contemporary(color):
             color: #ffffff;
             letter-spacing: 0.5px;
         }}
+        
         .ats-job-title-header {{ 
             font-size: 12pt;
-            color: rgba(255, 255, 255, 0.85);
+            color: rgba(255, 255, 255, 0.95);
             font-weight: 500;
             margin: 3px 0 6px 0;
         }}
+        
         .ats-contact {{ 
             font-size: 9pt;
             color: rgba(255, 255, 255, 0.95);
             margin-top: 4px;
         }}
+        
         .ats-contact span:not(:last-child)::after {{ 
             content: " | "; 
             white-space: pre; 
         }}
+        
         .ats-page-content {{
             padding: 0 0.5in;
         }}
+        
         .ats-section-title {{ 
             font-size: 10.5pt;
             font-weight: 700;
@@ -1933,38 +1939,38 @@ def get_css_clean_contemporary(color):
             padding-left: 8px;
             border-left: 3px solid {color};
         }}
+        
         .ats-item-header {{ 
             margin-top: 8px;
             margin-bottom: 5px;
-            line-height: 1.1;
-        }}
-        .ats-item-header-box {{
-            background-color: #f5f5f5;
-            padding: 6px 10px;
-            margin-bottom: 5px;
-            border-radius: 3px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            line-height: 1.1;
         }}
+        
         .ats-item-title-group {{
             flex-grow: 1;
         }}
+        
         .ats-item-title {{ 
             font-weight: 700;
             font-size: 10pt;
             color: {color};
             display: inline;
         }}
+        
         .ats-item-subtitle {{ 
             font-size: 9pt;
             color: #666;
             display: inline;
             margin-left: 8px;
         }}
+        
         .ats-item-subtitle::before {{
             content: "• ";
         }}
+        
         .ats-item-duration {{ 
             font-size: 8.5pt;
             color: #999;
@@ -1972,6 +1978,7 @@ def get_css_clean_contemporary(color):
             white-space: nowrap;
             flex-shrink: 0;
         }}
+        
         .ats-bullet-list {{ 
             list-style-type: disc;
             margin-left: 18px;
@@ -1979,20 +1986,24 @@ def get_css_clean_contemporary(color):
             margin-top: 3px;
             margin-bottom: 8px;
         }}
+        
         .ats-bullet-list li {{ 
             margin-bottom: 2px;
             line-height: 1.4;
             color: #555;
         }}
+        
         .ats-skills-group {{ 
             margin-bottom: 5px;
             font-size: 9pt;
             line-height: 1.4;
         }}
+        
         .ats-skills-group strong {{ 
             font-weight: 700;
             color: {color};
         }}
+        
         p {{ 
             margin: 5px 0;
             line-height: 1.5;

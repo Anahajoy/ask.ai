@@ -1480,6 +1480,8 @@ def extract_resume_text(resume_data):
     
     # Add certifications
     for cert in resume_data.get('certifications', []):
+        # Add certifications
+        for cert in resume_data.get('certifications', []):
             if isinstance(cert, dict):
                 # cert is a dictionary
                 name = cert.get('certificate_name') or cert.get('name')

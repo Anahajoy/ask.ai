@@ -837,17 +837,35 @@ def app_download():
                         st.session_state.template_source = 'system'
                         st.rerun()
         
-
+        # Show preview and color selection if a template is selected
         if st.session_state.get('selected_template') and st.session_state.get('template_source') == 'system':
             st.markdown("---")
             st.markdown(f"### Preview: {st.session_state.selected_template}")
+            
+            # Color selection in main body
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                color_name = st.selectbox(
+                    'Choose Accent Color:',
+                    list(ATS_COLORS.keys()),
+                    key='sys_color_select'
+                )
+                primary_color = ATS_COLORS[color_name]
+            
+            with col2:
+                custom_color = st.color_picker(
+                    'Custom Color:',
+                    primary_color,
+                    key='sys_custom_color'
+                )
+                if custom_color != primary_color:
+                    primary_color = custom_color
+            
+            # Store selected color in session state
+            st.session_state.selected_color = primary_color
+            
+            # Generate preview with selected color
             template_config = st.session_state.selected_template_config
-            color_name = st.selectbox(
-                        'Choose Accent Color:',
-                        list(ATS_COLORS.keys()),
-                        key='sys_color_select'
-                    )
-            primary_color = ATS_COLORS[color_name]
             css = template_config['css_generator'](primary_color)
             html_content = template_config['html_generator'](final_data)
             
@@ -1015,54 +1033,28 @@ def app_download():
 
     # --- Sidebar ---
     with st.sidebar:
-        st.subheader("⚙️ Template Settings")
-        
-        color_name = st.selectbox(
-            'Choose Accent Color:',
-            list(ATS_COLORS.keys()),
-            key='download_sys_color_select'
-        )
-        primary_color = ATS_COLORS[color_name]
-        
-        custom_color = st.color_picker(
-            'Custom Color (Advanced):',
-            primary_color,
-            key='download_sys_color_picker'
-        )
-        
-        if custom_color != primary_color:
-            primary_color = custom_color
-        
-        st.markdown("---")
-        st.markdown("### 💾 Download Options")
+        st.subheader("⚙️ Download Options")
         
         # Download buttons
         if st.session_state.get("selected_template_config"):
             current_template = st.session_state.selected_template_config
             
+            # Use color from session state if available, otherwise use default
+            download_color = st.session_state.get('selected_color', ATS_COLORS["Professional Blue (Default)"])
+            
             # Safely get CSS and HTML with defaults
             template_css = current_template.get('css', '')
             template_html = current_template.get('html', '')
-            
-            # Update preview with selected color
-            if st.session_state.get("selected_template_preview") or st.session_state.get("template_source") == 'temp_upload':
-                preview_html = f"""
-                    <style>{template_css.replace('{primary_color}', primary_color) if template_css else ''}</style>
-                    <div class="ats-page">{generate_generic_html(final_data)}</div>
-                """
-                # Update preview to reflect color change
-                if st.session_state.get("template_source") != 'temp_upload':
-                    st.session_state.selected_template_preview = preview_html
 
             st.markdown(get_html_download_link(
                 final_data, 
-                primary_color, 
+                download_color, 
                 st.session_state.selected_template_config
             ), unsafe_allow_html=True)
             
             st.markdown(get_doc_download_link(
                 final_data, 
-                primary_color, 
+                download_color, 
                 st.session_state.selected_template_config
             ), unsafe_allow_html=True)
             

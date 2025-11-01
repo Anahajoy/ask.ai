@@ -69,7 +69,7 @@ st.markdown("""
         overflow: hidden;
         /* Attractive Dark Background: Modern Abstract Texture with Dark Overlay */
         background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)),
-                    url('https://images.unsplash.com/photo-1569470451072-68314f596aec?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1031') center/cover;
+                    url('https://images.unsplash.com/photo-1506606401543-2e73709cebb4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover;
         background-attachment: fixed;
         color: #e0e0e0; /* Default text color: Light grey for dark mode */
     }

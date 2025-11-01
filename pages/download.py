@@ -5,7 +5,7 @@ from pathlib import Path
 import hashlib
 import re
 from streamlit_extras.switch_page_button import switch_page
-from io import BytesIO
+import io
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
@@ -13,7 +13,7 @@ from pptx.dml.color import RGBColor
 import streamlit as st
 import json, os
 from datetime import datetime
-from utils import load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box
+from utils import save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
 
 
 # Define the preferred display order for sections
@@ -235,8 +235,6 @@ def parse_uploaded_file(uploaded_file):
             raw_data = uploaded_file.read()
             detected = chardet.detect(raw_data)
             encoding = detected["encoding"] or "utf-8"
-
-    # Decode safely — ignore errors if any
             content = raw_data.decode(encoding, errors="ignore")
 
             return extract_template_from_html(content)
@@ -880,16 +878,12 @@ def app_download():
             
 
     
-    # --- TAB 3: UPLOAD NEW TEMPLATE ---
-   # --- TAB 3: UPLOAD NEW TEMPLATE ---
-    with tab3:
-        # st.markdown("## 📤 Upload or Manage Templates")
 
-        # Initialize uploaded_templates early
+    with tab3:
+
         if 'uploaded_templates' not in st.session_state:
             st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
 
-        # 1️⃣ Load Saved Templates First
         if st.session_state.uploaded_templates:
             st.markdown("### 🗂️ Your Saved Templates")
             cols = st.columns(3)
@@ -918,7 +912,7 @@ def app_download():
                             st.session_state.selected_template_config = template_data
                             st.session_state.template_source = 'saved'
                             st.session_state.current_upload_id = template_id
-                            st.rerun()  # Added rerun
+                            st.rerun()
 
                     with col2:
                         if st.button(f"Delete", key=f"delete_{template_id}", use_container_width=True):
@@ -943,7 +937,7 @@ def app_download():
         st.markdown("### 📤 Upload New Template")
         uploaded_file = st.file_uploader(
             "Upload an HTML file",
-            type=['html'],
+            type=['html','pptx'],
             key="template_upload"
         )
 
@@ -951,79 +945,310 @@ def app_download():
             st.success(f"✅ File uploaded: {uploaded_file.name}")
 
             with st.spinner("Parsing template..."):
-                parsed_template = parse_uploaded_file(uploaded_file)
+                file_type = uploaded_file.name.split('.')[-1].lower()
 
-            # Store parsed template for preview and download (before saving)
-            st.session_state.temp_upload_config = {
-                'name': f"Uploaded_{uploaded_file.name.split('.')[0]}",
-                'css': parsed_template.get('css', ''),
-                'html': parsed_template.get('html', ''),
-                'original_filename': uploaded_file.name
-            }
+                if file_type == 'html':
+                    import chardet
+                    raw_data = uploaded_file.read()
+                    detected = chardet.detect(raw_data)
+                    encoding = detected["encoding"] or "utf-8"
+                    content = raw_data.decode(encoding, errors="ignore")
 
-            # Template name input and save button
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                template_name = st.text_input(
-                    "Template Name:",
-                    value=f"Uploaded_{uploaded_file.name.split('.')[0]}",
-                    key="upload_template_name"
-                )
+                    parsed_template = extract_template_from_html(content)
 
-            with col2:
-                if st.button("💾 Save Template", use_container_width=True):
-                    template_id = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                    st.session_state.uploaded_templates[template_id] = {
-                        'name': template_name,
+                    # Store parsed template for preview and download (before saving)
+                    st.session_state.temp_upload_config = {
+                        'name': f"Uploaded_{uploaded_file.name.split('.')[0]}",
                         'css': parsed_template.get('css', ''),
                         'html': parsed_template.get('html', ''),
-                        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         'original_filename': uploaded_file.name
                     }
 
-                    # Save to JSON
-                    save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
-                    st.success(f"✅ Template '{template_name}' saved!")
+                    # Template name input and save button
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        template_name = st.text_input(
+                            "Template Name:",
+                            value=f"Uploaded_{uploaded_file.name.split('.')[0]}",
+                            key="upload_template_name"
+                        )
 
-                    # Set the saved template as selected
-                    st.session_state.selected_template_config = st.session_state.uploaded_templates[template_id]
-                    st.session_state.selected_template = template_name
-                    st.session_state.template_source = 'saved'
-                    st.session_state.current_upload_id = template_id
-                    
-                    # Update preview to show saved template
-                    st.session_state.selected_template_preview = f"""
+                    with col2:
+                        if st.button("💾 Save Template", use_container_width=True):
+                            template_id = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                            st.session_state.uploaded_templates[template_id] = {
+                                'name': template_name,
+                                'css': parsed_template.get('css', ''),
+                                'html': parsed_template.get('html', ''),
+                                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                'original_filename': uploaded_file.name
+                            }
+
+                            # Save to JSON
+                            save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+                            st.success(f"✅ Template '{template_name}' saved!")
+
+                            # Set the saved template as selected
+                            st.session_state.selected_template_config = st.session_state.uploaded_templates[template_id]
+                            st.session_state.selected_template = template_name
+                            st.session_state.template_source = 'saved'
+                            st.session_state.current_upload_id = template_id
+                            
+                            # Update preview to show saved template
+                            st.session_state.selected_template_preview = f"""
+                                <style>{parsed_template.get('css', '')}</style>
+                                <div class="ats-page">{generate_generic_html(final_data)}</div>
+                            """
+                            
+                            # Clear temp upload config since it's now saved
+                            if 'temp_upload_config' in st.session_state:
+                                del st.session_state.temp_upload_config
+                            
+                            st.rerun()
+
+                    # Show preview for uploaded file (before saving) - Always show when file is uploaded
+                    preview_html = f"""
                         <style>{parsed_template.get('css', '')}</style>
                         <div class="ats-page">{generate_generic_html(final_data)}</div>
                     """
+                    st.markdown("### 🔍 Template Preview (Not Saved Yet)")
+                    st.components.v1.html(preview_html, height=1000, scrolling=True)
                     
-                    # Clear temp upload config since it's now saved
-                    if 'temp_upload_config' in st.session_state:
-                        del st.session_state.temp_upload_config
-                    
-                    st.rerun()
+                    # Enable downloads for unsaved upload
+                    st.session_state.selected_template_config = st.session_state.temp_upload_config
+                    st.session_state.template_source = 'temp_upload'
 
-            # Show preview for uploaded file (before saving) - Always show when file is uploaded
-            preview_html = f"""
-                <style>{parsed_template.get('css', '')}</style>
-                <div class="ats-page">{generate_generic_html(final_data)}</div>
-            """
-            st.markdown("### 🔍 Template Preview (Not Saved Yet)")
-            st.components.v1.html(preview_html, height=1000, scrolling=True)
-            
-            # Enable downloads for unsaved upload
-            st.session_state.selected_template_config = st.session_state.temp_upload_config
-            st.session_state.template_source = 'temp_upload'
+                elif file_type in ['ppt', 'pptx']:
+                    prs = Presentation(uploaded_file)
+                    slide_texts = []
+                    for slide_idx, slide in enumerate(prs.slides):
+                        text_blocks = []
+                        for shape_idx, shape in enumerate(slide.shapes):
+                            if shape.has_text_frame and shape.text.strip():
+                                text_blocks.append({
+                                    "index": shape_idx,
+                                    "text": shape.text.strip(),
+                                    "position": {"x": shape.left, "y": shape.top}
+                                })
+                        
+                        if text_blocks:
+                            text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                            slide_texts.append({
+                                "slide_number": slide_idx + 1,
+                                "text_blocks": text_blocks
+                            })
+                    
+                    if slide_texts:
+                        structured_slides = analyze_slide_structure(slide_texts)
+                        generated_sections = generate_ppt_sections(final_data, structured_slides)
+
+                        if generated_sections:
+                            text_elements = []
+                            for slide_idx, slide in enumerate(prs.slides):
+                                for shape_idx, shape in enumerate(slide.shapes):
+                                    if shape.has_text_frame and shape.text.strip():
+                                        text_elements.append({
+                                            'slide': slide_idx + 1,
+                                            'shape': shape_idx,
+                                            'original_text': shape.text.strip(),
+                                            'shape_type': type(shape).__name__
+                                        })
+                            
+                            content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+                                text_elements, generated_sections, prs)
+                            
+                            # Store in session state immediately after getting them
+                            st.session_state.ppt_content_mapping = content_mapping
+                            st.session_state.ppt_heading_shapes = heading_shapes
+                            st.session_state.ppt_basic_info_shapes = basic_info_shapes
+                            st.session_state.ppt_text_elements = text_elements
+                            st.session_state.ppt_uploaded_file = uploaded_file.getvalue()
+                            st.session_state.ppt_original_filename = uploaded_file.name
+                            
+                            # Save PPT Template button at the top
+                            st.markdown("---")
+                            ppt_name = st.text_input(
+                                "PPT Template Name:",
+                                value=f"PPT_{uploaded_file.name.split('.')[0]}",
+                                key="ppt_template_name"
+                            )
+                            
+                            if st.button("💾 Save PPT Template", use_container_width=True, type="primary"):
+                                # Collect current edits
+                                current_edits = {}
+                                for element in text_elements:
+                                    key = f"{element['slide']}_{element['shape']}"
+                                    if key not in heading_shapes:
+                                        current_edits[key] = content_mapping.get(key, element['original_text'])
+                                
+                                # Initialize ppt_templates if not exists
+                                if 'ppt_templates' not in st.session_state:
+                                    st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
+                                
+                                ppt_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                                st.session_state.ppt_templates[ppt_id] = {
+                                    'name': ppt_name,
+                                    'ppt_data': st.session_state.ppt_uploaded_file,
+                                    'edits': current_edits,
+                                    'content_mapping': st.session_state.get('ppt_content_mapping', {}),
+                                    'heading_shapes': st.session_state.get('ppt_heading_shapes', set()),
+                                    'basic_info_shapes': st.session_state.get('ppt_basic_info_shapes', set()),
+                                    'text_elements': text_elements,
+                                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    'original_filename': uploaded_file.name
+                                }
+                                
+                                # Save to JSON
+                                save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+                                st.success(f"✅ PPT Template '{ppt_name}' saved!")
+                                st.rerun()
+                            
+                            st.markdown("---")
+                            
+                            # Create edit interface
+                            edits = {}
+                            editable_count = 0
+                            locked_count = 0
+                            basic_info_count = 0
+
+                            for i, element in enumerate(text_elements):
+                                key = f"{element['slide']}_{element['shape']}"
+                                
+                                # Check if heading (locked)
+                                if key in heading_shapes:
+                                    locked_count += 1
+                                    st.markdown(f"🔒 **Slide {element['slide']}** - *{element['original_text'][:60]}...* (Heading - Locked)")
+                                
+                                # Check if basic info (special styling)
+                                elif key in basic_info_shapes:
+                                    basic_info_count += 1
+                                    
+                                    with st.expander(f"👤 Slide {element['slide']} - Basic Information", expanded=True):
+                                        st.success("🎯 Basic Info Section - Auto-filled from resume")
+                                        
+                                        col1, col2 = st.columns([1, 1])
+                                        
+                                        with col1:
+                                            st.caption("📄 Original Content:")
+                                            st.text_area(
+                                                "Original",
+                                                value=element['original_text'],
+                                                height=120,
+                                                key=f"original_{i}",
+                                                disabled=True
+                                            )
+                                        
+                                        with col2:
+                                            st.caption("✨ AI-Generated Content:")
+                                            default_value = content_mapping.get(key, element['original_text'])
+                                            
+                                            edited = st.text_area(
+                                                "Basic Information (editable)",
+                                                value=default_value,
+                                                height=120,
+                                                key=f"edit_{i}"
+                                            )
+                                            edits[key] = edited
+                                
+                                # Regular editable content
+                                else:
+                                    editable_count += 1
+                                    
+                                    with st.expander(f"📝 Slide {element['slide']} - Content Section {editable_count}", expanded=False):
+                                        col1, col2 = st.columns([1, 1])
+                                        
+                                        with col1:
+                                            st.caption("📄 Original Content:")
+                                            st.text_area(
+                                                "Original",
+                                                value=element['original_text'],
+                                                height=150,
+                                                key=f"original_{i}",
+                                                disabled=True
+                                            )
+                                        
+                                        with col2:
+                                            st.caption("✨ AI-Generated Content:")
+                                            default_value = content_mapping.get(key, element['original_text'])
+                                            
+                                            # Show length comparison
+                                            original_words = len(element['original_text'].split())
+                                            generated_words = len(default_value.split())
+                                            
+                                            if key in content_mapping:
+                                                length_match = abs(generated_words - original_words) / max(original_words, 1)
+                                                if length_match < 0.15:
+                                                    st.success(f"✅ AI content loaded ({generated_words} words, target: {original_words})")
+                                                else:
+                                                    st.warning(f"⚠️ Length mismatch ({generated_words} words, target: {original_words})")
+                                            else:
+                                                st.warning(f"⚠️ Using original (no AI match) - {original_words} words")
+                                            
+                                            edited = st.text_area(
+                                                "Edit as needed",
+                                                value=default_value,
+                                                height=150,
+                                                key=f"edit_{i}"
+                                            )
+                                            edits[key] = edited
+                            
+                            # Store edits in session state
+                            st.session_state.ppt_edits = edits
+                            
+                            # Preview and Download buttons at the bottom
+                            st.markdown("---")
+                            col1, col2 = st.columns([1, 1])
+                            
+                            with col1:
+                                if st.button("🔍 Preview Updated Presentation", use_container_width=True):
+                                    with st.spinner("🔄 Generating preview..."):
+                                        # Create working copy with current edits
+                                        working_prs = Presentation(io.BytesIO(st.session_state.ppt_uploaded_file))
+                                        
+                                        success_count = 0
+                                        for element in text_elements:
+                                            key = f"{element['slide']}_{element['shape']}"
+                                            
+                                            # Update ALL shapes except locked headings
+                                            if key not in heading_shapes and key in edits:
+                                                slide_idx = element['slide'] - 1
+                                                shape_idx = element['shape']
+                                                
+                                                if slide_idx < len(working_prs.slides):
+                                                    slide = working_prs.slides[slide_idx]
+                                                    if shape_idx < len(slide.shapes):
+                                                        shape = slide.shapes[shape_idx]
+                                                        
+                                                        if shape.has_text_frame:
+                                                            clear_and_replace_text(shape, edits[key])
+                                                            success_count += 1
+                                        
+                                        # Save to session state for download
+                                        output = io.BytesIO()
+                                        working_prs.save(output)
+                                        output.seek(0)
+                                        
+                                        st.session_state.generated_ppt = output.getvalue()
+                                        st.success(f"✅ Preview ready! Updated {success_count} content sections.")
+                                        st.rerun()
+                            
+                            with col2:
+                                if 'generated_ppt' in st.session_state:
+                                    st.download_button(
+                                        label="📥 Download Enhanced PowerPoint",
+                                        data=st.session_state.generated_ppt,
+                                        file_name="ai_enhanced_presentation.pptx",
+                                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                        use_container_width=True
+                                    )
+                                else:
+                                    st.button("📥 Download Enhanced PowerPoint", disabled=True, use_container_width=True)
+                                    st.caption("👆 Click Preview first")
 
         st.markdown("---")
-
-        # 3️⃣ Preview Section
-        # Show uploaded file preview (before or after saving)
-        if uploaded_file is not None:
-            # Preview is already shown above in the upload section
-            pass
-        # Show saved template preview (after clicking Use) ONLY if no upload is active
-        elif st.session_state.get("selected_template_preview") and st.session_state.get("template_source") == 'saved':
+        
+        # 3️⃣ Preview Section - Show saved template preview ONLY when no upload is active
+        if uploaded_file is None and st.session_state.get("selected_template_preview") and st.session_state.get("template_source") == 'saved':
             st.markdown(f"### 🔍 Template Preview — **{st.session_state.selected_template}**")
             st.components.v1.html(st.session_state.selected_template_preview, height=1000, scrolling=True)
 

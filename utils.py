@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import A4
 from pathlib import Path
 import base64
 import requests
-import fitz  # PyMuPDF
+from difflib import SequenceMatcher
 import re
 import json
 import requests
@@ -21,7 +21,8 @@ from pptx import Presentation
 from pptx.util import Pt
 from docx import Document
 from docx.shared import RGBColor
-import fitz  # PyMuPDF
+from collections import Counter
+
 
 
 
@@ -1293,24 +1294,69 @@ def get_user_template_path(user_email):
 
 
 
+
+
+import base64
+
+def get_user_ppt_template_path(user_email):
+    """Get the file path for user's PPT templates."""
+    return os.path.join("user_data", f"{user_email}_ppt_templates.json")
+
 def load_user_templates(user_email):
-            """Load templates from JSON file for the logged-in user."""
-            path = get_user_template_path(user_email)
-            if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            return {}
+    """Load templates from JSON file for the logged-in user."""
+    path = get_user_template_path(user_email)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
 def save_user_templates(user_email, templates):
-            """Save templates to JSON file for the logged-in user."""
-            path = get_user_template_path(user_email)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(templates, f, indent=4, ensure_ascii=False)
+    """Save templates to JSON file for the logged-in user."""
+    path = get_user_template_path(user_email)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(templates, f, indent=4, ensure_ascii=False)
+
+def load_user_ppt_templates(user_email):
+    """Load PowerPoint templates from JSON file for the logged-in user."""
+    path = get_user_ppt_template_path(user_email)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            templates = json.load(f)
+            # Convert base64 back to binary for ppt_data and convert lists back to sets
+            for key in templates:
+                if 'ppt_data' in templates[key]:
+                    templates[key]['ppt_data'] = base64.b64decode(templates[key]['ppt_data'])
+                # Convert lists back to sets
+                if 'heading_shapes' in templates[key]:
+                    templates[key]['heading_shapes'] = set(templates[key]['heading_shapes'])
+                if 'basic_info_shapes' in templates[key]:
+                    templates[key]['basic_info_shapes'] = set(templates[key]['basic_info_shapes'])
+            return templates
+    return {}
+
+def save_user_ppt_templates(user_email, templates):
+    """Save PowerPoint templates to JSON file for the logged-in user."""
+    path = get_user_ppt_template_path(user_email)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
+    # Create a copy to avoid modifying the original
+    templates_copy = {}
+    for key, val in templates.items():
+        templates_copy[key] = val.copy()
+        # Convert binary ppt_data to base64 for JSON storage
+        if 'ppt_data' in val and isinstance(val['ppt_data'], bytes):
+            templates_copy[key]['ppt_data'] = base64.b64encode(val['ppt_data']).decode('utf-8')
+        # Convert sets to lists for JSON serialization
+        if 'heading_shapes' in val and isinstance(val['heading_shapes'], set):
+            templates_copy[key]['heading_shapes'] = list(val['heading_shapes'])
+        if 'basic_info_shapes' in val and isinstance(val['basic_info_shapes'], set):
+            templates_copy[key]['basic_info_shapes'] = list(val['basic_info_shapes'])
+    
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(templates_copy, f, indent=4, ensure_ascii=False)
 
 
-import re
-from collections import Counter
 
 def calculate_ats_score(resume_data, job_description):
     """
@@ -2351,3 +2397,374 @@ def get_css_elegant_professional(color):
         }}
         </style>
     """
+
+
+
+
+def analyze_slide_structure(slide_texts):
+    """Use LLM to find headings, subheadings, and related contents - INCLUDING BASIC INFO"""
+    system_prompt = """
+You are a presentation content analyzer.
+
+You will receive a list of text boxes per slide, each with coordinates (x, y) and text content.
+
+Your goal:
+- Identify **basic information** (name, title, contact info, summary) - these should be marked as editable
+- Identify **main headings** (e.g., "Selected Experiences", "Core Competencies", "Profile")
+- Identify **subheadings** under a main heading
+- Group all descriptive text under the closest subheading
+
+CRITICAL: Basic information like name, job title, contact info, and summary SHOULD be marked as editable content, NOT locked headings.
+
+Return **strictly valid JSON**:
+[
+  {
+    "slide_number": 1,
+    "sections": [
+      {
+        "heading": "Profile",
+        "heading_shape_idx": 0,
+        "is_basic_info": true,
+        "subsections": [
+          {
+            "subheading": "",
+            "subheading_shape_idx": null,
+            "content_shape_idx": 1,
+            "content_text": "Sudheer Varma\\nOracle Cloud HCM Techno Functional Consultant\\n8+ years of experience",
+            "content_type": "basic_info"
+          }
+        ]
+      }
+    ]
+  }
+]
+"""
+    user_prompt = f"Analyze these slide texts and extract ALL content including basic information:\n{json.dumps(slide_texts, indent=2)}"
+
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.3,
+        "max_tokens": 2500
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result_text = response.json()["choices"][0]["message"]["content"]
+        
+        try:
+            structured = json.loads(result_text)
+        except json.JSONDecodeError:
+            match = re.search(r'\[.*\]', result_text, re.DOTALL)
+            structured = json.loads(match.group(0)) if match else []
+        
+        return structured
+    except:
+        return []
+    
+def analyze_content_length(text):
+    """Analyze content length and return category"""
+    word_count = len(text.split())
+    char_count = len(text)
+    
+    if word_count < 30 or char_count < 150:
+        return "very_short", word_count, char_count
+    elif word_count < 60 or char_count < 400:
+        return "short", word_count, char_count
+    elif word_count < 100 or char_count < 700:
+        return "medium", word_count, char_count
+    else:
+        return "long", word_count, char_count
+
+
+
+def generate_ppt_sections(resume_data, structured_slides):
+    """Generate AI content for ALL sections including basic info"""
+    sections = []
+    for slide in structured_slides:
+        for section in slide.get("sections", []):
+            # Check if this is basic info section
+            is_basic_info = section.get("is_basic_info", False)
+            
+            entry = {
+                "slide_number": slide.get("slide_number"),
+                "heading": section.get("heading", ""),
+                "heading_shape_idx": section.get("heading_shape_idx"),
+                "is_basic_info": is_basic_info,
+                "subsections": []
+            }
+
+            for subsec in section.get("subsections", []):
+                original_text = subsec.get("content_text", "")
+                content_type = subsec.get("content_type", "normal")
+                
+                # For basic info, we need special handling
+                if is_basic_info or content_type == "basic_info":
+                    # Basic info should be short and concise
+                    target_word_count = min(len(original_text.split()), 50)
+                    target_char_count = min(len(original_text), 300)
+                    length_category = "short"
+                else:
+                    length_category, word_count, char_count = analyze_content_length(original_text)
+                    target_word_count = word_count
+                    target_char_count = char_count
+                
+                entry["subsections"].append({
+                    "subheading": subsec.get("subheading", ""),
+                    "subheading_shape_idx": subsec.get("subheading_shape_idx"),
+                    "content_shape_idx": subsec.get("content_shape_idx"),
+                    "original_content": original_text,
+                    "target_word_count": target_word_count,
+                    "target_char_count": target_char_count,
+                    "length_category": length_category,
+                    "content_type": content_type,
+                    "is_basic_info": is_basic_info
+                })
+
+            sections.append(entry)
+
+    system_prompt = """
+You are a professional AI assistant that generates polished PowerPoint content from resume data.
+
+CRITICAL REQUIREMENTS:
+1. Match the target length specified for each section PRECISELY
+2. For BASIC INFORMATION sections (name, title, contact, summary), replace with actual resume data
+3. For EXPERIENCE sections, generate professional content that matches the target length
+
+SPECIAL HANDLING FOR BASIC INFORMATION:
+- Replace name with: {name}
+- Replace title/position with actual experience titles
+- Update contact info: {email}, {phone}, {location}
+- For profile/summary: use the resume summary
+
+TASK:
+- For basic info sections: DIRECTLY REPLACE with actual resume data
+- For other sections: Generate professional content that MATCHES target word count
+- Always write in a formal, presentation-friendly tone
+- Rewrite resume data to sound concise, polished, and visually engaging
+- DO NOT use bullet points - write in paragraph form
+- IMPORTANT: Respect the target_word_count for each section
+
+OUTPUT FORMAT (strict JSON):
+[
+  {
+    "slide_number": 1,
+    "heading": "Profile",
+    "is_basic_info": true,
+    "subsections": [
+      {
+        "subheading": "",
+        "content_shape_idx": 1,
+        "target_word_count": 25,
+        "generated_content": "Anaha Joy\\nMagento 2 Developer\\n2+ years of experience\\n+91 8304078233 | anahajoy2022@gmail.com"
+      }
+    ]
+  }
+]
+"""
+
+    user_prompt = f"""
+Resume Data:
+{json.dumps(resume_data, indent=2)}
+
+PPT Structure with Target Lengths:
+{json.dumps(sections, indent=2)}
+
+Generate content for ALL sections:
+- For BASIC INFO: Directly replace with actual resume data
+- For EXPERIENCE: Generate professional content matching target length
+"""
+
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.45,
+        "max_tokens": 4000
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result_text = response.json()["choices"][0]["message"]["content"]
+        
+        try:
+            structured_output = json.loads(result_text)
+        except json.JSONDecodeError:
+            match = re.search(r'\[.*\]', result_text, re.DOTALL)
+            structured_output = json.loads(match.group(0)) if match else []
+        
+        return structured_output
+    except:
+        return []
+    
+def trim_content_to_length(content, target_word_count, target_char_count):
+    """Trim content to match target length while maintaining coherence"""
+    current_words = len(content.split())
+    current_chars = len(content)
+    
+    # If content is within acceptable range (±20%), return as is
+    word_diff = abs(current_words - target_word_count) / max(target_word_count, 1)
+    if word_diff < 0.2:
+        return content
+    
+    # If too long, trim sentences
+    if current_words > target_word_count * 1.2:
+        sentences = content.split('. ')
+        trimmed = []
+        word_count = 0
+        
+        for sentence in sentences:
+            sentence_words = len(sentence.split())
+            if word_count + sentence_words <= target_word_count * 1.1:
+                trimmed.append(sentence)
+                word_count += sentence_words
+            else:
+                break
+        
+        result = '. '.join(trimmed)
+        if result and not result.endswith('.'):
+            result += '.'
+        return result
+    
+    return content
+def similarity_score(a, b):
+    """Calculate similarity between two strings"""
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+def match_generated_to_original(original_elements, generated_sections, prs):
+    """
+    Smart matching system that maps generated content to original PPT positions
+    NOW ALLOWS BASIC INFO TO BE EDITABLE
+    """
+    content_mapping = {}
+    heading_shapes = set()
+    basic_info_shapes = set()
+    
+    for gen_section in generated_sections:
+        slide_num = gen_section.get("slide_number", 1)
+        is_basic_info = gen_section.get("is_basic_info", False)
+        
+        # Mark heading as non-editable UNLESS it's basic info
+        heading_shape_idx = gen_section.get("heading_shape_idx")
+        if heading_shape_idx is not None and not is_basic_info:
+            heading_shapes.add(f"{slide_num}_{heading_shape_idx}")
+        
+        for subsec in gen_section.get("subsections", []):
+            # Mark subheading as non-editable
+            subheading_shape_idx = subsec.get("subheading_shape_idx")
+            if subheading_shape_idx is not None:
+                heading_shapes.add(f"{slide_num}_{subheading_shape_idx}")
+            
+            # Map generated content to content shape
+            content_shape_idx = subsec.get("content_shape_idx")
+            generated_content = subsec.get("generated_content", "")
+            target_word_count = subsec.get("target_word_count", 0)
+            target_char_count = subsec.get("target_char_count", 0)
+            
+            # For basic info, always replace
+            if is_basic_info or subsec.get("is_basic_info", False):
+                basic_info_shapes.add(f"{slide_num}_{content_shape_idx}")
+            
+            # Trim content to match target length
+            if generated_content and target_word_count:
+                generated_content = trim_content_to_length(
+                    generated_content, 
+                    target_word_count, 
+                    target_char_count
+                )
+            
+            if content_shape_idx is not None and generated_content:
+                key = f"{slide_num}_{content_shape_idx}"
+                content_mapping[key] = generated_content
+            elif generated_content:
+                # Fallback: find best matching content by similarity
+                subheading = subsec.get("subheading", "")
+                original_content = subsec.get("original_content", "")
+                
+                # Find shapes on this slide
+                best_match_key = None
+                best_score = 0
+                
+                for elem in original_elements:
+                    if elem['slide'] == slide_num:
+                        elem_key = f"{elem['slide']}_{elem['shape']}"
+                        
+                        # Skip if already mapped or is heading
+                        if elem_key in content_mapping or elem_key in heading_shapes:
+                            continue
+                        
+                        # Check if this shape contains similar content
+                        score = similarity_score(elem['original_text'], original_content)
+                        
+                        if score > best_score and score > 0.3:
+                            best_score = score
+                            best_match_key = elem_key
+                
+                if best_match_key:
+                    content_mapping[best_match_key] = generated_content
+    
+    return content_mapping, heading_shapes, basic_info_shapes
+
+def clear_and_replace_text(shape, new_text):
+    """Replace text while preserving formatting"""
+    if not shape.has_text_frame:
+        return
+    
+    # Store original formatting
+    original_font = None
+    if shape.text_frame.paragraphs and shape.text_frame.paragraphs[0].runs:
+        first_run = shape.text_frame.paragraphs[0].runs[0]
+        original_font = {
+            'name': first_run.font.name,
+            'size': first_run.font.size,
+            'bold': first_run.font.bold,
+            'italic': first_run.font.italic,
+        }
+        try:
+            if first_run.font.color.type == 1:
+                original_font['color'] = first_run.font.color.rgb
+        except:
+            pass
+    
+    # Clear all text
+    for paragraph in shape.text_frame.paragraphs:
+        for run in paragraph.runs:
+            run.text = ""
+    
+    # Replace with new text
+    if shape.text_frame.paragraphs:
+        first_paragraph = shape.text_frame.paragraphs[0]
+        if first_paragraph.runs:
+            first_run = first_paragraph.runs[0]
+        else:
+            first_run = first_paragraph.add_run()
+        
+        first_run.text = new_text
+        
+        # Restore formatting
+        if original_font:
+            if original_font.get('name'):
+                first_run.font.name = original_font['name']
+            if original_font.get('size'):
+                first_run.font.size = original_font['size']
+            if original_font.get('bold') is not None:
+                first_run.font.bold = original_font['bold']
+            if original_font.get('italic') is not None:
+                first_run.font.italic = original_font['italic']
+            if original_font.get('color'):
+                try:
+                    first_run.font.color.rgb = original_font['color']
+                except:
+                    pass
+        
+        # Remove extra paragraphs
+        while len(shape.text_frame.paragraphs) > 1:
+            p = shape.text_frame.paragraphs[-1]
+            shape.text_frame._element.remove(p._element)
+
+

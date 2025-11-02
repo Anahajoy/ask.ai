@@ -6,7 +6,7 @@ from typing import List, Dict,Any
 import json
 import requests
 import os
-import re
+import io
 from reportlab.lib.pagesizes import A4
 from pathlib import Path
 import base64
@@ -2768,3 +2768,319 @@ def clear_and_replace_text(shape, new_text):
             shape.text_frame._element.remove(p._element)
 
 
+def is_heading(para):
+    """Check if paragraph is a heading"""
+    # Check style
+    if para.style.name.startswith('Heading') or para.style.name == 'Title':
+        return True
+    
+    # Check if bold and short
+    if para.runs:
+        first_run = para.runs[0]
+        text = para.text.strip()
+        if first_run.bold and len(text.split()) <= 10:
+            return True
+    
+    return False
+
+
+
+def detect_section(text):
+    """Detect which section a paragraph belongs to"""
+    text_lower = text.lower().strip()
+    
+    section_keywords = {
+        'experience': ['experience', 'employment', 'work history', 'professional experience'],
+        'education': ['education', 'academic', 'qualification'],
+        'skills': ['skills', 'technical skills', 'competencies', 'expertise', 'core competencies'],
+        'projects': ['projects', 'key projects'],
+        'certifications': ['certifications', 'certificates', 'licenses'],
+        'achievements': ['achievements', 'accomplishments', 'awards'],
+        'summary': ['summary', 'profile', 'about', 'objective', 'professional summary'],
+        'languages': ['languages', 'language proficiency'],
+        'interests': ['interests', 'hobbies']
+    }
+    
+    for section, keywords in section_keywords.items():
+        if any(keyword in text_lower for keyword in keywords):
+            return section
+    
+    return None
+
+
+def extract_document_structure(uploaded_file):
+    """Extract document structure with sections"""
+    doc = Document(uploaded_file)
+    
+    structure = []
+    current_section = None
+    section_start_idx = None
+    
+    for idx, para in enumerate(doc.paragraphs):
+        text = para.text.strip()
+        if not text:
+            continue
+        
+        is_header = is_heading(para)
+        detected_section = detect_section(text) if is_header else None
+        
+        if detected_section:
+            # Save previous section
+            if current_section and section_start_idx is not None:
+                structure.append({
+                    'section': current_section,
+                    'start_idx': section_start_idx,
+                    'end_idx': idx - 1
+                })
+            
+            # Start new section
+            current_section = detected_section
+            section_start_idx = idx
+        
+        # Track header paragraphs (name, title, contact)
+        if idx <= 3 and not current_section:
+            if idx == 0:
+                structure.append({'section': 'name', 'start_idx': idx, 'end_idx': idx})
+            elif idx == 1:
+                structure.append({'section': 'job_title', 'start_idx': idx, 'end_idx': idx})
+            elif idx == 2 or idx == 3:
+                structure.append({'section': 'contact', 'start_idx': idx, 'end_idx': idx})
+    
+    # Add last section
+    if current_section and section_start_idx is not None:
+        structure.append({
+            'section': current_section,
+            'start_idx': section_start_idx,
+            'end_idx': len(doc.paragraphs) - 1
+        })
+    
+    return doc, structure
+
+
+
+
+def format_content(section, data):
+    """Format resume data for a section"""
+    if not data:
+        return None
+    
+    if section == 'experience' and isinstance(data, list):
+        lines = []
+        for exp in data:
+            parts = []
+            if exp.get('position'):
+                parts.append(exp['position'])
+            if exp.get('company'):
+                parts.append(f"at {exp['company']}")
+            if exp.get('duration'):
+                parts.append(f"({exp['duration']})")
+            
+            line = " ".join(parts)
+            if exp.get('description'):
+                line += f". {exp['description']}"
+            
+            lines.append(line)
+        return "\n\n".join(lines)
+    
+    elif section == 'education' and isinstance(data, list):
+        lines = []
+        for edu in data:
+            parts = []
+            if edu.get('degree'):
+                parts.append(edu['degree'])
+            if edu.get('institution'):
+                parts.append(edu['institution'])
+            if edu.get('duration'):
+                parts.append(f"({edu['duration']})")
+            
+            lines.append(", ".join(parts))
+        return "\n\n".join(lines)
+    
+    elif section == 'skills':
+        if isinstance(data, list):
+            return ", ".join(data)
+        elif isinstance(data, dict):
+            lines = []
+            for key, val in data.items():
+                if isinstance(val, list):
+                    lines.append(f"{key.title()}: {', '.join(val)}")
+                else:
+                    lines.append(f"{key.title()}: {val}")
+            return "\n".join(lines)
+    
+    elif section == 'projects' and isinstance(data, list):
+        lines = []
+        for proj in data:
+            title = proj.get('name', proj.get('title', ''))
+            desc = proj.get('description', '')
+            if title:
+                lines.append(f"{title}: {desc}" if desc else title)
+        return "\n\n".join(lines)
+    
+    elif section == 'certifications' and isinstance(data, list):
+        lines = []
+        for cert in data:
+            name = cert.get('name', '')
+            year = cert.get('year', '')
+            issuer = cert.get('issuer', '')
+            
+            if name:
+                line = f"{name}"
+                if issuer:
+                    line += f" - {issuer}"
+                if year:
+                    line += f" ({year})"
+                lines.append(line)
+        return "\n".join(lines)
+    
+    elif section == 'achievements' and isinstance(data, list):
+        lines = []
+        for achievement in data:
+            # Handle both string and dict formats
+            if isinstance(achievement, str):
+                lines.append(achievement)
+            elif isinstance(achievement, dict):
+                # Extract text from dict - adjust keys based on your data structure
+                text = achievement.get('text', achievement.get('description', achievement.get('achievement', '')))
+                if text:
+                    lines.append(text)
+        return "\n\n".join(lines)
+    
+    elif section == 'languages' and isinstance(data, list):
+        return ", ".join(data)
+    
+    elif section == 'interests' and isinstance(data, list):
+        return ", ".join(data)
+    
+    elif section == 'summary' and isinstance(data, str):
+        return data
+    
+    return str(data) if data else None
+
+
+def replace_content(doc, structure, resume_data):
+    """Replace content in document based on structure"""
+    actions = []
+    
+    # Build action plan
+    for item in structure:
+        section = item['section']
+        start_idx = item['start_idx']
+        end_idx = item['end_idx']
+        
+        # Get data for this section
+        if section == 'name':
+            content = resume_data.get('name')
+            if content:
+                actions.append({'type': 'replace', 'index': start_idx, 'content': content})
+            else:
+                actions.append({'type': 'remove', 'start': start_idx, 'end': end_idx})
+        
+        elif section == 'job_title':
+            content = resume_data.get('job_title')
+            if content:
+                actions.append({'type': 'replace', 'index': start_idx, 'content': content})
+            else:
+                actions.append({'type': 'remove', 'start': start_idx, 'end': end_idx})
+        
+        elif section == 'contact':
+            contact_parts = []
+            if resume_data.get('phone'):
+                contact_parts.append(resume_data['phone'])
+            if resume_data.get('email'):
+                contact_parts.append(resume_data['email'])
+            if resume_data.get('location'):
+                contact_parts.append(resume_data['location'])
+            
+            if contact_parts:
+                content = " | ".join(contact_parts)
+                actions.append({'type': 'replace', 'index': start_idx, 'content': content})
+            else:
+                actions.append({'type': 'remove', 'start': start_idx, 'end': end_idx})
+        
+        else:
+            # Regular sections
+            data = resume_data.get(section)
+            formatted_content = format_content(section, data)
+            
+            if formatted_content:
+                # Keep header, replace content
+                actions.append({'type': 'keep', 'index': start_idx})  # Header
+                
+                # Replace first content paragraph, remove others
+                content_start = start_idx + 1
+                if content_start <= end_idx:
+                    actions.append({'type': 'replace', 'index': content_start, 'content': formatted_content})
+                    
+                    # Remove additional content paragraphs
+                    for idx in range(content_start + 1, end_idx + 1):
+                        actions.append({'type': 'remove_single', 'index': idx})
+            else:
+                # No data - remove entire section
+                actions.append({'type': 'remove', 'start': start_idx, 'end': end_idx})
+    
+    # Execute actions
+    to_remove = set()
+    to_replace = {}
+    
+    for action in actions:
+        if action['type'] == 'replace':
+            to_replace[action['index']] = action['content']
+        elif action['type'] == 'remove':
+            for idx in range(action['start'], action['end'] + 1):
+                to_remove.add(idx)
+        elif action['type'] == 'remove_single':
+            to_remove.add(action['index'])
+    
+    # Apply replacements
+    replaced_count = 0
+    for idx, content in to_replace.items():
+        if idx < len(doc.paragraphs) and idx not in to_remove:
+            para = doc.paragraphs[idx]
+            
+            # Store formatting
+            font_name = None
+            font_size = None
+            bold = None
+            
+            if para.runs:
+                first_run = para.runs[0]
+                font_name = first_run.font.name
+                font_size = first_run.font.size
+                bold = first_run.font.bold
+                
+                # Clear
+                for run in para.runs:
+                    run.text = ""
+                
+                # Remove extra runs
+                while len(para.runs) > 1:
+                    para._element.remove(para.runs[-1]._element)
+                
+                # Set new text
+                para.runs[0].text = content
+                
+                # Restore formatting (but not bold for content)
+                if font_name:
+                    para.runs[0].font.name = font_name
+                if font_size:
+                    para.runs[0].font.size = font_size
+            else:
+                para.text = content
+            
+            replaced_count += 1
+    
+    # Remove paragraphs (reverse order)
+    removed_count = 0
+    for idx in sorted(to_remove, reverse=True):
+        if idx < len(doc.paragraphs):
+            p = doc.paragraphs[idx]._element
+            p.getparent().remove(p)
+            removed_count += 1
+    
+    # Save
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+    
+    return output, replaced_count, removed_count

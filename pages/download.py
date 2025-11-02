@@ -13,7 +13,7 @@ from pptx.dml.color import RGBColor
 import streamlit as st
 import json, os
 from datetime import datetime
-from utils import save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
+from utils import replace_content, extract_document_structure, save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
 
 
 # Define the preferred display order for sections
@@ -937,7 +937,7 @@ def app_download():
         st.markdown("### 📤 Upload New Template")
         uploaded_file = st.file_uploader(
             "Upload an HTML file",
-            type=['html','pptx'],
+            type=['html','pptx','docx', 'doc'],
             key="template_upload"
         )
 
@@ -1244,7 +1244,28 @@ def app_download():
                                 else:
                                     st.button("📥 Download Enhanced PowerPoint", disabled=True, use_container_width=True)
                                     st.caption("👆 Click Preview first")
-
+                elif file_type in ['docx', 'doc']:  
+                    st.session_state.json_data = json.dumps(final_data, indent=2)  
+                    json_input = st.text_area(
+                        "Resume Data (JSON)",
+                        value=st.session_state.json_data,
+                        height=250,
+                        placeholder='Paste your resume JSON here or click "Load Sample"'
+                        )
+                    
+                    resume_data = json.loads(json_input)
+                    uploaded_file.seek(0)
+                    doc, structure = extract_document_structure(uploaded_file)
+                    sections_found = list(set([s['section'] for s in structure]))
+                    output, replaced, removed = replace_content(doc, structure, resume_data)
+                    filename = f"{resume_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
+                    st.download_button(
+                        label="📥 Download Final Document",
+                        data=output.getvalue(),
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
         st.markdown("---")
         
         # 3️⃣ Preview Section - Show saved template preview ONLY when no upload is active

@@ -681,7 +681,7 @@ def app_download():
             display: block;
         }}
 
-        .stButton>button:hover {{
+        .stButton>button:hover, {{
             background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
             box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);
             transform: translateY(-4px) scale(1.02);
@@ -1165,68 +1165,135 @@ def app_download():
                             )
 
                 elif file_type in ['docx', 'doc']:  
-                    st.session_state.json_data = json.dumps(final_data, indent=2)  
-                    
-                    # Process document and generate preview immediately
-                    uploaded_file.seek(0)
-                    doc, structure = extract_document_structure(uploaded_file)
-                    output, replaced, removed = replace_content(doc, structure, final_data)
-                    
-                    # Store in session state
-                    st.session_state.generated_doc = output.getvalue()
-                    st.session_state.doc_structure = structure
-                    st.session_state.doc_replaced = replaced
-                    st.session_state.doc_removed = removed
-                    
-                    # Show preview section
-                    st.markdown("### 🔍 Document Preview")
-                    
-                    # Display document sections
-                    for i, section in enumerate(structure):
-                        with st.expander(f"📝 {section.get('section', 'Content')} Section", expanded=i == 0):
-                            col1, col2 = st.columns([1, 1])
+                    try:
+                        st.session_state.json_data = json.dumps(final_data, indent=2)  
+                        
+                        # Process document and generate preview immediately
+                        uploaded_file.seek(0)
+                        doc, structure = extract_document_structure(uploaded_file)
+                        output, replaced, removed = replace_content(doc, structure, final_data)
+                        
+                        # Store in session state
+                        st.session_state.generated_doc = output.getvalue()
+                        st.session_state.doc_structure = structure
+                        
+                        # Ensure replaced and removed are iterable
+                        if not isinstance(replaced, (list, tuple)):
+                            st.session_state.doc_replaced = []
+                        else:
+                            st.session_state.doc_replaced = replaced
                             
-                            with col1:
-                                st.caption("Original Content:")
-                                st.text_area(
-                                    f"Original {i}",
-                                    value=section.get('text', ''),
-                                    height=150,
-                                    key=f"doc_original_{i}",
-                                    disabled=True
-                                )
+                        if not isinstance(removed, (list, tuple)):
+                            st.session_state.doc_removed = []
+                        else:
+                            st.session_state.doc_removed = removed
+                        
+                        # Show preview section - EXACT DOCUMENT CONTENT
+                        st.markdown("### 🔍 Document Preview")
+                        
+                        # # Create a styled preview container
+                        # st.markdown("""
+                        # <div style="border: 1px solid #ddd; border-radius: 10px; padding: 40px; background: white; min-height: 800px; overflow-y: auto; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5;">
+                        # """, unsafe_allow_html=True)
+                        
+                        # Extract and display the actual content from the processed document
+                        try:
+                            from docx import Document
+                            from docx.enum.text import WD_ALIGN_PARAGRAPH
+                            import io
                             
-                            with col2:
-                                st.caption("AI-Generated Content:")
-                                # Find replaced content for this section
-                                replaced_text = "No replacement found"
-                                for replace_item in replaced:
-                                    if (replace_item.get('section') == section.get('section') and 
-                                        replace_item.get('original_text') == section.get('text')):
-                                        replaced_text = replace_item.get('replaced_with', replaced_text)
-                                        break
+                            doc_stream = io.BytesIO(st.session_state.generated_doc)
+                            processed_doc = Document(doc_stream)
+                            
+                            # Convert document to HTML-like format for better preview
+                            html_content = ""
+                            
+                            for paragraph in processed_doc.paragraphs:
+                                if paragraph.text.strip():
+                                    text = paragraph.text
+                                    
+                                    # Convert alignment to CSS
+                                    alignment_map = {
+                                        WD_ALIGN_PARAGRAPH.LEFT: 'left',
+                                        WD_ALIGN_PARAGRAPH.CENTER: 'center',
+                                        WD_ALIGN_PARAGRAPH.RIGHT: 'right',
+                                        WD_ALIGN_PARAGRAPH.JUSTIFY: 'justify'
+                                    }
+                                    alignment = alignment_map.get(paragraph.alignment, 'left')
+                                    
+                                    # Handle different styles and formatting
+                                    if paragraph.style.name.startswith('Heading'):
+                                        heading_level = paragraph.style.name.split()[-1] if ' ' in paragraph.style.name else '1'
+                                        try:
+                                            level = min(int(heading_level), 6)  # Max h6
+                                            html_content += f"<h{level} style='margin: 20px 0 10px 0; text-align: {alignment};'>{text}</h{level}>"
+                                        except:
+                                            html_content += f"<h2 style='margin: 20px 0 10px 0; text-align: {alignment};'>{text}</h2>"
+                                    else:
+                                        # Check for bold, italic in runs
+                                        formatted_text = ""
+                                        for run in paragraph.runs:
+                                            run_text = run.text
+                                            if run.bold:
+                                                run_text = f"<strong>{run_text}</strong>"
+                                            if run.italic:
+                                                run_text = f"<em>{run_text}</em>"
+                                            if run.underline:
+                                                run_text = f"<u>{run_text}</u>"
+                                            formatted_text += run_text
+                                        
+                                        if not formatted_text:
+                                            formatted_text = text
+                                            
+                                        html_content += f"<p style='margin: 10px 0; text-align: {alignment};'>{formatted_text}</p>"
+                            
+                            # Handle tables
+                            for table in processed_doc.tables:
+                                html_content += "<table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>"
+                                for row in table.rows:
+                                    html_content += "<tr>"
+                                    for cell in row.cells:
+                                        html_content += f"<td style='border: 1px solid #ddd; padding: 8px;'>{cell.text}</td>"
+                                    html_content += "</tr>"
+                                html_content += "</table>"
+                            
+                            # Display the HTML content
+                            st.markdown(html_content, unsafe_allow_html=True)
                                 
-                                st.text_area(
-                                    f"Generated {i}",
-                                    value=replaced_text,
-                                    height=150,
-                                    key=f"doc_generated_{i}",
-                                    disabled=True
-                                )
-                    
-                    # Show statistics
-                    st.metric("Sections Processed", len(replaced))
-                    st.metric("Content Blocks Removed", len(removed))
-                    
-                    # Download button
-                    filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
-                    st.download_button(
-                        label="📥 Download Final Document",
-                        data=st.session_state.generated_doc,
-                        file_name=filename,
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True
-                    )
+                        except Exception as doc_error:
+                            st.error(f"Could not extract document content: {str(doc_error)}")
+                            # Fallback to structure content
+                            if structure:
+                                for section in structure:
+                                    if section.get('text'):
+                                        st.write(section.get('text'))
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        
+                        # # Show quick stats
+                        # col1, col2 = st.columns(2)
+                        # with col1:
+                        #     processed_count = len(st.session_state.doc_replaced) if st.session_state.doc_replaced else 0
+                        #     st.metric("Content Sections", processed_count)
+                        # with col2:
+                        #     removed_count = len(st.session_state.doc_removed) if st.session_state.doc_removed else 0
+                        #     st.metric("Blocks Optimized", removed_count)
+                        
+                        # Download button
+                        st.markdown("---")
+                        filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
+                        st.download_button(
+                            label="Download Final Document",
+                            data=st.session_state.generated_doc,
+                            file_name=filename,
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True,
+                            type="primary"
+                        )
+                        
+                    except Exception as e:
+                        st.error(f"Error processing document: {str(e)}")
+                        st.info("Please try uploading the document again or use a different file.")
 
         st.markdown("---")
         

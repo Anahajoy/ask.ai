@@ -162,6 +162,10 @@ def apply_custom_css():
         min-height: 100vh;
         color: var(--text-white);
     }
+     [data-testid="stSidebarNav"] {
+            display: none !important;
+        }            
+    
     .stApp .stButton > button {
     background: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F) !important;
     color: #ffffff !important;

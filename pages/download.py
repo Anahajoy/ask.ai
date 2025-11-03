@@ -6,6 +6,7 @@ import hashlib
 import re
 from streamlit_extras.switch_page_button import switch_page
 import io
+from io import BytesIO
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
@@ -681,7 +682,7 @@ def app_download():
             display: block;
         }}
 
-        .stButton>button:hover, {{
+        .stButton>button:hover {{
             background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
             box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);
             transform: translateY(-4px) scale(1.02);
@@ -1017,6 +1018,8 @@ def app_download():
                     st.session_state.template_source = 'temp_upload'
 
                 elif file_type in ['ppt', 'pptx']:
+                    import io
+
                     # Store uploaded file in session state for preview
                     st.session_state.ppt_uploaded_file = uploaded_file.getvalue()
                     st.session_state.ppt_original_filename = uploaded_file.name
@@ -1270,7 +1273,7 @@ def app_download():
                         
                         st.markdown("</div>", unsafe_allow_html=True)
                         
-                        # # Show quick stats
+                        # Show quick stats
                         # col1, col2 = st.columns(2)
                         # with col1:
                         #     processed_count = len(st.session_state.doc_replaced) if st.session_state.doc_replaced else 0
@@ -1283,7 +1286,7 @@ def app_download():
                         st.markdown("---")
                         filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
                         st.download_button(
-                            label="Download Final Document",
+                            label="📥 Download Final Document",
                             data=st.session_state.generated_doc,
                             file_name=filename,
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

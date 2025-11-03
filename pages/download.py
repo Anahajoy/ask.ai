@@ -681,8 +681,6 @@ def app_download():
             display: block;
         }}
 
-                
-                
         .stButton>button:hover, {{
             background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
             box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);

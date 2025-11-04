@@ -3325,3 +3325,140 @@ def replace_content(doc, structure, final_data):
     output.seek(0)
     
     return output, replaced_count, len(paragraphs_to_remove)
+
+import json
+import os
+import base64
+
+# ============= DOC TEMPLATE STORAGE FUNCTIONS =============
+
+def get_user_doc_templates_path(username):
+    """Get the path for user's document templates JSON file"""
+    templates_dir = "user_doc_templates"
+    os.makedirs(templates_dir, exist_ok=True)
+    return os.path.join(templates_dir, f"{username}_doc_templates.json")
+
+def load_user_doc_templates(username):
+    """Load user's saved document templates"""
+    filepath = get_user_doc_templates_path(username)
+    
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                templates = json.load(f)
+                
+                # Convert binary data back from base64
+                for template_id, template_data in templates.items():
+                    if 'doc_data_b64' in template_data:
+                        templates[template_id]['doc_data'] = base64.b64decode(template_data['doc_data_b64'])
+                        del templates[template_id]['doc_data_b64']
+                
+                return templates
+        except Exception as e:
+            print(f"Error loading doc templates: {str(e)}")
+            return {}
+    
+    return {}
+
+def save_user_doc_templates(username, templates):
+    """Save user's document templates to JSON"""
+    filepath = get_user_doc_templates_path(username)
+    
+    try:
+        # Convert binary data to base64 for JSON serialization
+        templates_to_save = {}
+        
+        for template_id, template_data in templates.items():
+            templates_to_save[template_id] = template_data.copy()
+            
+            # Convert binary doc_data to base64
+            if 'doc_data' in template_data:
+                templates_to_save[template_id]['doc_data_b64'] = base64.b64encode(template_data['doc_data']).decode('utf-8')
+                del templates_to_save[template_id]['doc_data']
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(templates_to_save, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f"Error saving doc templates: {str(e)}")
+        return False
+
+def delete_user_doc_template(username, template_id):
+    """Delete a specific doc template"""
+    templates = load_user_doc_templates(username)
+    
+    if template_id in templates:
+        del templates[template_id]
+        save_user_doc_templates(username, templates)
+        return True
+    
+    return False
+
+
+# ============= PPT TEMPLATE STORAGE FUNCTIONS =============
+
+def get_user_ppt_templates_path(username):
+    """Get the path for user's PPT templates JSON file"""
+    templates_dir = "user_ppt_templates"
+    os.makedirs(templates_dir, exist_ok=True)
+    return os.path.join(templates_dir, f"{username}_ppt_templates.json")
+
+def load_user_ppt_templates(username):
+    """Load user's saved PPT templates"""
+    filepath = get_user_ppt_templates_path(username)
+    
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                templates = json.load(f)
+                
+                # Convert binary data back from base64
+                for template_id, template_data in templates.items():
+                    if 'ppt_data_b64' in template_data:
+                        templates[template_id]['ppt_data'] = base64.b64decode(template_data['ppt_data_b64'])
+                        del templates[template_id]['ppt_data_b64']
+                    
+                    # Convert sets back from lists
+                    if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], list):
+                        templates[template_id]['heading_shapes'] = set(template_data['heading_shapes'])
+                    
+                    if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], list):
+                        templates[template_id]['basic_info_shapes'] = set(template_data['basic_info_shapes'])
+                
+                return templates
+        except Exception as e:
+            print(f"Error loading PPT templates: {str(e)}")
+            return {}
+    
+    return {}
+
+def save_user_ppt_templates(username, templates):
+    """Save user's PPT templates to JSON"""
+    filepath = get_user_ppt_templates_path(username)
+    
+    try:
+        templates_to_save = {}
+        
+        for template_id, template_data in templates.items():
+            templates_to_save[template_id] = template_data.copy()
+            
+            # Convert binary ppt_data to base64
+            if 'ppt_data' in template_data:
+                templates_to_save[template_id]['ppt_data_b64'] = base64.b64encode(template_data['ppt_data']).decode('utf-8')
+                del templates_to_save[template_id]['ppt_data']
+            
+            # Convert sets to lists for JSON
+            if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], set):
+                templates_to_save[template_id]['heading_shapes'] = list(template_data['heading_shapes'])
+            
+            if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], set):
+                templates_to_save[template_id]['basic_info_shapes'] = list(template_data['basic_info_shapes'])
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(templates_to_save, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f"Error saving PPT templates: {str(e)}")
+        return False

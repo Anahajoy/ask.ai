@@ -14,7 +14,7 @@ from pptx.dml.color import RGBColor
 import streamlit as st
 import json, os
 from datetime import datetime
-from utils import replace_content, extract_document_structure, save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
+from utils import load_user_doc_templates,load_user_doc_templates,save_user_doc_templates,replace_content, extract_document_structure, save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
 
 
 # Define the preferred display order for sections
@@ -880,63 +880,135 @@ def app_download():
 
     
     with tab3:
+        # Initialize both HTML and DOC templates
         if 'uploaded_templates' not in st.session_state:
             st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
+        
+        if 'doc_templates' not in st.session_state:
+            st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
 
-        if st.session_state.uploaded_templates:
-            st.markdown("### 🗂️ Your Saved Templates")
-            cols = st.columns(3)
-            for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
-                with cols[idx % 3]:
-                    st.markdown(f"""
-                    <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
-                        <h4>{template_data['name']}</h4>
-                        <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
-                        <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # 1️⃣ Display Saved Templates Section
+        st.markdown("### 🗂️ Your Saved Templates")
+        
+        # Create tabs for HTML and DOC templates
+        template_tab1, template_tab2 = st.tabs(["📄 HTML Templates", "📝 Word Templates"])
+        
+        # ========== HTML TEMPLATES TAB ==========
+        with template_tab1:
+            if st.session_state.uploaded_templates:
+                cols = st.columns(3)
+                for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
+                    with cols[idx % 3]:
+                        st.markdown(f"""
+                        <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
+                            <h4>{template_data['name']}</h4>
+                            <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
+                            <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        if st.button(f"Use", key=f"use_{template_id}", use_container_width=True):
-                            # Clear temp upload config when using a saved template
-                            if 'temp_upload_config' in st.session_state:
-                                del st.session_state.temp_upload_config
-                            
-                            st.session_state.selected_template_preview = f"""
-                                <style>{template_data['css']}</style>
-                                <div class="ats-page">{generate_generic_html(final_data)}</div>
-                            """
-                            st.session_state.selected_template = template_data['name']
-                            st.session_state.selected_template_config = template_data
-                            st.session_state.template_source = 'saved'
-                            st.session_state.current_upload_id = template_id
-                            st.rerun()
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(f"Use", key=f"use_html_{template_id}", use_container_width=True):
+                                if 'temp_upload_config' in st.session_state:
+                                    del st.session_state.temp_upload_config
+                                
+                                st.session_state.selected_template_preview = f"""
+                                    <style>{template_data['css']}</style>
+                                    <div class="ats-page">{generate_generic_html(final_data)}</div>
+                                """
+                                st.session_state.selected_template = template_data['name']
+                                st.session_state.selected_template_config = template_data
+                                st.session_state.template_source = 'saved'
+                                st.session_state.current_upload_id = template_id
+                                st.rerun()
 
-                    with col2:
-                        if st.button(f"Delete", key=f"delete_{template_id}", use_container_width=True):
-                            # Clear selection if deleting currently selected template
-                            if st.session_state.get('current_upload_id') == template_id:
-                                st.session_state.pop('selected_template_preview', None)
-                                st.session_state.pop('selected_template', None)
-                                st.session_state.pop('selected_template_config', None)
-                                st.session_state.pop('current_upload_id', None)
-                            
-                            del st.session_state.uploaded_templates[template_id]
-                            save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
-                            st.success(f"✅ Deleted '{template_data['name']}'")
-                            st.rerun()
+                        with col2:
+                            if st.button(f"Delete", key=f"delete_html_{template_id}", use_container_width=True):
+                                if st.session_state.get('current_upload_id') == template_id:
+                                    st.session_state.pop('selected_template_preview', None)
+                                    st.session_state.pop('selected_template', None)
+                                    st.session_state.pop('selected_template_config', None)
+                                    st.session_state.pop('current_upload_id', None)
+                                
+                                del st.session_state.uploaded_templates[template_id]
+                                save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+                                st.success(f"✅ Deleted '{template_data['name']}'")
+                                st.rerun()
+            else:
+                st.info("📂 No saved HTML templates yet.")
 
-            st.markdown("---")
-        else:
-            st.info("📂 No saved templates yet. Upload a template below to get started!")
-            st.markdown("---")
+        # ========== WORD TEMPLATES TAB ==========
+        with template_tab2:
+            if st.session_state.doc_templates:
+                cols = st.columns(3)
+                for idx, (template_id, template_data) in enumerate(st.session_state.doc_templates.items()):
+                    with cols[idx % 3]:
+                        sections_text = ", ".join(template_data.get('sections_detected', [])[:3])
+                        if len(template_data.get('sections_detected', [])) > 3:
+                            sections_text += "..."
+                        
+                        st.markdown(f"""
+                        <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
+                            <h4>{template_data['name']}</h4>
+                            <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
+                            <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
+                            <p style="font-size:0.75em; color:#999;">Sections: {sections_text}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(f"Use", key=f"use_doc_{template_id}", use_container_width=True):
+                                # Process and display the doc template
+                                try:
+                                    import io
+                                    from docx import Document
+                                    
+                                    # Load template
+                                    doc_stream = io.BytesIO(template_data['doc_data'])
+                                    doc = Document(doc_stream)
+                                    
+                                    # Use stored structure
+                                    structure = template_data.get('structure', [])
+                                    
+                                    # Replace content
+                                    output, replaced, removed = replace_content(doc, structure, final_data)
+                                    
+                                    # Store results
+                                    st.session_state.generated_doc = output.getvalue()
+                                    st.session_state.selected_doc_template_id = template_id
+                                    st.session_state.selected_doc_template = template_data
+                                    st.session_state.doc_template_source = 'saved'
+                                    
+                                    st.success(f"✅ Using template: {template_data['name']}")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error loading template: {str(e)}")
+
+                        with col2:
+                            if st.button(f"Delete", key=f"delete_doc_{template_id}", use_container_width=True):
+                                # Clear selection if deleting currently selected template
+                                if st.session_state.get('selected_doc_template_id') == template_id:
+                                    st.session_state.pop('generated_doc', None)
+                                    st.session_state.pop('selected_doc_template_id', None)
+                                    st.session_state.pop('selected_doc_template', None)
+                                    st.session_state.pop('doc_template_source', None)
+                                
+                                del st.session_state.doc_templates[template_id]
+                                save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
+                                st.success(f"✅ Deleted '{template_data['name']}'")
+                                st.rerun()
+            else:
+                st.info("📂 No saved Word templates yet.")
+
+        st.markdown("---")
 
         # 2️⃣ Upload Section
         st.markdown("### 📤 Upload New Template")
         uploaded_file = st.file_uploader(
-            "Upload an HTML file",
-            type=['html','pptx','docx', 'doc'],
+            "Upload a template file",
+            type=['html', 'pptx', 'docx', 'doc'],
             key="template_upload"
         )
 
@@ -946,6 +1018,7 @@ def app_download():
             with st.spinner("Parsing template..."):
                 file_type = uploaded_file.name.split('.')[-1].lower()
 
+                # ========== HTML FILE PROCESSING ==========
                 if file_type == 'html':
                     import chardet
                     raw_data = uploaded_file.read()
@@ -955,7 +1028,6 @@ def app_download():
 
                     parsed_template = extract_template_from_html(content)
 
-                    # Store parsed template for preview and download (before saving)
                     st.session_state.temp_upload_config = {
                         'name': f"Uploaded_{uploaded_file.name.split('.')[0]}",
                         'css': parsed_template.get('css', ''),
@@ -963,7 +1035,6 @@ def app_download():
                         'original_filename': uploaded_file.name
                     }
 
-                    # Template name input and save button
                     col1, col2 = st.columns([2, 1])
                     with col1:
                         template_name = st.text_input(
@@ -983,29 +1054,24 @@ def app_download():
                                 'original_filename': uploaded_file.name
                             }
 
-                            # Save to JSON
                             save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
                             st.success(f"✅ Template '{template_name}' saved!")
 
-                            # Set the saved template as selected
                             st.session_state.selected_template_config = st.session_state.uploaded_templates[template_id]
                             st.session_state.selected_template = template_name
                             st.session_state.template_source = 'saved'
                             st.session_state.current_upload_id = template_id
                             
-                            # Update preview to show saved template
                             st.session_state.selected_template_preview = f"""
                                 <style>{parsed_template.get('css', '')}</style>
                                 <div class="ats-page">{generate_generic_html(final_data)}</div>
                             """
                             
-                            # Clear temp upload config since it's now saved
                             if 'temp_upload_config' in st.session_state:
                                 del st.session_state.temp_upload_config
                             
                             st.rerun()
 
-                    # Show preview for uploaded file (before saving) - Always show when file is uploaded
                     preview_html = f"""
                         <style>{parsed_template.get('css', '')}</style>
                         <div class="ats-page">{generate_generic_html(final_data)}</div>
@@ -1013,18 +1079,17 @@ def app_download():
                     st.markdown("### 🔍 Template Preview (Not Saved Yet)")
                     st.components.v1.html(preview_html, height=1000, scrolling=True)
                     
-                    # Enable downloads for unsaved upload
                     st.session_state.selected_template_config = st.session_state.temp_upload_config
                     st.session_state.template_source = 'temp_upload'
 
+                # ========== POWERPOINT FILE PROCESSING ==========
                 elif file_type in ['ppt', 'pptx']:
                     import io
+                    from pptx import Presentation
 
-                    # Store uploaded file in session state for preview
                     st.session_state.ppt_uploaded_file = uploaded_file.getvalue()
                     st.session_state.ppt_original_filename = uploaded_file.name
                     
-                    # Process the presentation
                     prs = Presentation(io.BytesIO(st.session_state.ppt_uploaded_file))
                     slide_texts = []
                     for slide_idx, slide in enumerate(prs.slides):
@@ -1063,13 +1128,11 @@ def app_download():
                             content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
                                 text_elements, generated_sections, prs)
                             
-                            # Store in session state
                             st.session_state.ppt_content_mapping = content_mapping
                             st.session_state.ppt_heading_shapes = heading_shapes
                             st.session_state.ppt_basic_info_shapes = basic_info_shapes
                             st.session_state.ppt_text_elements = text_elements
                             
-                            # Auto-generate preview immediately
                             with st.spinner("🔄 Generating preview..."):
                                 working_prs = Presentation(io.BytesIO(st.session_state.ppt_uploaded_file))
                                 edits = {}
@@ -1094,21 +1157,17 @@ def app_download():
                                                     clear_and_replace_text(shape, edits[key])
                                                     success_count += 1
                                 
-                                # Save preview to session state
                                 output = io.BytesIO()
                                 working_prs.save(output)
                                 output.seek(0)
                                 st.session_state.generated_ppt = output.getvalue()
                             
-                            # Show preview section
                             st.markdown("### 🔍 PowerPoint Preview")
                             
-                            # Display slide thumbnails and content
                             preview_prs = Presentation(io.BytesIO(st.session_state.generated_ppt))
                             
                             for slide_idx, slide in enumerate(preview_prs.slides):
                                 with st.expander(f"📊 Slide {slide_idx + 1}", expanded=slide_idx == 0):
-                                    # Extract slide content for display
                                     slide_content = []
                                     for shape in slide.shapes:
                                         if hasattr(shape, "text") and shape.text.strip():
@@ -1126,7 +1185,6 @@ def app_download():
                                     else:
                                         st.info("No text content in this slide")
                             
-                            # Save PPT Template button
                             st.markdown("---")
                             ppt_name = st.text_input(
                                 "PPT Template Name:",
@@ -1135,7 +1193,6 @@ def app_download():
                             )
                             
                             if st.button("💾 Save PPT Template", use_container_width=True, type="primary"):
-                                # Initialize ppt_templates if not exists
                                 if 'ppt_templates' not in st.session_state:
                                     st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
                                 
@@ -1152,12 +1209,10 @@ def app_download():
                                     'original_filename': uploaded_file.name
                                 }
                                 
-                                # Save to JSON
                                 save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
                                 st.success(f"✅ PPT Template '{ppt_name}' saved!")
                                 st.rerun()
                             
-                            # Download button
                             st.markdown("---")
                             st.download_button(
                                 label="📥 Download Enhanced PowerPoint",
@@ -1167,6 +1222,7 @@ def app_download():
                                 use_container_width=True
                             )
 
+                # ========== WORD DOCUMENT PROCESSING ==========
                 elif file_type in ['docx', 'doc']:  
                     try:
                         st.session_state.json_data = json.dumps(final_data, indent=2)  
@@ -1175,39 +1231,66 @@ def app_download():
                         uploaded_file.seek(0)
                         doc, structure = extract_document_structure(uploaded_file)
                         
-                        # Display detected structure
-                        # with st.expander("📋 Detected Document Structure", expanded=False):
-                        #     for item in structure:
-                        #         section = item.get('section')
-                        #         if 'para_idx' in item:
-                        #             st.write(f"**{section.upper()}** at paragraph {item['para_idx']}")
-                        #         elif 'content_start' in item:
-                        #             st.write(f"**{section.upper()}** section: paragraphs {item['content_start']}-{item['content_end']}")
+                        # Store original template data
+                        uploaded_file.seek(0)
+                        st.session_state.temp_doc_data = uploaded_file.read()
+                        st.session_state.temp_doc_filename = uploaded_file.name
                         
                         # Replace content
                         output, replaced, removed = replace_content(doc, structure, final_data)
                         
-                        # Store in session state
+                        # Store results
                         st.session_state.generated_doc = output.getvalue()
                         st.session_state.doc_structure = structure
                         st.session_state.doc_replaced = replaced
                         st.session_state.doc_removed = removed
                         
-                        # Success message
-                        # st.success(f"✅ Processed {replaced} sections and optimized {removed} paragraphs")
+                        # ========== SAVE TEMPLATE SECTION ==========
+                        st.markdown("---")
+                        st.markdown("### 💾 Save Word Template")
                         
-                        # Show preview section
-                        st.markdown("### 🔍 Document Preview")
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            doc_template_name = st.text_input(
+                                "Template Name:",
+                                value=f"DocTemplate_{uploaded_file.name.split('.')[0]}",
+                                key="doc_template_name"
+                            )
+                        
+                        with col2:
+                            st.write("")
+                            st.write("")
+                            if st.button("💾 Save Template", use_container_width=True, type="primary"):
+                                template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                                
+                                st.session_state.doc_templates[template_id] = {
+                                    'name': doc_template_name,
+                                    'doc_data': st.session_state.temp_doc_data,
+                                    'structure': structure,
+                                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    'original_filename': uploaded_file.name,
+                                    'sections_detected': [s['section'] for s in structure]
+                                }
+                                
+                                if save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates):
+                                    st.success(f"✅ Template '{doc_template_name}' saved!")
+                                    st.balloons()
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to save template. Please try again.")
+                        
+                        # ========== PREVIEW SECTION ==========
+                        st.markdown("---")
+                        st.markdown("### 🔍 Document Preview (Not Saved Yet)")
                         
                         try:
                             from docx import Document
-                            from docx.enum.text import WD_ALIGN_PARAGRAPH
                             import io
                             
                             doc_stream = io.BytesIO(st.session_state.generated_doc)
                             processed_doc = Document(doc_stream)
                             
-                            # Create preview with proper styling
                             st.markdown("""
                             <style>
                             .doc-preview {
@@ -1255,7 +1338,6 @@ def app_download():
                             </style>
                             """, unsafe_allow_html=True)
                             
-                            # Build HTML content
                             html_content = '<div class="doc-preview">'
                             
                             para_count = 0
@@ -1265,36 +1347,27 @@ def app_download():
                                 
                                 text = para.text.strip()
                                 
-                                # Determine paragraph type
                                 if para_count == 0:
-                                    # Name
                                     html_content += f'<div class="doc-name">{text}</div>'
                                 elif para_count == 1:
-                                    # Job title
                                     html_content += f'<div class="doc-title">{text}</div>'
                                 elif para_count == 2:
-                                    # Contact
                                     html_content += f'<div class="doc-contact">{text}</div>'
                                 elif para.style.name.startswith('Heading') or (para.runs and para.runs[0].bold and len(text.split()) <= 10):
-                                    # Section heading
                                     html_content += f'<div class="doc-heading">{text}</div>'
                                 else:
-                                    # Regular text with line breaks preserved
                                     formatted_text = text.replace('\n', '<br>')
                                     html_content += f'<div class="doc-text">{formatted_text}</div>'
                                 
                                 para_count += 1
                             
                             html_content += '</div>'
-                            
-                            # Display preview
                             st.markdown(html_content, unsafe_allow_html=True)
                                 
                         except Exception as doc_error:
                             st.error(f"Preview error: {str(doc_error)}")
-                            st.info("Document was processed successfully but preview couldn't be generated. You can still download it below.")
                         
-                        # Download button
+                        # ========== DOWNLOAD SECTION ==========
                         st.markdown("---")
                         filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
                         
@@ -1302,39 +1375,85 @@ def app_download():
                         
                         with col1:
                             st.download_button(
-                                label="📥 Download Final Document",
+                                label="📥 Download Document (Not Saved Yet)",
                                 data=st.session_state.generated_doc,
                                 file_name=filename,
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.presentation",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                 use_container_width=True,
                                 type="primary"
                             )
                         
                         with col2:
                             if st.button("🔄 Reset", use_container_width=True):
-                                st.session_state.clear()
+                                for key in ['generated_doc', 'temp_doc_data', 'temp_doc_filename']:
+                                    if key in st.session_state:
+                                        del st.session_state[key]
                                 st.rerun()
                         
                     except Exception as e:
                         st.error(f"❌ Error processing document: {str(e)}")
-                        st.info("Please ensure:")
-                        st.write("- Document is a valid .docx file")
-                        st.write("- final_data contains the required fields")
-                        st.write("- Document has recognizable sections (Experience, Education, etc.)")
-                        
-                        # Debug info
                         with st.expander("🔧 Debug Information"):
-                            st.write("**Error Details:**")
                             st.code(str(e))
                             st.write("**Available Data Keys:**")
                             st.write(list(final_data.keys()))
 
         st.markdown("---")
         
-        # 3️⃣ Preview Section - Show saved template preview ONLY when no upload is active
+        # 3️⃣ Preview Section for Saved Templates
+        # Show HTML template preview
         if uploaded_file is None and st.session_state.get("selected_template_preview") and st.session_state.get("template_source") == 'saved':
-            st.markdown(f"### 🔍 Template Preview — **{st.session_state.selected_template}**")
+            st.markdown(f"### 🔍 HTML Template Preview — **{st.session_state.selected_template}**")
             st.components.v1.html(st.session_state.selected_template_preview, height=1000, scrolling=True)
+        
+        # Show Word document preview for saved template
+        if uploaded_file is None and st.session_state.get("generated_doc") and st.session_state.get("doc_template_source") == 'saved':
+            st.markdown(f"### 🔍 Word Template Preview — **{st.session_state.selected_doc_template['name']}**")
+            
+            try:
+                from docx import Document
+                import io
+                
+                doc_stream = io.BytesIO(st.session_state.generated_doc)
+                processed_doc = Document(doc_stream)
+                
+                html_content = '<div class="doc-preview">'
+                para_count = 0
+                for para in processed_doc.paragraphs:
+                    if not para.text.strip():
+                        continue
+                    
+                    text = para.text.strip()
+                    
+                    if para_count == 0:
+                        html_content += f'<div class="doc-name">{text}</div>'
+                    elif para_count == 1:
+                        html_content += f'<div class="doc-title">{text}</div>'
+                    elif para_count == 2:
+                        html_content += f'<div class="doc-contact">{text}</div>'
+                    elif para.style.name.startswith('Heading') or (para.runs and para.runs[0].bold and len(text.split()) <= 10):
+                        html_content += f'<div class="doc-heading">{text}</div>'
+                    else:
+                        formatted_text = text.replace('\n', '<br>')
+                        html_content += f'<div class="doc-text">{formatted_text}</div>'
+                    
+                    para_count += 1
+                
+                html_content += '</div>'
+                st.markdown(html_content, unsafe_allow_html=True)
+                
+                # Download button for saved template
+                st.markdown("---")
+                filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
+                st.download_button(
+                    label="📥 Download Word Document",
+                    data=st.session_state.generated_doc,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True
+                )
+                
+            except Exception as e:
+                st.error(f"Preview error: {str(e)}")
 
         st.markdown("---")
         if st.button("⬅️ Go Back to Editor", use_container_width=True):
@@ -1347,14 +1466,8 @@ def app_download():
         # Download buttons
         if st.session_state.get("selected_template_config"):
             current_template = st.session_state.selected_template_config
-            
-            # Use color from session state if available, otherwise use default
             download_color = st.session_state.get('selected_color', ATS_COLORS["Professional Blue (Default)"])
             
-            # Safely get CSS and HTML with defaults
-            template_css = current_template.get('css', '')
-            template_html = current_template.get('html', '')
-
             st.markdown(get_html_download_link(
                 final_data, 
                 download_color, 
@@ -1368,7 +1481,19 @@ def app_download():
             ), unsafe_allow_html=True)
             
             st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
-        else:
+        
+        # Add Word document download if available
+        if st.session_state.get("generated_doc"):
+            filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Word.docx"
+            st.download_button(
+                label="📄 Download Word Document",
+                data=st.session_state.generated_doc,
+                file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True
+            )
+        
+        if not st.session_state.get("selected_template_config") and not st.session_state.get("generated_doc"):
             st.info("👆 Please select a template first to enable download links.")
 
         st.markdown("---")

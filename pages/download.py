@@ -1415,6 +1415,53 @@ def app_download():
                 
                 doc_stream = io.BytesIO(st.session_state.generated_doc)
                 processed_doc = Document(doc_stream)
+                st.markdown("""
+                            <style>
+                            .doc-preview {
+                                border: 2px solid #e0e0e0;
+                                border-radius: 10px;
+                                padding: 40px;
+                                background: white;
+                                min-height: 600px;
+                                max-height: 800px;
+                                overflow-y: auto;
+                                font-family: 'Calibri', 'Arial', sans-serif;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            }
+                            .doc-name { 
+                                font-size: 24px; 
+                                font-weight: bold; 
+                                margin-bottom: 5px;
+                                color: #1a1a1a;
+                            }
+                            .doc-title { 
+                                font-size: 14px; 
+                                margin-bottom: 5px;
+                                color: #4a4a4a;
+                            }
+                            .doc-contact { 
+                                font-size: 12px; 
+                                margin-bottom: 20px;
+                                color: #666;
+                            }
+                            .doc-heading { 
+                                font-size: 16px; 
+                                font-weight: bold; 
+                                margin: 20px 0 10px 0;
+                                border-bottom: 2px solid #333;
+                                padding-bottom: 5px;
+                                color: #1a1a1a;
+                            }
+                            .doc-text { 
+                                font-size: 11pt; 
+                                line-height: 1.6;
+                                margin: 8px 0;
+                                color: #333;
+                                white-space: pre-wrap;
+                            }
+                            </style>
+                            """, unsafe_allow_html=True)
+                            
                 
                 html_content = '<div class="doc-preview">'
                 para_count = 0

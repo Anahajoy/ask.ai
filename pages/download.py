@@ -298,7 +298,7 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
         b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.html"
-    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00FA9A; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>⬇️ Download HTML (.html)</strong></a>'
+    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00FA9A; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> HTML (.html)</strong></a>'
     return href
 
 
@@ -466,7 +466,7 @@ xmlns='http://www.w3.org/TR/REC-html40'>
        style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
               background-color: #00FFFF; color: white; border-radius: 5px; 
               display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
-        <strong>📄 Download Template DOC (.doc)</strong>
+        <strong> Word Document(.doc)</strong>
     </a>
     """
     return doc_html
@@ -538,7 +538,7 @@ def get_text_download_link(data, filename_suffix=""):
     b64_data = base64.b64encode(text_content.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_ATS_Plain_Text{filename_suffix}.txt"
-    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong>📋 Download Plain Text (.txt)</strong></a>'
+    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> Plain Text (.txt)</strong></a>'
     return href
 
 
@@ -811,7 +811,7 @@ def app_download():
     </div>
     """, unsafe_allow_html=True)
 #     
-    tab1, tab3 = st.tabs(["🎨 System Templates", "📤 Upload New Template"])
+    tab1, tab3 = st.tabs(["🎨 System Templates", "📤 Custom Templates"])
 
     # --- TAB 1: SYSTEM TEMPLATES ---
     with tab1:

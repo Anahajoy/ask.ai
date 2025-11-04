@@ -2856,8 +2856,60 @@ def extract_document_structure(uploaded_file):
     
     return doc, structure
 
+def clean_list_representation(data):
+    """Clean Python list/dict string representations"""
+    if isinstance(data, str):
+        # Try to parse as JSON
+        try:
+            return json.loads(data.replace("'", '"'))
+        except:
+            pass
+        
+        # Remove Python dict/list syntax
+        data = re.sub(r"^\{|\}$", "", data)  # Remove outer braces
+        data = re.sub(r"^\[|\]$", "", data)  # Remove outer brackets
+        data = re.sub(r"['\"]", "", data)     # Remove quotes
+        
+    return data
+
+def format_skills(skills_data):
+    """Format skills data properly"""
+    if isinstance(skills_data, dict):
+        lines = []
+        for key, value in skills_data.items():
+            key_title = key.replace('_', ' ').title()
+            
+            if isinstance(value, list):
+                # Join list items with commas
+                value_str = ", ".join(str(v) for v in value)
+                lines.append(f"{key_title}: {value_str}")
+            elif isinstance(value, str):
+                # Clean string representation
+                cleaned = clean_list_representation(value)
+                if isinstance(cleaned, list):
+                    value_str = ", ".join(str(v) for v in cleaned)
+                    lines.append(f"{key_title}: {value_str}")
+                else:
+                    lines.append(f"{key_title}: {cleaned}")
+            else:
+                lines.append(f"{key_title}: {value}")
+        
+        return "\n\n".join(lines)
+    
+    elif isinstance(skills_data, list):
+        return ", ".join(str(s) for s in skills_data)
+    
+    elif isinstance(skills_data, str):
+        # Clean any Python syntax
+        cleaned = clean_list_representation(skills_data)
+        if isinstance(cleaned, (list, dict)):
+            return format_skills(cleaned)
+        return cleaned
+    
+    return str(skills_data)
+
 def format_experience(exp_list):
-    """Format experience data"""
+    """Format experience data with bold subheadings"""
     result = []
     for exp in exp_list:
         job_title = exp.get('job_title', exp.get('position', ''))
@@ -2872,13 +2924,19 @@ def format_experience(exp_list):
         # Get responsibilities
         responsibilities = exp.get('responsibilities', exp.get('description', []))
         if isinstance(responsibilities, str):
-            responsibilities = [responsibilities]
+            # Clean string representation
+            cleaned = clean_list_representation(responsibilities)
+            if isinstance(cleaned, list):
+                responsibilities = cleaned
+            else:
+                responsibilities = [cleaned]
         
         result.append({
-            'header': f"{job_title} {company}".strip(),
+            'job_title': job_title,
+            'company': company,
             'duration': duration,
             'location': location,
-            'bullets': responsibilities
+            'bullets': [str(r).strip() for r in responsibilities if r]
         })
     
     return result
@@ -2891,28 +2949,38 @@ def format_education(edu_list):
         institution = edu.get('institution', '')
         location = edu.get('location', '')
         year = edu.get('year', '')
+        start_date = edu.get('start_date', '')
+        end_date = edu.get('end_date', '')
+        
+        # Use year or date range
+        duration = year if year else (f"{start_date} - {end_date}" if start_date or end_date else "")
         
         result.append({
-            'header': f"{degree} {institution}".strip(),
-            'year': year,
+            'degree': degree,
+            'institution': institution,
+            'year': duration,
             'location': location
         })
     
     return result
 
 def format_projects(proj_list):
-    """Format projects data"""
+    """Format projects data with bold titles"""
     result = []
     for proj in proj_list:
         title = proj.get('title', proj.get('name', ''))
         description = proj.get('description', [])
         
         if isinstance(description, str):
-            description = [description]
+            cleaned = clean_list_representation(description)
+            if isinstance(cleaned, list):
+                description = cleaned
+            else:
+                description = [cleaned]
         
         result.append({
-            'header': title,
-            'bullets': description
+            'title': title,
+            'bullets': [str(d).strip() for d in description if d]
         })
     
     return result
@@ -2934,7 +3002,7 @@ def format_certifications(cert_list):
     
     return result
 
-def replace_paragraph_preserving_format(para, new_text):
+def replace_paragraph_preserving_format(para, new_text, keep_bold=False):
     """Replace paragraph text while preserving all formatting"""
     if not para.runs:
         para.add_run(new_text)
@@ -2944,7 +3012,7 @@ def replace_paragraph_preserving_format(para, new_text):
     first_run = para.runs[0]
     font_name = first_run.font.name
     font_size = first_run.font.size
-    bold = first_run.font.bold
+    bold = first_run.font.bold if keep_bold else False
     italic = first_run.font.italic
     
     try:
@@ -2971,110 +3039,231 @@ def replace_paragraph_preserving_format(para, new_text):
             para.runs[0].font.color.rgb = color
         except:
             pass
+    para.runs[0].font.bold = bold
+    para.runs[0].font.italic = italic
 
-def replace_section_content(doc, start_idx, end_idx, formatted_data, ref_para):
-    """Replace section content with new data"""
-    # Get reference formatting
-    font_name = None
-    font_size = None
-    color = None
+def add_formatted_run(para, text, bold=False, italic=False, ref_run=None):
+    """Add a run with specific formatting"""
+    run = para.add_run(text)
     
-    if ref_para and ref_para.runs:
-        font_name = ref_para.runs[0].font.name
-        font_size = ref_para.runs[0].font.size
+    if ref_run:
+        if ref_run.font.name:
+            run.font.name = ref_run.font.name
+        if ref_run.font.size:
+            run.font.size = ref_run.font.size
         try:
-            color = ref_para.runs[0].font.color.rgb
+            if ref_run.font.color.rgb:
+                run.font.color.rgb = ref_run.font.color.rgb
         except:
             pass
+    
+    run.font.bold = bold
+    run.font.italic = italic
+    
+    return run
+
+def replace_experience_content(doc, start_idx, end_idx, exp_data, ref_para):
+    """Replace experience content with bold job titles and italic companies"""
+    # Get reference formatting
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
+    
+    # Build text with proper formatting
+    text_parts = []
+    
+    for exp in exp_data:
+        # Format: **Job Title** *Company*
+        job_company = f"{exp['job_title']} {exp['company']}".strip()
+        
+        text_parts.append(job_company)
+        
+        # Add bullets
+        for bullet in exp['bullets']:
+            text_parts.append(f"• {bullet}")
+        
+        text_parts.append("")  # Empty line between experiences
+    
+    # Join and replace
+    full_text = "\n".join(text_parts).strip()
+    
+    if start_idx < len(doc.paragraphs):
+        para = doc.paragraphs[start_idx]
+        
+        # Clear existing content
+        for run in para.runs:
+            run.text = ""
+        while len(para.runs) > 1:
+            para._element.remove(para.runs[-1]._element)
+        
+        # Add content with mixed formatting
+        current_text = ""
+        for exp in exp_data:
+            # Add job title (bold) and company (italic)
+            if exp['job_title']:
+                job_run = para.add_run(exp['job_title'] + " ")
+                job_run.font.bold = True
+                if ref_run:
+                    if ref_run.font.name:
+                        job_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        job_run.font.size = ref_run.font.size
+            
+            if exp['company']:
+                company_run = para.add_run(exp['company'])
+                company_run.font.italic = True
+                if ref_run:
+                    if ref_run.font.name:
+                        company_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        company_run.font.size = ref_run.font.size
+            
+            # Add line break
+            para.add_run("\n")
+            
+            # Add bullets
+            for bullet in exp['bullets']:
+                bullet_run = para.add_run(f"• {bullet}\n")
+                if ref_run:
+                    if ref_run.font.name:
+                        bullet_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        bullet_run.font.size = ref_run.font.size
+            
+            # Add spacing between experiences
+            para.add_run("\n")
+    
+    return list(range(start_idx + 1, end_idx + 1))
+
+def replace_projects_content(doc, start_idx, end_idx, proj_data, ref_para):
+    """Replace projects content with bold titles"""
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
+    
+    if start_idx < len(doc.paragraphs):
+        para = doc.paragraphs[start_idx]
+        
+        # Clear existing content
+        for run in para.runs:
+            run.text = ""
+        while len(para.runs) > 1:
+            para._element.remove(para.runs[-1]._element)
+        
+        # Add content with bold titles
+        for proj in proj_data:
+            # Add project title (bold)
+            if proj['title']:
+                title_run = para.add_run(proj['title'])
+                title_run.font.bold = True
+                if ref_run:
+                    if ref_run.font.name:
+                        title_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        title_run.font.size = ref_run.font.size
+                
+                para.add_run("\n")
+            
+            # Add bullets
+            for bullet in proj['bullets']:
+                bullet_run = para.add_run(f"• {bullet}\n")
+                if ref_run:
+                    if ref_run.font.name:
+                        bullet_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        bullet_run.font.size = ref_run.font.size
+            
+            # Add spacing
+            para.add_run("\n")
+    
+    return list(range(start_idx + 1, end_idx + 1))
+
+def replace_section_content(doc, start_idx, end_idx, formatted_data, ref_para, section_type):
+    """Replace section content with new data"""
+    # Handle special formatting for experience and projects
+    if section_type == 'experience' and isinstance(formatted_data, list):
+        return replace_experience_content(doc, start_idx, end_idx, formatted_data, ref_para)
+    
+    if section_type == 'projects' and isinstance(formatted_data, list):
+        return replace_projects_content(doc, start_idx, end_idx, formatted_data, ref_para)
+    
+    # Regular content replacement
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
     
     # Build text content
     text_lines = []
     
     if isinstance(formatted_data, list):
         if formatted_data and isinstance(formatted_data[0], dict):
-            # Structured data (experience, education, projects)
+            # Education or other structured data
             for item in formatted_data:
-                # Add header
-                header = item.get('header', '')
-                duration = item.get('duration', '')
-                location = item.get('location', '')
-                year = item.get('year', '')
+                parts = []
+                if item.get('degree'):
+                    parts.append(item['degree'])
+                if item.get('institution'):
+                    parts.append(item['institution'])
                 
+                header = " ".join(parts)
                 if header:
-                    header_line = header
-                    if duration:
-                        header_line += f"\n{duration}"
-                    elif year:
-                        header_line += f"\n{year}"
-                    if location:
-                        header_line += f" | {location}"
-                    
-                    text_lines.append(header_line)
+                    text_lines.append(header)
                 
-                # Add bullets
-                bullets = item.get('bullets', [])
-                for bullet in bullets:
-                    if bullet:
-                        text_lines.append(f"• {bullet}")
+                if item.get('year'):
+                    text_lines.append(item['year'])
                 
-                text_lines.append("")  # Empty line between items
+                text_lines.append("")
         else:
-            # Simple list (certifications, achievements)
+            # Simple list (certifications)
             for item in formatted_data:
-                text_lines.append(f"• {item}" if not item.startswith('•') else item)
+                text_lines.append(f"• {item}")
     
     elif isinstance(formatted_data, str):
         text_lines.append(formatted_data)
     
-    # Join all text
+    # Join text
     full_text = "\n".join(text_lines).strip()
     
-    # Replace first paragraph content
+    # Replace content
     if start_idx < len(doc.paragraphs):
         para = doc.paragraphs[start_idx]
-        replace_paragraph_preserving_format(para, full_text)
-        
-        # Apply reference formatting
-        if para.runs:
-            if font_name:
-                para.runs[0].font.name = font_name
-            if font_size:
-                para.runs[0].font.size = font_size
-            if color:
-                try:
-                    para.runs[0].font.color.rgb = color
-                except:
-                    pass
-            para.runs[0].font.bold = False
+        replace_paragraph_preserving_format(para, full_text, keep_bold=False)
     
-    # Mark remaining paragraphs for removal
     return list(range(start_idx + 1, end_idx + 1))
 
 def replace_content(doc, structure, final_data):
     """Main function to replace content"""
     paragraphs_to_remove = set()
     replaced_count = 0
+    sections_to_remove = set()
     
+    # First pass: identify sections not in final_data
+    for item in structure:
+        section = item['section']
+        if section not in ['name', 'job_title', 'contact']:
+            if section not in final_data or not final_data[section]:
+                # Mark entire section for removal
+                if 'header_idx' in item:
+                    sections_to_remove.add(item['header_idx'])
+                if 'content_start' in item:
+                    for idx in range(item['content_start'], item['content_end'] + 1):
+                        sections_to_remove.add(idx)
+    
+    # Second pass: replace content
     for item in structure:
         section = item['section']
         
-        # Handle header sections (name, title, contact)
+        # Skip sections marked for removal
+        if 'header_idx' in item and item['header_idx'] in sections_to_remove:
+            continue
+        
+        # Handle header sections
         if section == 'name':
             if 'para_idx' in item and 'name' in final_data:
                 para_idx = item['para_idx']
                 if para_idx < len(doc.paragraphs):
-                    replace_paragraph_preserving_format(doc.paragraphs[para_idx], final_data['name'])
+                    replace_paragraph_preserving_format(doc.paragraphs[para_idx], final_data['name'], keep_bold=True)
                     replaced_count += 1
         
         elif section == 'job_title':
             if 'para_idx' in item and 'job_title' in final_data:
                 para_idx = item['para_idx']
                 if para_idx < len(doc.paragraphs):
-                    para = doc.paragraphs[para_idx]
-                    replace_paragraph_preserving_format(para, final_data['job_title'])
-                    # Remove bold from job title
-                    if para.runs:
-                        para.runs[0].font.bold = False
+                    replace_paragraph_preserving_format(doc.paragraphs[para_idx], final_data['job_title'], keep_bold=False)
                     replaced_count += 1
         
         elif section == 'contact':
@@ -3090,57 +3279,39 @@ def replace_content(doc, structure, final_data):
                 if contact_parts:
                     para_idx = item['para_idx']
                     if para_idx < len(doc.paragraphs):
-                        para = doc.paragraphs[para_idx]
-                        replace_paragraph_preserving_format(para, " | ".join(contact_parts))
-                        if para.runs:
-                            para.runs[0].font.bold = False
+                        replace_paragraph_preserving_format(doc.paragraphs[para_idx], " | ".join(contact_parts), keep_bold=False)
                         replaced_count += 1
         
         # Handle content sections
         else:
-            if 'content_start' in item:
+            if 'content_start' in item and section in final_data and final_data[section]:
                 content_start = item['content_start']
                 content_end = item['content_end']
-                header_idx = item.get('header_idx')
-                
-                # Get reference paragraph for formatting
                 ref_para = doc.paragraphs[content_start] if content_start < len(doc.paragraphs) else None
                 
                 # Format data based on section
                 formatted_data = None
                 
-                if section == 'experience' and 'experience' in final_data:
+                if section == 'experience':
                     formatted_data = format_experience(final_data['experience'])
-                
-                elif section == 'education' and 'education' in final_data:
+                elif section == 'education':
                     formatted_data = format_education(final_data['education'])
-                
-                elif section == 'skills' and 'skills' in final_data:
-                    skills = final_data['skills']
-                    if isinstance(skills, list):
-                        formatted_data = ", ".join(skills)
-                    else:
-                        formatted_data = str(skills)
-                
-                elif section == 'projects' and 'projects' in final_data:
+                elif section == 'skills':
+                    formatted_data = format_skills(final_data['skills'])
+                elif section == 'projects':
                     formatted_data = format_projects(final_data['projects'])
-                
-                elif section == 'certifications' and 'certifications' in final_data:
+                elif section == 'certifications':
                     formatted_data = format_certifications(final_data['certifications'])
-                
-                elif section == 'achievements' and 'achievements' in final_data:
-                    achievements = final_data['achievements']
-                    if isinstance(achievements, list):
-                        formatted_data = achievements
-                
-                elif section == 'summary' and 'summary' in final_data:
+                elif section == 'summary':
                     formatted_data = final_data['summary']
                 
-                # Replace content if we have data
                 if formatted_data:
-                    to_remove = replace_section_content(doc, content_start, content_end, formatted_data, ref_para)
+                    to_remove = replace_section_content(doc, content_start, content_end, formatted_data, ref_para, section)
                     paragraphs_to_remove.update(to_remove)
                     replaced_count += 1
+    
+    # Combine all paragraphs to remove
+    paragraphs_to_remove.update(sections_to_remove)
     
     # Remove marked paragraphs
     for idx in sorted(paragraphs_to_remove, reverse=True):

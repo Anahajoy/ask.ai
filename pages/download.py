@@ -1176,13 +1176,13 @@ def app_download():
                         doc, structure = extract_document_structure(uploaded_file)
                         
                         # Display detected structure
-                        with st.expander("📋 Detected Document Structure", expanded=False):
-                            for item in structure:
-                                section = item.get('section')
-                                if 'para_idx' in item:
-                                    st.write(f"**{section.upper()}** at paragraph {item['para_idx']}")
-                                elif 'content_start' in item:
-                                    st.write(f"**{section.upper()}** section: paragraphs {item['content_start']}-{item['content_end']}")
+                        # with st.expander("📋 Detected Document Structure", expanded=False):
+                        #     for item in structure:
+                        #         section = item.get('section')
+                        #         if 'para_idx' in item:
+                        #             st.write(f"**{section.upper()}** at paragraph {item['para_idx']}")
+                        #         elif 'content_start' in item:
+                        #             st.write(f"**{section.upper()}** section: paragraphs {item['content_start']}-{item['content_end']}")
                         
                         # Replace content
                         output, replaced, removed = replace_content(doc, structure, final_data)
@@ -1194,7 +1194,7 @@ def app_download():
                         st.session_state.doc_removed = removed
                         
                         # Success message
-                        st.success(f"✅ Processed {replaced} sections and optimized {removed} paragraphs")
+                        # st.success(f"✅ Processed {replaced} sections and optimized {removed} paragraphs")
                         
                         # Show preview section
                         st.markdown("### 🔍 Document Preview")

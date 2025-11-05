@@ -891,7 +891,7 @@ def app_download():
         st.markdown("### 🗂️ Your Saved Templates")
         
         # Create tabs for HTML and DOC templates
-        template_tab1, template_tab2 = st.tabs(["📄 HTML Templates", "📝 Word Templates"])
+        template_tab1, template_tab2,template_tab3 = st.tabs(["📄 HTML Templates", "📝 Word Templates","📊 PowerPoint Templates"])
         
         # ========== HTML TEMPLATES TAB ==========
         with template_tab1:
@@ -1001,8 +1001,121 @@ def app_download():
                                 st.rerun()
             else:
                 st.info("📂 No saved Word templates yet.")
+        # Add this as a third tab in the "Your Saved Templates" section
+# After template_tab1 (HTML) and template_tab2 (Word), add:
 
-        st.markdown("---")
+
+        # ========== POWERPOINT TEMPLATES TAB ==========
+        with template_tab3:
+            if 'ppt_templates' not in st.session_state:
+                st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
+            
+            if st.session_state.ppt_templates:
+                cols = st.columns(3)
+                for idx, (template_id, template_data) in enumerate(st.session_state.ppt_templates.items()):
+                    with cols[idx % 3]:
+                        st.markdown(f"""
+                        <div class="template-card" style="border:1px solid #ccc; padding:10px; border-radius:10px; background:#fafafa;">
+                            <h4>{template_data['name']}</h4>
+                            <p style="font-size:0.85em; color:#555;">File: {template_data['original_filename']}</p>
+                            <p style="font-size:0.8em; color:#888;">Uploaded: {template_data['uploaded_at']}</p>
+                            <p style="font-size:0.75em; color:#999;">Slides: {len(set([e['slide'] for e in template_data.get('text_elements', [])]))}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button(f"Use", key=f"use_ppt_{template_id}", use_container_width=True):
+                                try:
+                                    import io
+                                    from pptx import Presentation
+                                    
+                                    # Load template
+                                    working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
+                                    
+                                    # Regenerate content for current data
+                                    prs = Presentation(io.BytesIO(template_data['ppt_data']))
+                                    slide_texts = []
+                                    for slide_idx, slide in enumerate(prs.slides):
+                                        text_blocks = []
+                                        for shape_idx, shape in enumerate(slide.shapes):
+                                            if shape.has_text_frame and shape.text.strip():
+                                                text_blocks.append({
+                                                    "index": shape_idx,
+                                                    "text": shape.text.strip(),
+                                                    "position": {"x": shape.left, "y": shape.top}
+                                                })
+                                        
+                                        if text_blocks:
+                                            text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                                            slide_texts.append({
+                                                "slide_number": slide_idx + 1,
+                                                "text_blocks": text_blocks
+                                            })
+                                    
+                                    # Generate new content
+                                    structured_slides = analyze_slide_structure(slide_texts)
+                                    generated_sections = generate_ppt_sections(final_data, structured_slides)
+                                    
+                                    text_elements = template_data['text_elements']
+                                    content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+                                        text_elements, generated_sections, prs)
+                                    
+                                    # Create new edits
+                                    edits = {}
+                                    for element in text_elements:
+                                        key = f"{element['slide']}_{element['shape']}"
+                                        if key not in heading_shapes:
+                                            edits[key] = content_mapping.get(key, element['original_text'])
+                                    
+                                    # Apply edits
+                                    success_count = 0
+                                    for element in text_elements:
+                                        key = f"{element['slide']}_{element['shape']}"
+                                        if key not in heading_shapes and key in edits:
+                                            slide_idx = element['slide'] - 1
+                                            shape_idx = element['shape']
+                                            
+                                            if slide_idx < len(working_prs.slides):
+                                                slide = working_prs.slides[slide_idx]
+                                                if shape_idx < len(slide.shapes):
+                                                    shape = slide.shapes[shape_idx]
+                                                    if shape.has_text_frame:
+                                                        clear_and_replace_text(shape, edits[key])
+                                                        success_count += 1
+                                    
+                                    # Save output
+                                    output = io.BytesIO()
+                                    working_prs.save(output)
+                                    output.seek(0)
+                                    
+                                    # Store results
+                                    st.session_state.generated_ppt = output.getvalue()
+                                    st.session_state.selected_ppt_template_id = template_id
+                                    st.session_state.selected_ppt_template = template_data
+                                    st.session_state.ppt_template_source = 'saved'
+                                    
+                                    st.success(f"✅ Using template: {template_data['name']}")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error loading template: {str(e)}")
+
+                        with col2:
+                            if st.button(f"Delete", key=f"delete_ppt_{template_id}", use_container_width=True):
+                                # Clear selection if deleting currently selected template
+                                if st.session_state.get('selected_ppt_template_id') == template_id:
+                                    st.session_state.pop('generated_ppt', None)
+                                    st.session_state.pop('selected_ppt_template_id', None)
+                                    st.session_state.pop('selected_ppt_template', None)
+                                    st.session_state.pop('ppt_template_source', None)
+                                
+                                del st.session_state.ppt_templates[template_id]
+                                save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+                                st.success(f"✅ Deleted '{template_data['name']}'")
+                                st.rerun()
+            else:
+                st.info("📂 No saved PowerPoint templates yet.")
+                st.markdown("---")
 
         # 2️⃣ Upload Section
         st.markdown("### 📤 Upload New Template")
@@ -1083,6 +1196,7 @@ def app_download():
                     st.session_state.template_source = 'temp_upload'
 
                 # ========== POWERPOINT FILE PROCESSING ==========
+                # ========== POWERPOINT FILE PROCESSING - ENHANCED VERSION ==========
                 elif file_type in ['ppt', 'pptx']:
                     import io
                     from pptx import Presentation
@@ -1161,66 +1275,179 @@ def app_download():
                                 working_prs.save(output)
                                 output.seek(0)
                                 st.session_state.generated_ppt = output.getvalue()
+                                
+                                # Store edits for template saving
+                                st.session_state.ppt_edits = edits
                             
-                            st.markdown("### 🔍 PowerPoint Preview")
+                            # ========== SAVE TEMPLATE SECTION ==========
+                            st.markdown("---")
+                            st.markdown("### 💾 Save PowerPoint Template")
                             
-                            preview_prs = Presentation(io.BytesIO(st.session_state.generated_ppt))
+                            col1, col2 = st.columns([2, 1])
                             
-                            for slide_idx, slide in enumerate(preview_prs.slides):
-                                with st.expander(f"📊 Slide {slide_idx + 1}", expanded=slide_idx == 0):
+                            with col1:
+                                ppt_template_name = st.text_input(
+                                    "Template Name:",
+                                    value=f"PPT_{uploaded_file.name.split('.')[0]}",
+                                    key="ppt_template_name"
+                                )
+                            
+                            with col2:
+                                st.write("")
+                                st.write("")
+                                if st.button("💾 Save Template", use_container_width=True, type="primary", key="save_ppt_template_btn"):
+                                    if 'ppt_templates' not in st.session_state:
+                                        st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
+                                    
+                                    ppt_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                                    st.session_state.ppt_templates[ppt_id] = {
+                                        'name': ppt_template_name,
+                                        'ppt_data': st.session_state.ppt_uploaded_file,
+                                        'edits': st.session_state.ppt_edits,
+                                        'content_mapping': st.session_state.get('ppt_content_mapping', {}),
+                                        'heading_shapes': list(st.session_state.get('ppt_heading_shapes', set())),
+                                        'basic_info_shapes': list(st.session_state.get('ppt_basic_info_shapes', set())),
+                                        'text_elements': text_elements,
+                                        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                        'original_filename': uploaded_file.name
+                                    }
+                                    
+                                    if save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates):
+                                        st.success(f"✅ PPT Template '{ppt_template_name}' saved!")
+                                        st.balloons()
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to save template. Please try again.")
+                            
+                            # ========== ENHANCED PREVIEW SECTION ==========
+                            st.markdown("---")
+                            st.markdown("### 🔍 PowerPoint Preview (Not Saved Yet)")
+                            
+                            try:
+                                preview_prs = Presentation(io.BytesIO(st.session_state.generated_ppt))
+                                
+                                st.markdown("""
+                                <style>
+                                .ppt-slide-container {
+                                    border: 2px solid #e0e0e0;
+                                    border-radius: 10px;
+                                    padding: 20px;
+                                    margin-bottom: 15px;
+                                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                }
+                                .ppt-slide-header {
+                                    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                                    color: white;
+                                    padding: 10px 15px;
+                                    border-radius: 5px;
+                                    font-weight: bold;
+                                    margin-bottom: 15px;
+                                    font-size: 16px;
+                                }
+                                .ppt-content-box {
+                                    background: white;
+                                    padding: 15px;
+                                    border-radius: 8px;
+                                    margin: 10px 0;
+                                    border-left: 4px solid #667eea;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                                }
+                                .ppt-title-text {
+                                    font-size: 18px;
+                                    font-weight: bold;
+                                    color: #2c3e50;
+                                    margin-bottom: 10px;
+                                }
+                                .ppt-body-text {
+                                    font-size: 14px;
+                                    color: #34495e;
+                                    line-height: 1.6;
+                                    white-space: pre-wrap;
+                                }
+                                .ppt-bullet {
+                                    color: #667eea;
+                                    margin-right: 8px;
+                                }
+                                </style>
+                                """, unsafe_allow_html=True)
+                                
+                                for slide_idx, slide in enumerate(preview_prs.slides):
+                                    st.markdown(f"""
+                                    <div class="ppt-slide-container">
+                                        <div class="ppt-slide-header">
+                                            📊 Slide {slide_idx + 1}
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                                    
                                     slide_content = []
                                     for shape in slide.shapes:
                                         if hasattr(shape, "text") and shape.text.strip():
-                                            slide_content.append(shape.text.strip())
+                                            text = shape.text.strip()
+                                            
+                                            # Check if it's a title (usually larger/bold)
+                                            is_title = False
+                                            if hasattr(shape, 'text_frame'):
+                                                for paragraph in shape.text_frame.paragraphs:
+                                                    if paragraph.runs:
+                                                        first_run = paragraph.runs[0]
+                                                        if first_run.font.size and first_run.font.size.pt > 18:
+                                                            is_title = True
+                                                            break
+                                                        if first_run.font.bold:
+                                                            is_title = True
+                                                            break
+                                            
+                                            # Format the text
+                                            if '\n' in text:
+                                                # Handle bullet points
+                                                lines = text.split('\n')
+                                                formatted_lines = []
+                                                for line in lines:
+                                                    if line.strip():
+                                                        formatted_lines.append(f'<span class="ppt-bullet">●</span> {line.strip()}')
+                                                formatted_text = '<br>'.join(formatted_lines)
+                                            else:
+                                                formatted_text = text
+                                            
+                                            if is_title:
+                                                st.markdown(f"""
+                                                <div class="ppt-content-box">
+                                                    <div class="ppt-title-text">{formatted_text}</div>
+                                                </div>
+                                                """, unsafe_allow_html=True)
+                                            else:
+                                                st.markdown(f"""
+                                                <div class="ppt-content-box">
+                                                    <div class="ppt-body-text">{formatted_text}</div>
+                                                </div>
+                                                """, unsafe_allow_html=True)
                                     
-                                    if slide_content:
-                                        for content in slide_content:
-                                            st.text_area(
-                                                f"Content - Slide {slide_idx + 1}",
-                                                value=content,
-                                                height=100,
-                                                key=f"preview_slide_{slide_idx}_{hash(content)}",
-                                                disabled=True
-                                            )
-                                    else:
-                                        st.info("No text content in this slide")
+                                    st.markdown("</div>", unsafe_allow_html=True)
+                                    
+                            except Exception as preview_error:
+                                st.error(f"Preview error: {str(preview_error)}")
                             
+                            # ========== DOWNLOAD SECTION ==========
                             st.markdown("---")
-                            ppt_name = st.text_input(
-                                "PPT Template Name:",
-                                value=f"PPT_{uploaded_file.name.split('.')[0]}",
-                                key="ppt_template_name"
-                            )
+                            col1, col2 = st.columns([3, 1])
                             
-                            if st.button("💾 Save PPT Template", use_container_width=True, type="primary"):
-                                if 'ppt_templates' not in st.session_state:
-                                    st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
-                                
-                                ppt_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                                st.session_state.ppt_templates[ppt_id] = {
-                                    'name': ppt_name,
-                                    'ppt_data': st.session_state.ppt_uploaded_file,
-                                    'edits': edits,
-                                    'content_mapping': st.session_state.get('ppt_content_mapping', {}),
-                                    'heading_shapes': st.session_state.get('ppt_heading_shapes', set()),
-                                    'basic_info_shapes': st.session_state.get('ppt_basic_info_shapes', set()),
-                                    'text_elements': text_elements,
-                                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                    'original_filename': uploaded_file.name
-                                }
-                                
-                                save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
-                                st.success(f"✅ PPT Template '{ppt_name}' saved!")
-                                st.rerun()
+                            with col1:
+                                st.download_button(
+                                    label="📥 Download Enhanced PowerPoint (Not Saved Yet)",
+                                    data=st.session_state.generated_ppt,
+                                    file_name="ai_enhanced_presentation.pptx",
+                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                    use_container_width=True,
+                                    type="primary"
+                                )
                             
-                            st.markdown("---")
-                            st.download_button(
-                                label="📥 Download Enhanced PowerPoint",
-                                data=st.session_state.generated_ppt,
-                                file_name="ai_enhanced_presentation.pptx",
-                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                use_container_width=True
-                            )
+                            with col2:
+                                if st.button("🔄 Reset", use_container_width=True):
+                                    for key in ['generated_ppt', 'ppt_uploaded_file', 'ppt_edits']:
+                                        if key in st.session_state:
+                                            del st.session_state[key]
+                                    st.rerun()
 
                 # ========== WORD DOCUMENT PROCESSING ==========
                 elif file_type in ['docx', 'doc']:  
@@ -1501,7 +1728,139 @@ def app_download():
                 
             except Exception as e:
                 st.error(f"Preview error: {str(e)}")
-
+        # Show PowerPoint preview for saved template
+        if uploaded_file is None and st.session_state.get("generated_ppt") and st.session_state.get("ppt_template_source") == 'saved':
+            st.markdown(f"### 🔍 PowerPoint Template Preview — **{st.session_state.selected_ppt_template['name']}**")
+            
+            try:
+                from pptx import Presentation
+                import io
+                
+                preview_prs = Presentation(io.BytesIO(st.session_state.generated_ppt))
+              
+                
+                st.markdown("""
+                <style>
+                .ppt-slide-container {
+                    border: 2px solid #e0e0e0;
+                    border-radius: 10px;
+                    padding: 20px;
+                    margin-bottom: 15px;
+                    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                }
+                .ppt-slide-header {
+                    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 10px 15px;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    font-size: 16px;
+                }
+                .ppt-content-box {
+                    background: white;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 10px 0;
+                    border-left: 4px solid #667eea;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                }
+                .ppt-title-text {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                }
+                .ppt-body-text {
+                    font-size: 14px;
+                    color: #34495e;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                }
+                .ppt-bullet {
+                    color: #667eea;
+                    margin-right: 8px;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
+                for slide_idx, slide in enumerate(preview_prs.slides):
+                    st.markdown(f"""
+                    <div class="ppt-slide-container">
+                        <div class="ppt-slide-header">📊 Slide {slide_idx + 1}</div>
+                    """, unsafe_allow_html=True)
+                    
+                    for shape in slide.shapes:
+                        if hasattr(shape, "text") and shape.text.strip():
+                            text = shape.text.strip()
+                            
+                            is_title = False
+                            if hasattr(shape, 'text_frame'):
+                                for paragraph in shape.text_frame.paragraphs:
+                                    if paragraph.runs:
+                                        first_run = paragraph.runs[0]
+                                        if first_run.font.size and first_run.font.size.pt > 18:
+                                            is_title = True
+                                            break
+                                        if first_run.font.bold:
+                                            is_title = True
+                                            break
+                            
+                            if '\n' in text:
+                                lines = text.split('\n')
+                                formatted_lines = [f'<span class="ppt-bullet">●</span> {line.strip()}' 
+                                                 for line in lines if line.strip()]
+                                formatted_text = '<br>'.join(formatted_lines)
+                            else:
+                                formatted_text = text
+                            
+                            css_class = "ppt-title-text" if is_title else "ppt-body-text"
+                            st.markdown(f"""
+                            <div class="ppt-content-box">
+                                <div class="{css_class}">{formatted_text}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+            
+            
+            # ========== DOWNLOAD ==========
+            
+            
+                with col2:
+                    if st.button("🔄 Reset", use_container_width=True):
+                        for key in ['generated_ppt', 'ppt_uploaded_file', 'ppt_edits']:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        st.rerun()
+                    # Download button
+                    st.markdown("---")
+                    filename = f"{final_data.get('name', 'Presentation').replace(' ', '_')}_Final.pptx"
+                    
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.download_button(
+                            label="📥 Download PowerPoint Presentation",
+                            data=st.session_state.generated_ppt,
+                            file_name=filename,
+                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                            use_container_width=True,
+                            type="primary"
+                        )
+                    
+                    with col2:
+                        if st.button("🔄 Clear", use_container_width=True):
+                            st.session_state.pop('generated_ppt', None)
+                            st.session_state.pop('selected_ppt_template_id', None)
+                            st.session_state.pop('selected_ppt_template', None)
+                            st.session_state.pop('ppt_template_source', None)
+                            st.rerun()
+                    
+            except Exception as e:
+                st.error(f"Preview error: {str(e)}")
         st.markdown("---")
         if st.button("⬅️ Go Back to Editor", use_container_width=True):
             switch_page("create")
@@ -1530,15 +1889,15 @@ def app_download():
             st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
         
         # Add Word document download if available
-        if st.session_state.get("generated_doc"):
-            filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Word.docx"
-            st.download_button(
-                label="📄 Download Word Document",
-                data=st.session_state.generated_doc,
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                use_container_width=True
-            )
+        # if st.session_state.get("generated_doc"):
+        #     filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Word.docx"
+        #     st.download_button(
+        #         label="📄 Download Word Document",
+        #         data=st.session_state.generated_doc,
+        #         file_name=filename,
+        #         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        #         use_container_width=True
+        #     )
         
         if not st.session_state.get("selected_template_config") and not st.session_state.get("generated_doc"):
             st.info("👆 Please select a template first to enable download links.")

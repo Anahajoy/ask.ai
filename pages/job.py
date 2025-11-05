@@ -2,7 +2,6 @@ import streamlit as st
 import json
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 
-# --- Modern Dark Professional Theme CSS ---
 st.markdown("""
 <style>
     [data-testid="stSidebar"] {display: none;}
@@ -197,12 +196,11 @@ st.markdown("""
 
 
 
-# Check if user is logged in
 if 'logged_in_user' not in st.session_state:
     st.warning("Please login first!")
     st.switch_page("login.py")
 
-# Get resume data from session state
+
 resume_data = st.session_state.get("resume_source", {})
 input_method = st.session_state.get(
     "input_method", 
@@ -213,17 +211,17 @@ st.session_state["input_method"] = input_method
 # st.write(input_method)
 
 
-# --- Header Section ---
+
 st.markdown('<div class="header-section">', unsafe_allow_html=True)
 st.markdown('<h2><span class="step-badge">2</span>Target Job Description</h2>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- Returning User Alert ---
+
 resume_source = st.session_state.get("resume_source", None)
 
 if resume_source:
-    # st.markdown('<div class="returning-user-alert">', unsafe_allow_html=True)
+ 
     st.markdown(f'<p>Your last resume was created. You can proceed with it, or click the button below to start a new resume from scratch.</p>', unsafe_allow_html=True)
     
     col_a, col_b = st.columns([1, 4])
@@ -246,7 +244,7 @@ if resume_source is None:
     if st.button("Go to Resume Builder", key="go-to-main-btn"):
         st.switch_page("../ask.ai/pages/main.py")
 else:
-    # st.markdown('<div class="content-container">', unsafe_allow_html=True)
+
     
     jd_method = st.radio(
         "Choose how to provide the job description:",
@@ -288,28 +286,83 @@ else:
             placeholder="Paste the complete job description here..."
         )
         
-        # if job_description:
-        #     word_count = len(job_description.split())
-        #     st.markdown(f'<p class="help-text">Word count: {word_count}</p>', unsafe_allow_html=True)
+
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
-            if job_description:
-                with st.spinner("Analyzing job description and preparing for tailoring..."):
-                    structured_jd = extract_details_from_jd(job_description)
+        
+                loading_placeholder = st.empty()
+
+                if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
+                    if job_description:
+
+                        loading_placeholder.markdown("""
+                        <div id="overlay-loader">
+                            <div class="loader-spinner"></div>
+                            <p>Analyzing job description...</p>
+                        </div>
+                        <style>
+                            #overlay-loader {
+                                position: fixed;
+                                top: 0;
+                                left: 0;
+                                width: 100vw;
+                                height: 100vh;
+                                background: rgba(10,10,10,0.95);
+                                backdrop-filter: blur(6px);
+                                display: flex;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                z-index: 9999;
+                                color: white;
+                                font-size: 1.2rem;
+                                font-weight: 500;
+                            }
+
+                            .loader-spinner {
+                                border: 5px solid rgba(255,255,255,0.2);
+                                border-top: 5px solid #00b4d8;
+                                border-radius: 50%;
+                                width: 70px;
+                                height: 70px;
+                                animation: spin 1s linear infinite;
+                                margin-bottom: 20px;
+                            }
+
+                            @keyframes spin {
+                                0% { transform: rotate(0deg); }
+                                100% { transform: rotate(360deg); }
+                            }
+
+                            #overlay-loader p {
+                                color: #e0f7ff;
+                                font-size: 1.1rem;
+                                letter-spacing: 0.5px;
+                            }
+                        </style>
+                        """, unsafe_allow_html=True)
+
                     
-                    if isinstance(structured_jd, str):
-                        try:
-                            structured_jd = json.loads(structured_jd)
-                        except json.JSONDecodeError:
-                            structured_jd = {"raw_text": job_description}
-                    
-                    st.session_state.job_description = structured_jd
-                
-                st.success("Job description processed successfully!")
-                st.switch_page("pages/create.py")
-            else:
-                st.error("Please provide a job description to continue")
-    
+                        import time
+                        time.sleep(2)
+
+                 
+                        structured_jd = extract_details_from_jd(job_description)
+                        if isinstance(structured_jd, str):
+                            try:
+                                structured_jd = json.loads(structured_jd)
+                            except json.JSONDecodeError:
+                                structured_jd = {"raw_text": job_description}
+
+                        st.session_state.job_description = structured_jd
+
+                 
+                        loading_placeholder.empty()
+
+                        # st.success("Job description processed successfully!")
+                        st.switch_page("pages/create.py")
+                    else:
+                        st.error("Please provide a job description to continue")
+
     st.markdown('</div>', unsafe_allow_html=True)

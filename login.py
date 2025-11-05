@@ -153,29 +153,31 @@ st.markdown("""
     }
     
     /* Clean input fields */
-    .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.09);
-        color: #ffffff;
-        border: 1.5px solid rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
-        padding: 14px 18px;
-        font-size: 0.95rem;
-        font-weight: 400;
-        transition: all 0.3s ease;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    .stTextInput > div > div > input:focus {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(8, 145, 178, 0.6);
-        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
-        outline: none;
-    }
+/* Clean input fields */
+.stTextInput > div > div > input {
+    background: rgba(255, 255, 255, 0.85);  /* lighter for black text */
+    color: #000000 !important;              /* black text */
+    border: 1.5px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 0.95rem;
+    font-weight: 400;
+    transition: all 0.3s ease;
+    font-family: 'Inter', sans-serif;
+}
 
-    .stTextInput > div > div > input::placeholder {
-        color: rgba(255, 255, 255, 0.45);
-        font-weight: 300;
-    }
+.stTextInput > div > div > input:focus {
+    background: #ffffff; /* pure white focus */
+    border-color: rgba(8, 145, 178, 0.6);
+    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+    outline: none;
+}
+
+.stTextInput > div > div > input::placeholder {
+    color: rgba(0, 0, 0, 0.45); /* dark placeholder */
+    font-weight: 300;
+}
+
     
     /* Solid color button - peacock blue */
     .stButton > button {

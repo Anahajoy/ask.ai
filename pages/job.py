@@ -288,9 +288,9 @@ else:
             placeholder="Paste the complete job description here..."
         )
         
-        if job_description:
-            word_count = len(job_description.split())
-            st.markdown(f'<p class="help-text">Word count: {word_count}</p>', unsafe_allow_html=True)
+        # if job_description:
+        #     word_count = len(job_description.split())
+        #     st.markdown(f'<p class="help-text">Word count: {word_count}</p>', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:

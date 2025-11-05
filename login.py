@@ -4,16 +4,14 @@ import json
 import re
 import time 
 
-# Page configuration
+
 st.set_page_config(page_title="Login Page", layout="wide", initial_sidebar_state="collapsed")
-# Clear caches to ensure new CSS and elements load correctly
+
 st.cache_data.clear()
 st.cache_resource.clear()
 
-# Initialize session state
 if 'mode' not in st.session_state:
-    st.session_state.mode = 'login'  # 'login' or 'register'
-
+    st.session_state.mode = 'login'  
 users_file = Path(__file__).parent / "users.json"
 user_data_file = Path(__file__).parent/"user_resume_data.json"
 
@@ -56,7 +54,6 @@ def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-# Custom CSS for modern, clean UI
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -262,21 +259,21 @@ with st.container(border=False):
     col1, col2, col3 = st.columns([1, 2, 1]) 
 
     with col2:
-        # Logo and subtitle
+ 
         st.markdown('<div class="logo">RESUME.AI</div>', unsafe_allow_html=True)
         subtitle_text = "Create your account to get started" if st.session_state.mode == 'register' else "Welcome back! Please login to continue"
         st.markdown(f'<div class="subtitle">{subtitle_text}</div>', unsafe_allow_html=True)
 
-        # Name input for registration
+
         name = ""
         if st.session_state.mode == 'register':
             name = st.text_input("Full Name", placeholder="Enter your full name", label_visibility="collapsed", key="full_name")
 
-        # Email / Password input
+  
         email = st.text_input("Email", placeholder="Enter your email address", label_visibility="collapsed", key="email")
         password = st.text_input("Password", placeholder="Enter your password", type="password", label_visibility="collapsed", key="password")
         
-        # Dynamic button text
+     
         button_text = "Sign-Up" if st.session_state.mode == 'register' else "Sign-In"
         
         if st.button(button_text, key="main_action_btn"):
@@ -300,7 +297,7 @@ with st.container(border=False):
                         if user_entry is None or stored_pw != password:
                             st.error("Invalid email or password")
                         else:
-                            # Successful Login
+
                             st.session_state.logged_in_user = email
                             st.session_state.username = stored_name or email.split('@')[0]
 
@@ -317,7 +314,7 @@ with st.container(border=False):
                                 time.sleep(1)
                                 st.switch_page("pages/main.py")
                     else:
-                        # REGISTER MODE
+ 
                         if email in users:
                             st.error("Email already registered. Please login.")
                             st.session_state.mode = 'login'
@@ -339,7 +336,7 @@ with st.container(border=False):
             else:
                 st.warning("Please enter both email and password")
         
-        # Links below button
+
         col_link1, col_sep, col_link2 = st.columns([1, 0.1, 1])
         
         with col_link1:

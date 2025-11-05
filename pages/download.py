@@ -664,7 +664,7 @@ def app_download():
 
         /* BUTTONS */
         .stButton>button {{
-            background: #0891b2;
+            background: var(--button-gradient);
             color: var(--text-light);
             border: none;
             border-radius: 12px;
@@ -683,7 +683,7 @@ def app_download():
         }}
 
         .stButton>button:hover {{
-            background: #0096C7;
+            background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
             box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);
             transform: translateY(-4px) scale(1.02);
             color: var(--text-dark);
@@ -817,7 +817,8 @@ def app_download():
     with tab1:
         st.markdown("### Available System Templates")
         st.caption("Choose from professionally designed ATS-friendly templates")
-    
+        
+        # Template selection
         cols = st.columns(3)
         for idx, (template_name, template_config) in enumerate(SYSTEM_TEMPLATES.items()):
             with cols[idx % 3]:
@@ -835,12 +836,12 @@ def app_download():
                         st.session_state.template_source = 'system'
                         st.rerun()
         
-       
+        # Show preview and color selection if a template is selected
         if st.session_state.get('selected_template') and st.session_state.get('template_source') == 'system':
             st.markdown("---")
             st.markdown(f"### Preview: {st.session_state.selected_template}")
             
-            
+            # Color selection in main body
             col1, col2 = st.columns([3, 1])
             with col1:
                 color_name = st.selectbox(
@@ -859,9 +860,10 @@ def app_download():
                 if custom_color != primary_color:
                     primary_color = custom_color
             
-            
+            # Store selected color in session state
             st.session_state.selected_color = primary_color
-           
+            
+            # Generate preview with selected color
             template_config = st.session_state.selected_template_config
             css = template_config['css_generator'](primary_color)
             html_content = template_config['html_generator'](final_data)
@@ -878,15 +880,17 @@ def app_download():
 
     
     with tab3:
-       
+        # Initialize both HTML and DOC templates
         if 'uploaded_templates' not in st.session_state:
             st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
         
         if 'doc_templates' not in st.session_state:
             st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
 
+        # 1️⃣ Display Saved Templates Section
         st.markdown("### 🗂️ Your Saved Templates")
-       
+        
+        # Create tabs for HTML and DOC templates
         template_tab1, template_tab2 = st.tabs(["📄 HTML Templates", "📝 Word Templates"])
         
         # ========== HTML TEMPLATES TAB ==========
@@ -956,19 +960,22 @@ def app_download():
                         col1, col2 = st.columns(2)
                         with col1:
                             if st.button(f"Use", key=f"use_doc_{template_id}", use_container_width=True):
-                              
+                                # Process and display the doc template
                                 try:
-                                  
+                                    import io
+                                    from docx import Document
+                                    
+                                    # Load template
                                     doc_stream = io.BytesIO(template_data['doc_data'])
                                     doc = Document(doc_stream)
                                     
-                                    
+                                    # Use stored structure
                                     structure = template_data.get('structure', [])
                                     
-                                
+                                    # Replace content
                                     output, replaced, removed = replace_content(doc, structure, final_data)
                                     
-                                   
+                                    # Store results
                                     st.session_state.generated_doc = output.getvalue()
                                     st.session_state.selected_doc_template_id = template_id
                                     st.session_state.selected_doc_template = template_data
@@ -981,7 +988,7 @@ def app_download():
 
                         with col2:
                             if st.button(f"Delete", key=f"delete_doc_{template_id}", use_container_width=True):
-                               
+                                # Clear selection if deleting currently selected template
                                 if st.session_state.get('selected_doc_template_id') == template_id:
                                     st.session_state.pop('generated_doc', None)
                                     st.session_state.pop('selected_doc_template_id', None)
@@ -997,7 +1004,7 @@ def app_download():
 
         st.markdown("---")
 
-        #  Upload Section
+        # 2️⃣ Upload Section
         st.markdown("### 📤 Upload New Template")
         uploaded_file = st.file_uploader(
             "Upload a template file",
@@ -1220,19 +1227,19 @@ def app_download():
                     try:
                         st.session_state.json_data = json.dumps(final_data, indent=2)  
                         
-                    
+                        # Process document
                         uploaded_file.seek(0)
                         doc, structure = extract_document_structure(uploaded_file)
                         
-                        
+                        # Store original template data
                         uploaded_file.seek(0)
                         st.session_state.temp_doc_data = uploaded_file.read()
                         st.session_state.temp_doc_filename = uploaded_file.name
                         
-                       
+                        # Replace content
                         output, replaced, removed = replace_content(doc, structure, final_data)
                         
-                  
+                        # Store results
                         st.session_state.generated_doc = output.getvalue()
                         st.session_state.doc_structure = structure
                         st.session_state.doc_replaced = replaced
@@ -1392,17 +1399,20 @@ def app_download():
 
         st.markdown("---")
         
-        #
+        # 3️⃣ Preview Section for Saved Templates
+        # Show HTML template preview
         if uploaded_file is None and st.session_state.get("selected_template_preview") and st.session_state.get("template_source") == 'saved':
             st.markdown(f"### 🔍 HTML Template Preview — **{st.session_state.selected_template}**")
             st.components.v1.html(st.session_state.selected_template_preview, height=1000, scrolling=True)
         
-  
+        # Show Word document preview for saved template
         if uploaded_file is None and st.session_state.get("generated_doc") and st.session_state.get("doc_template_source") == 'saved':
             st.markdown(f"### 🔍 Word Template Preview — **{st.session_state.selected_doc_template['name']}**")
             
             try:
-       
+                from docx import Document
+                import io
+                
                 doc_stream = io.BytesIO(st.session_state.generated_doc)
                 processed_doc = Document(doc_stream)
                 st.markdown("""
@@ -1478,7 +1488,7 @@ def app_download():
                 html_content += '</div>'
                 st.markdown(html_content, unsafe_allow_html=True)
                 
-           
+                # Download button for saved template
                 st.markdown("---")
                 filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
                 st.download_button(
@@ -1500,7 +1510,7 @@ def app_download():
     with st.sidebar:
         st.subheader("⚙️ Download Options")
         
-     
+        # Download buttons
         if st.session_state.get("selected_template_config"):
             current_template = st.session_state.selected_template_config
             download_color = st.session_state.get('selected_color', ATS_COLORS["Professional Blue (Default)"])
@@ -1519,7 +1529,7 @@ def app_download():
             
             st.markdown(get_text_download_link(final_data), unsafe_allow_html=True)
         
-       
+        # Add Word document download if available
         if st.session_state.get("generated_doc"):
             filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Word.docx"
             st.download_button(

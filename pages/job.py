@@ -46,7 +46,7 @@ st.markdown("""
 
     /* Header */
     .header-section {
-        background: var(--bg-darker);
+        background: #0891b2;
         border-radius: 16px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
@@ -77,7 +77,7 @@ st.markdown("""
     }
 
     .step-badge {
-        background: var(--accent-gradient);
+        background: #0891b2;
         color: var(--text-white);
         width: 48px;
         height: 48px;
@@ -120,7 +120,7 @@ st.markdown("""
 
     /* Buttons */
     .stApp .stButton > button {
-        background: var(--accent-gradient) !important;
+        background: #0891b2 ;
         color: var(--text-white) !important;
         border: none !important;
         box-shadow: var(--shadow-md);
@@ -140,7 +140,7 @@ st.markdown("""
 
     /* Special buttons */
     .stApp .stButton > button[key="add-new-resume-btn"] {
-        background: var(--bg-gray) !important;
+        background: #780000 !important;
         color: var(--accent-solid1) !important;
         border: 2px solid var(--accent-solid1) !important;
     }
@@ -210,7 +210,7 @@ input_method = st.session_state.get(
 )
 # input_method = resume_data.get("input_method", "Manual Entry") 
 st.session_state["input_method"] = input_method
-st.write(input_method)
+# st.write(input_method)
 
 
 # --- Header Section ---

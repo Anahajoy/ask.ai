@@ -298,7 +298,7 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
         b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
     
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.html"
-    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #00FA9A; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> HTML (.html)</strong></a>'
+    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #0077B6; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> HTML (.html)</strong></a>'
     return href
 
 
@@ -464,7 +464,7 @@ xmlns='http://www.w3.org/TR/REC-html40'>
     doc_html = f"""
     <a href="data:application/msword;base64,{b64_data}" download="{filename}"
        style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
-              background-color: #00FFFF; color: white; border-radius: 5px; 
+              background-color: #00B4D8; color: white; border-radius: 5px; 
               display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
         <strong> Word Document(.doc)</strong>
     </a>
@@ -664,7 +664,7 @@ def app_download():
 
         /* BUTTONS */
         .stButton>button {{
-            background: var(--button-gradient);
+            background: #0891b2;
             color: var(--text-light);
             border: none;
             border-radius: 12px;
@@ -683,7 +683,7 @@ def app_download():
         }}
 
         .stButton>button:hover {{
-            background: -webkit-linear-gradient(45deg, #00FF7F, #00BFFF);
+            background:#00B4D8;
             box-shadow: 0 8px 25px rgba(0, 255, 127, 0.8);
             transform: translateY(-4px) scale(1.02);
             color: var(--text-dark);

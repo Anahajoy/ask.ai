@@ -1,7 +1,7 @@
 import streamlit as st
 from utils import  analyze_and_improve_resume,should_regenerate_resume,generate_enhanced_resume,save_and_improve,add_new_item,render_basic_details,render_skills_section,render_generic_section
 from streamlit_extras.switch_page_button import switch_page 
-import json
+
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
@@ -130,7 +130,7 @@ def apply_custom_css():
         color: #FFFFFF !important;
     }
 
-    /* [Rest of the CSS remains the same...] */
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -140,8 +140,8 @@ def generate_and_switch():
     """Performs final analysis and switches to download page."""
     data = st.session_state['enhanced_resume']
     
-    with st.spinner('Performing final analysis and generating download data...'):
-        finalized_data = analyze_and_improve_resume(data) 
+   
+    finalized_data = analyze_and_improve_resume(data) 
     
     st.session_state['final_resume_data'] = finalized_data
     switch_page("download")
@@ -153,12 +153,114 @@ def main():
     data = st.session_state['enhanced_resume']
 
     st.sidebar.title("Resume Tools 🛠️")
+    loading_placeholder = st.empty()
 
     if st.sidebar.button("✨ **Save & Auto-Improve**", use_container_width=True):
+        loading_placeholder.markdown("""
+            <div id="overlay-loader">
+                <div class="loader-spinner"></div>
+                <p>Performing auto-improvement...</p>
+            </div>
+            <style>
+                #overlay-loader {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(10,10,10,0.95);
+                    backdrop-filter: blur(6px);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    color: white;
+                    font-size: 1.2rem;
+                    font-weight: 500;
+                }
+
+                .loader-spinner {
+                    border: 5px solid rgba(255,255,255,0.2);
+                    border-top: 5px solid #00b4d8;
+                    border-radius: 50%;
+                    width: 70px;
+                    height: 70px;
+                    animation: spin 1s linear infinite;
+                    margin-bottom: 20px;
+                }
+
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+
+                #overlay-loader p {
+                    color: #e0f7ff;
+                    font-size: 1.1rem;
+                    letter-spacing: 0.5px;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
         save_and_improve()
+
+    loading_placeholder.empty()
+
+  
         
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
+        loading_placeholder.markdown("""
+            <div id="overlay-loader">
+                <div class="loader-spinner"></div>
+                <p>Performing final analysis and generating download data...</p>
+            </div>
+            <style>
+                #overlay-loader {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(10,10,10,0.95);
+                    backdrop-filter: blur(6px);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    color: white;
+                    font-size: 1.2rem;
+                    font-weight: 500;
+                }
+
+                .loader-spinner {
+                    border: 5px solid rgba(255,255,255,0.2);
+                    border-top: 5px solid #00b4d8;
+                    border-radius: 50%;
+                    width: 70px;
+                    height: 70px;
+                    animation: spin 1s linear infinite;
+                    margin-bottom: 20px;
+                }
+
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+
+                #overlay-loader p {
+                    color: #e0f7ff;
+                    font-size: 1.1rem;
+                    letter-spacing: 0.5px;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
         generate_and_switch()
+
+  
+        loading_placeholder.empty()
 
     st.sidebar.markdown("---")
 

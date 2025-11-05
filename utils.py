@@ -28,6 +28,7 @@ from copy import deepcopy
 
 
 
+
 API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 API_KEY = "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"
 
@@ -3789,8 +3790,8 @@ def save_and_improve():
     user_skills_before = deepcopy(data.get('skills', {}))
     job_description = st.session_state.get('job_description', '') 
 
-    with st.spinner('performing auto-improvement...'):
-        improved_data = analyze_and_improve_resume(data, job_description)
+    
+    improved_data = analyze_and_improve_resume(data, job_description)
     
     # Skills merging logic
     llm_skills_after = improved_data.get('skills', {})

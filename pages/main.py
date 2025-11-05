@@ -239,13 +239,13 @@ h3 {
     border-radius: 12px !important;
     transition: all 0.3s ease !important;
     width: 100%;
-    background: #B56576 !important;
+    background: var(--peacock-blue-dark);
     box-shadow: 0 6px 18px rgba(8, 145, 178, 0.28) !important;
 }
 
 .stButton > button:hover {
     transform: translateY(-2px);
-    background: var(--peacock-blue-dark) !important;
+    background: #00B4D8 !important;
     box-shadow: 0 8px 24px rgba(8, 145, 178, 0.4) !important;
 }
 

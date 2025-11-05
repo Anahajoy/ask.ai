@@ -20,7 +20,7 @@ if "cert_indices" not in st.session_state:
 if "project_indices" not in st.session_state:
     st.session_state.project_indices = [0]
 
-# Initialize saved data in session state
+
 if "saved_personal_info" not in st.session_state:
     st.session_state.saved_personal_info = {}
 if "saved_experiences" not in st.session_state:
@@ -402,7 +402,6 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
-# Header Section
 st.markdown('<div class="header-container">', unsafe_allow_html=True)
 col1, col2 = st.columns([5, 1])
 with col1:
@@ -414,7 +413,7 @@ with col2:
         st.switch_page("login.py")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Step 1 Header
+
 st.markdown('<h2><span class="section-number">1</span>Choose Input Method</h2>', unsafe_allow_html=True)
 input_method = st.radio(
     "How would you like to provide your information?",
@@ -423,14 +422,14 @@ input_method = st.radio(
     key="input_method_radio"
 )
 
-# Initialize data structures
+
 user_data = {}
 professional_experience = []
 education = []
 certificate = []
 project = []
 
-# Initialize index removers
+
 remove_index_edu = None
 remove_index_cert = None
 remove_index = None
@@ -467,7 +466,7 @@ if input_method == "Manual Entry":
         email = st.text_input("email *", placeholder="e.g., google@gmail.com", key="email",
                              value=st.session_state.saved_personal_info.get("email", ""))
     
-    # Save Personal Information Button
+  
     col_save = st.columns([1, 2, 1])
     with col_save[1]:
         if st.button("Save Personal Information", key="save_personal", use_container_width=True):
@@ -523,8 +522,7 @@ if input_method == "Manual Entry":
             comp_enddate = st.text_input("End Date (MM/YYYY) or 'Present'", key=f"comp_enddate_{i}", 
                                         placeholder="e.g., 12/2023 or Present",
                                         value=saved_exp.get("end_date", ""))
-            
-            # Date validation
+       
             if comp_startdate and comp_enddate and comp_enddate.lower() != "present":
                 try:
                     from datetime import datetime
@@ -535,7 +533,6 @@ if input_method == "Manual Entry":
                 except:
                     st.markdown('<p class="date-error">⚠️ Use MM/YYYY format</p>', unsafe_allow_html=True)
         
-        # Aligned Remove and Save buttons
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
         col_remove, col_save = st.columns(2)
         
@@ -604,7 +601,7 @@ if input_method == "Manual Entry":
                                        placeholder="e.g., 05/2022 or Present",
                                        value=saved_edu.get("end_date", ""))
             
-            # Date validation
+    
             if edu_startdate and edu_enddate and edu_enddate.lower() != "present":
                 try:
                     from datetime import datetime
@@ -615,7 +612,7 @@ if input_method == "Manual Entry":
                 except:
                     st.markdown('<p class="date-error">⚠️ Use MM/YYYY format</p>', unsafe_allow_html=True)
         
-        # Aligned Remove and Save buttons
+     
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
         col_remove, col_save = st.columns(2)
         
@@ -678,8 +675,7 @@ if input_method == "Manual Entry":
             comp_date = st.text_input("Completion Date (MM/YYYY)", key=f"comp_date_{i}", 
                                      placeholder="e.g., 06/2023",
                                      value=saved_cert.get("completed_date", ""))
-        
-        # Aligned Remove and Save buttons
+     
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
         col_remove, col_save = st.columns(2)
         
@@ -739,8 +735,7 @@ if input_method == "Manual Entry":
         with col2:
             decription = st.text_area("Description (Key achievements)", key=f"decription_{i}", height=150,
                                      value=saved_proj.get("decription", ""))
-        
-        # Aligned Remove and Save buttons
+     
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
         col_remove, col_save = st.columns(2)
         

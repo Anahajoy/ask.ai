@@ -30,7 +30,7 @@ def apply_custom_css():
         }            
     
     .stApp .stButton > button {
-    background: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F) !important;
+    background: #0891b2 !important;
     color: #ffffff !important;
     border: none !important;
     padding: 0.9rem 1.6rem !important;
@@ -204,7 +204,7 @@ def main():
             on_click=add_new_item, 
             args=('projects', {
                 "name": "New Project Title", 
-                "description": ["Project detail 1.", "Project detail 2."]
+                "description": ["Project detail"]
             })
         )
 

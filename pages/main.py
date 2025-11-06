@@ -37,6 +37,8 @@ def check_authentication():
         st.warning("⚠️ Please login to continue")
 
 
+# Add this CSS at the top of your file (replace the button-related CSS)
+
 st.markdown("""
 <style>
 /* Hide default Streamlit UI elements */
@@ -110,7 +112,7 @@ button[kind="header"] {display: none;}
     margin: 0;
 }
 
-/* Titles - Fixed visibility */
+/* Titles */
 h1 {
     color: var(--text-white) !important;
     font-weight: 800 !important;
@@ -152,7 +154,7 @@ h3 {
     box-shadow: 0 4px 20px rgba(8, 145, 178, 0.5);
 }
 
-/* Card Badge - Fixed visibility */
+/* Card Badge */
 .card-badge {
     color: var(--peacock-blue) !important;
     font-weight: 700 !important;
@@ -163,7 +165,7 @@ h3 {
     display: block !important;
 }
 
-/* Experience Cards - Enhanced visibility */
+/* Experience Cards */
 .experience-card {
     background: var(--bg-card);
     border: 1px solid var(--border-gray);
@@ -179,7 +181,7 @@ h3 {
     box-shadow: 0 8px 20px rgba(8, 145, 178, 0.15);
 }
 
-/* Input Fields - Better contrast */
+/* Input Fields */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea,
 .stSelectbox > div > div > div,
@@ -202,7 +204,7 @@ h3 {
     background: var(--bg-card) !important;
 }
 
-/* Input labels - Fixed visibility */
+/* Input labels */
 .stTextInput label,
 .stTextArea label,
 .stSelectbox label,
@@ -230,23 +232,62 @@ h3 {
     color: var(--text-white) !important;
 }
 
-/* Default Button Style */
-.stButton > button {
+/* BUTTON STYLING - THIS IS THE CRITICAL SECTION */
+
+/* Default buttons (Add More Experience, Generate Resume, etc.) */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
+div[data-testid="column"]:only-child .stButton > button {
+    background: var(--peacock-blue) !important;
     color: var(--text-white) !important;
     border: none !important;
     padding: 0.9rem 1.6rem !important;
     font-weight: 700 !important;
     border-radius: 12px !important;
     transition: all 0.3s ease !important;
-    width: 100%;
-    background: var(--peacock-blue-dark);
     box-shadow: 0 6px 18px rgba(8, 145, 178, 0.28) !important;
 }
 
-.stButton > button:hover {
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover,
+div[data-testid="column"]:only-child .stButton > button:hover {
+    background: var(--peacock-blue-light) !important;
     transform: translateY(-2px);
-    background: #00B4D8 !important;
     box-shadow: 0 8px 24px rgba(8, 145, 178, 0.4) !important;
+}
+
+/* Remove buttons (in left column of 2-column layout) - RED */
+div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
+    background: #ef4444 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.9rem 1.6rem !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28) !important;
+}
+
+div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
+    background: #dc2626 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Save buttons (in right column of 2-column layout) - GREEN */
+div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
+    background: #00A86B !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.9rem 1.6rem !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 6px 18px rgba(0, 168, 107, 0.28) !important;
+}
+
+div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
+    background: #008f5c !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 168, 107, 0.4) !important;
 }
 
 /* Button Container for Remove and Save */
@@ -256,41 +297,8 @@ h3 {
     margin-top: 1.5rem;
 }
 
-/* Remove Button Styling */
-.remove-btn .stButton > button {
-    background: #ef4444 !important;
-    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28) !important;
-}
-
-.remove-btn .stButton > button:hover {
-    background: #dc2626 !important;
-    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4) !important;
-}
-
-/* Save Button Styling */
-.save-btn .stButton > button {
-    background: #10b981 !important;
-    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.28) !important;
-}
-
-.save-btn .stButton > button:hover {
-    background: #059669 !important;
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4) !important;
-}
-
-/* Add Button Styling */
-.add-btn .stButton > button {
-    background: var(--peacock-blue-light) !important;
-    box-shadow: 0 6px 18px rgba(6, 182, 212, 0.28) !important;
-}
-
-.add-btn .stButton > button:hover {
-    background: var(--peacock-blue) !important;
-    box-shadow: 0 8px 24px rgba(6, 182, 212, 0.4) !important;
-}
-
-/* Logout button */
-.logout-btn .stButton > button {
+/* Logout button - override for header */
+.header-container .stButton > button {
     background: transparent !important;
     border: 2px solid var(--border-gray) !important;
     color: var(--text-gray) !important;
@@ -299,22 +307,11 @@ h3 {
     box-shadow: none !important;
 }
 
-.logout-btn .stButton > button:hover {
+.header-container .stButton > button:hover {
     border-color: #ef4444 !important;
     color: #ef4444 !important;
     background: transparent !important;
     transform: none !important;
-}
-
-/* Saved indicator */
-.saved-indicator {
-    color: #10b981 !important;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
 /* Date validation error */
@@ -555,8 +552,7 @@ if input_method == "Manual Entry":
                     st.error("Please fill in company name and position")
                     
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-            
+ 
         professional_experience.append({
             "company": company_name,
             "position": position_name,

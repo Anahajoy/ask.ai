@@ -170,16 +170,14 @@ h3 {
     background: var(--bg-card);
     border: 1px solid var(--border-gray);
     border-radius: 16px;
-    padding: 1.8rem;
-    margin-bottom: 1.5rem;
+    padding: 0.1rem 1.0rem;       
+    margin-bottom: 1rem;        
     box-shadow: var(--shadow-md);
     transition: all 0.3s ease;
-}
-
-.experience-card:hover {
-    border-color: rgba(8, 145, 178, 0.4);
     box-shadow: 0 8px 20px rgba(8, 145, 178, 0.15);
 }
+
+
 
 /* Input Fields */
 .stTextInput > div > div > input,
@@ -234,6 +232,8 @@ h3 {
 
 /* BUTTON STYLING - THIS IS THE CRITICAL SECTION */
 
+            
+            
 
 /* Default buttons (Add More Experience, Generate Resume, etc.) */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
@@ -303,7 +303,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
 
 /* Logout button - override for header */
 .header-container .stButton > button {
-    background: transparent !important;
+    background: #0891b2 !important;
     border: 2px solid var(--border-gray) !important;
     color: var(--text-gray) !important;
     padding: 0.6rem 1.2rem !important;

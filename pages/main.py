@@ -234,10 +234,11 @@ h3 {
 
 /* BUTTON STYLING - THIS IS THE CRITICAL SECTION */
 
+
 /* Default buttons (Add More Experience, Generate Resume, etc.) */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
 div[data-testid="column"]:only-child .stButton > button {
-    background: var(--peacock-blue) !important;
+    background: #5390d9 !important;
     color: var(--text-white) !important;
     border: none !important;
     padding: 0.9rem 1.6rem !important;
@@ -249,14 +250,17 @@ div[data-testid="column"]:only-child .stButton > button {
 
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover,
 div[data-testid="column"]:only-child .stButton > button:hover {
-    background: var(--peacock-blue-light) !important;
+    background: #014f86 !important;
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(8, 145, 178, 0.4) !important;
 }
 
+            
+
+
 /* Remove buttons (in left column of 2-column layout) - RED */
 div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
-    background: #ef4444 !important;
+    background: #fb7185 !important;
     color: white !important;
     border: none !important;
     padding: 0.9rem 1.6rem !important;
@@ -274,7 +278,7 @@ div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover 
 
 /* Save buttons (in right column of 2-column layout) - GREEN */
 div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
-    background: #00A86B !important;
+    background: #38bdf8 !important;
     color: white !important;
     border: none !important;
     padding: 0.9rem 1.6rem !important;
@@ -285,7 +289,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
 }
 
 div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
-    background: #008f5c !important;
+    background:#4895ef !important;
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 168, 107, 0.4) !important;
 }

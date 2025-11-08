@@ -370,6 +370,13 @@ else:
                 if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
                     if job_description:
 
+                        import streamlit as st
+                        import json
+
+                        # Placeholder for the loader
+                        loading_placeholder = st.empty()
+
+                        # Show loader
                         loading_placeholder.markdown("""
                         <div id="overlay-loader">
                             <div class="loader-spinner"></div>
@@ -417,25 +424,27 @@ else:
                         </style>
                         """, unsafe_allow_html=True)
 
-                    
-                        import time
-                        time.sleep(2)
+                        # --- Processing happens here ---
+                        try:
+                            structured_jd = extract_details_from_jd(job_description)  # long-running function
+                            if isinstance(structured_jd, str):
+                                try:
+                                    structured_jd = json.loads(structured_jd)
+                                except json.JSONDecodeError:
+                                    structured_jd = {"raw_text": job_description}
+                        except Exception as e:
+                            st.error(f"Error processing JD: {e}")
+                            structured_jd = {"raw_text": job_description}
 
-                 
-                        structured_jd = extract_details_from_jd(job_description)
-                        if isinstance(structured_jd, str):
-                            try:
-                                structured_jd = json.loads(structured_jd)
-                            except json.JSONDecodeError:
-                                structured_jd = {"raw_text": job_description}
-
+                        # Store in session state
                         st.session_state.job_description = structured_jd
 
-                 
+                        # Remove the loader
                         loading_placeholder.empty()
 
-                        # st.success("Job description processed successfully!")
+                        # Switch page after processing
                         st.switch_page("pages/create.py")
+
                     else:
                         st.error("Please provide a job description to continue")
 

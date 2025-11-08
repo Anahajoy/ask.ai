@@ -24,6 +24,9 @@ from docx.shared import RGBColor
 from collections import Counter
 import hashlib
 from copy import deepcopy
+import time
+import base64
+from io import BytesIO
 
 
 
@@ -41,6 +44,8 @@ headers = {
 # TO EXTRACT DATA FROM THE UPLOADED FILE#
 
 TEMPLATES_DIR = "uploaded_templates.json"
+users_file = Path(__file__).parent / "users.json"
+user_data_file = Path(__file__).parent/"user_resume_data.json"
 
 
 @st.cache_data
@@ -821,6 +826,8 @@ def generate_basic_description(position: str, company: str, candidate_skills: li
 
 # --- Helper function for LLM API ---
 def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
+  
+
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
         "messages": [
@@ -830,10 +837,33 @@ def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
         "temperature": 0.1,
         "max_tokens": max_tokens
     }
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    result = response.json()
-    return result['choices'][0]['message']['content']
+
+    # Try a few times if the server gives 500 or times out
+    for attempt in range(3):
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+
+        except requests.exceptions.Timeout:
+            print(f"⏳ Timeout on attempt {attempt + 1}, retrying...")
+            time.sleep(2 ** attempt)
+
+        except requests.exceptions.HTTPError as e:
+            if response.status_code >= 500:
+                print(f"⚠️ Server error 500 on attempt {attempt + 1}, retrying...")
+                time.sleep(2 ** attempt)
+            else:
+                # Show more details for debugging
+                print("❌ Client error:", response.text)
+                break
+
+        except Exception as e:
+            print("Unexpected error:", e)
+            break
+
+    return "⚠️ Sorry, the AI service is currently unavailable. Please try again later."
 
 
 
@@ -3821,3 +3851,52 @@ def save_and_improve():
     st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
     
     st.success("Resume content saved and improved! Check the updated details below.")
+
+
+
+def image_to_base64_local(image):
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return img_str
+
+
+def load_users():
+    try:
+        if users_file.exists():
+            with open(users_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        return {}
+    
+def save_users(users):
+    try:
+        with open(users_file, 'w', encoding='utf-8') as f:
+            json.dump(users, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving users: {e}")
+
+
+def load_user_resume_data():
+    """Load all users' resume data"""
+    try:
+        if user_data_file.exists():
+            with open(user_data_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        return {}
+
+def get_user_resume(email):
+    """Get resume data for a specific user"""
+    all_data = load_user_resume_data()
+    user_resume = all_data.get(email, None)
+    
+    if user_resume and isinstance(user_resume, dict) and len(user_resume) > 0:
+        return user_resume
+    return None
+
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None

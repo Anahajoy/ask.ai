@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 import re
 import time 
-from utils import image_to_base64
+from utils import load_users,save_users,is_valid_email,get_user_resume,image_to_base64_local
 from PIL import Image
 import base64
 from io import BytesIO
@@ -15,53 +15,7 @@ st.cache_resource.clear()
 
 if 'mode' not in st.session_state:
     st.session_state.mode = 'login'  
-users_file = Path(__file__).parent / "users.json"
-user_data_file = Path(__file__).parent/"user_resume_data.json"
 
-def load_users():
-    try:
-        if users_file.exists():
-            with open(users_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
-    except Exception as e:
-        return {}
-
-def save_users(users):
-    try:
-        with open(users_file, 'w', encoding='utf-8') as f:
-            json.dump(users, f, indent=2)
-    except Exception as e:
-        st.error(f"Error saving users: {e}")
-
-def load_user_resume_data():
-    """Load all users' resume data"""
-    try:
-        if user_data_file.exists():
-            with open(user_data_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
-    except Exception as e:
-        return {}
-
-def get_user_resume(email):
-    """Get resume data for a specific user"""
-    all_data = load_user_resume_data()
-    user_resume = all_data.get(email, None)
-    
-    if user_resume and isinstance(user_resume, dict) and len(user_resume) > 0:
-        return user_resume
-    return None
-
-def is_valid_email(email):
-    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(pattern, email) is not None
-
-def image_to_base64_local(image):
-    buffer = BytesIO()
-    image.save(buffer, format="PNG")
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-    return img_str
 
 st.markdown("""
 <style>

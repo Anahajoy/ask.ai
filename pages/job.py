@@ -4,26 +4,29 @@ from utils import extract_text_from_pdf, extract_text_from_docx, extract_details
 
 st.markdown("""
 <style>
-    [data-testid="stSidebar"] {display: none;}
-    [data-testid="collapsedControl"] {display: none;}
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
     #MainMenu, footer, header {visibility: hidden;}
 
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
     :root {
-        --peacock-blue: #0891b2;
-        --peacock-blue-dark: #0e7490;
-        --peacock-blue-light: #06b6d4;
-        --peacock-shadow: rgba(8, 145, 178, 0.3);
-        
-        --bg-dark: #0a0a0a;
-        --bg-darker: #121212;
-        --bg-gray: #1a1a1a;
-        --text-white: #FFFFFF;
-        --text-gray: #e0e0e0;
-        --border-gray: #333333;
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+        --primary-blue: #2563eb;
+        --primary-blue-hover: #1d4ed8;
+        --secondary-blue: #3b82f6;
+        --light-blue: #60a5fa;
+        --accent-blue: #1e40af;
+        --danger-red: #ef4444;
+        --danger-red-hover: #dc2626;
+        --bg-dark: #0f172a;
+        --bg-card: #1e293b;
+        --bg-input: #334155;
+        --text-white: #ffffff;
+        --text-gray: #94a3b8;
+        --border-gray: #334155;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
     * {
@@ -46,12 +49,11 @@ st.markdown("""
 
     /* Header */
     .header-section {
-        background: var(--peacock-blue);
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
         border-radius: 16px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
-        border: 1px solid var(--border-gray);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-xl);
         position: relative;
         overflow: hidden;
         color: var(--text-white);
@@ -64,7 +66,7 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--peacock-blue-light), var(--peacock-blue-dark));
+        background: linear-gradient(90deg, var(--light-blue), var(--accent-blue));
     }
 
     h2 {
@@ -78,34 +80,9 @@ st.markdown("""
         text-align: center;
     }
 
-    .step-badge {
-        background: rgba(255, 255, 255, 0.2);
-        color: var(--text-white);
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        text-align: center;
-        line-height: 48px;
-        font-weight: 700;
-        font-size: 1.3rem;
-        box-shadow: 0 4px 12px var(--peacock-shadow);
-    }
-
-    /* Returning user alert */
-    .returning-user-alert {
-        background: linear-gradient(135deg, #1b1b1b, #222222);
-        border: 1px solid #444444;
-        border-left: 4px solid var(--peacock-blue);
-        border-radius: 12px;
-        padding: 1.5rem 2rem;
-        margin-bottom: 2rem;
-        box-shadow: var(--shadow-md);
-        color: var(--text-white);
-    }
-
     /* Container */
     .content-container {
-        background: var(--bg-darker);
+        background: var(--bg-card);
         border-radius: 16px;
         padding: 2.5rem;
         box-shadow: var(--shadow-lg);
@@ -120,44 +97,54 @@ st.markdown("""
         font-size: 0.95rem !important;
     }
 
-    /* Main Buttons */
-    .stApp .stButton > button {
-        background: var(--peacock-blue) !important;
+    /* PRIMARY BUTTONS (Continue, Go Back) */
+    div[data-testid="column"] .stButton > button,
+    div.stButton > button[key="jb-btn"],
+    div.stButton > button[key="go-to-main-btn"] {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%) !important;
         color: var(--text-white) !important;
         border: none !important;
-        box-shadow: 0 6px 18px var(--peacock-shadow) !important;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35) !important;
         padding: 0.75rem 1.5rem !important;
         font-weight: 600 !important;
-        border-radius: 10px !important;
-        min-width: 140px !important;
+        border-radius: 12px !important;
         transition: all 0.3s ease !important;
         font-size: 0.95rem !important;
+        text-transform: none !important;
     }
 
-    .stApp .stButton > button:hover {
-        background: var(--peacock-blue-dark) !important;
+    div[data-testid="column"] .stButton > button:hover,
+    div.stButton > button[key="jb-btn"]:hover,
+    div.stButton > button[key="go-to-main-btn"]:hover {
+        background: linear-gradient(135deg, var(--primary-blue-hover) 0%, var(--accent-blue) 100%) !important;
         transform: translateY(-2px);
-        box-shadow: 0 8px 24px var(--peacock-shadow) !important;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45) !important;
     }
 
-    /* Start New Resume Button - Red/Dark variant */
-    .stApp .stButton > button[key="add-new-resume-btn"] {
-        background: #dc2626 !important;
+    /* DANGER BUTTON (Start New Resume) */
+    div.stButton > button[key="add-new-resume-btn"] {
+        background: linear-gradient(135deg, var(--danger-red) 0%, #f87171 100%) !important;
         color: var(--text-white) !important;
-        border: 2px solid #ef4444 !important;
-        box-shadow: 0 6px 18px rgba(220, 38, 38, 0.3) !important;
+        border: none !important;
+        box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35) !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 600 !important;
+        border-radius: 12px !important;
+        transition: all 0.3s ease !important;
+        font-size: 0.95rem !important;
+        text-transform: none !important;
     }
 
-    .stApp .stButton > button[key="add-new-resume-btn"]:hover {
-        background: #b91c1c !important;
-        border-color: #dc2626 !important;
-        box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4) !important;
+    div.stButton > button[key="add-new-resume-btn"]:hover {
+        background: linear-gradient(135deg, var(--danger-red-hover) 0%, var(--danger-red) 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.45) !important;
     }
 
     /* File Uploader Container */
     .stFileUploader {
-        background: var(--bg-gray);
-        border: 3px dashed var(--peacock-blue);
+        background: var(--bg-card);
+        border: 3px dashed var(--primary-blue);
         border-radius: 16px;
         padding: 3rem 2.5rem;
         transition: all 0.3s ease;
@@ -166,9 +153,8 @@ st.markdown("""
     }
 
     .stFileUploader:hover {
-        border-color: var(--peacock-blue-light);
-        box-shadow: none;
-        background: rgba(8, 145, 178, 0.05);
+        border-color: var(--light-blue);
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
     }
 
     /* File Uploader Label */
@@ -180,20 +166,21 @@ st.markdown("""
 
     /* File Uploader Browse Button */
     .stFileUploader section button {
-        background: var(--peacock-blue) !important;
+        background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue)) !important;
         color: var(--text-white) !important;
         border: none !important;
         border-radius: 10px !important;
         padding: 0.7rem 1.4rem !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 12px var(--peacock-shadow) !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35) !important;
         transition: all 0.3s ease !important;
+        text-transform: none !important;
     }
 
     .stFileUploader section button:hover {
-        background: var(--peacock-blue-dark) !important;
+        background: linear-gradient(135deg, var(--primary-blue-hover), var(--accent-blue)) !important;
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px var(--peacock-shadow) !important;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45) !important;
     }
 
     /* File Uploader Instructions */
@@ -203,7 +190,7 @@ st.markdown("""
 
     /* Textarea */
     textarea, .stTextArea > div > div > textarea {
-        background: var(--bg-gray) !important;
+        background: var(--bg-input) !important;
         border: 2px solid var(--border-gray) !important;
         border-radius: 12px !important;
         color: var(--text-white) !important;
@@ -212,28 +199,28 @@ st.markdown("""
     }
 
     textarea:focus {
-        border-color: var(--peacock-blue) !important;
-        box-shadow: 0 0 0 3px var(--peacock-shadow) !important;
-        background: rgba(8, 145, 178, 0.05) !important;
+        border-color: var(--primary-blue) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+        background: var(--bg-card) !important;
     }
 
     /* Success/Error/Warning messages */
     .stSuccess {
-        background: rgba(8, 145, 178, 0.1) !important;
-        border-left: 4px solid var(--peacock-blue) !important;
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-left: 4px solid #10b981 !important;
         color: var(--text-white) !important;
         border-radius: 8px;
     }
     
     .stError {
-        background: #2a0a0a !important;
-        border-left: 4px solid #ef4444 !important;
+        background: rgba(239, 68, 68, 0.1) !important;
+        border-left: 4px solid var(--danger-red) !important;
         color: var(--text-white) !important;
         border-radius: 8px;
     }
     
     .stWarning {
-        background: #2a1a00 !important;
+        background: rgba(245, 158, 11, 0.1) !important;
         border-left: 4px solid #f59e0b !important;
         color: var(--text-white) !important;
         border-radius: 8px;
@@ -254,48 +241,37 @@ st.markdown("""
     }
 
     ::-webkit-scrollbar-track {
-        background: var(--bg-darker);
+        background: var(--bg-dark);
     }
 
     ::-webkit-scrollbar-thumb {
-        background: var(--peacock-blue);
+        background: var(--primary-blue);
         border-radius: 6px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: var(--peacock-blue-dark);
+        background: var(--primary-blue-hover);
     }
 
 </style>
 """, unsafe_allow_html=True)
 
-
 if 'logged_in_user' not in st.session_state:
     st.warning("Please login first!")
     st.switch_page("login.py")
-
 
 resume_data = st.session_state.get("resume_source", {})
 input_method = st.session_state.get(
     "input_method", 
     resume_data.get("input_method", "Manual Entry")
 )
-# input_method = resume_data.get("input_method", "Manual Entry") 
 st.session_state["input_method"] = input_method
-# st.write(input_method)
 
-
-
-# st.markdown('<div class="header-section">', unsafe_allow_html=True)
-st.markdown('<h2 >Target Job Description</h2>', unsafe_allow_html=True)
-
-
-
+st.markdown('<h2>Target Job Description</h2>', unsafe_allow_html=True)
 
 resume_source = st.session_state.get("resume_source", None)
 
 if resume_source:
- 
     st.markdown(f'<p>Your last resume was created. You can proceed with it, or click the button below to start a new resume from scratch.</p>', unsafe_allow_html=True)
     
     col_a, col_b = st.columns([1, 4])
@@ -309,8 +285,6 @@ if resume_source:
                     del st.session_state[key]
             
             st.switch_page("../ask.ai/pages/main.py")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Job Description Input ---
 if resume_source is None:
@@ -318,8 +292,6 @@ if resume_source is None:
     if st.button("Go to Resume Builder", key="go-to-main-btn"):
         st.switch_page("../ask.ai/pages/main.py")
 else:
-
-    
     jd_method = st.radio(
         "Choose how to provide the job description:",
         ["Type or Paste", "Upload File"],
@@ -351,7 +323,6 @@ else:
                     height=200,
                     help="Preview of the extracted job description"
                 )
-
     else:
         job_description = st.text_area(
             "Paste the Job Description Text *",
@@ -359,93 +330,73 @@ else:
             height=250,
             placeholder="Paste the complete job description here..."
         )
-        
-
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        
-                loading_placeholder = st.empty()
+        loading_placeholder = st.empty()
 
-                if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
-                    if job_description:
+        if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
+            if job_description:
+                loading_placeholder.markdown("""
+                <div id="overlay-loader">
+                    <div class="loader-spinner"></div>
+                    <p>Analyzing job description...</p>
+                </div>
+                <style>
+                    #overlay-loader {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(15, 23, 42, 0.95);
+                        backdrop-filter: blur(6px);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 9999;
+                        color: white;
+                        font-size: 1.2rem;
+                        font-weight: 500;
+                    }
 
-                        import streamlit as st
-                        import json
+                    .loader-spinner {
+                        border: 5px solid rgba(96, 165, 250, 0.2);
+                        border-top: 5px solid #3b82f6;
+                        border-radius: 50%;
+                        width: 70px;
+                        height: 70px;
+                        animation: spin 1s linear infinite;
+                        margin-bottom: 20px;
+                    }
 
-                        # Placeholder for the loader
-                        loading_placeholder = st.empty()
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
 
-                        # Show loader
-                        loading_placeholder.markdown("""
-                        <div id="overlay-loader">
-                            <div class="loader-spinner"></div>
-                            <p>Analyzing job description...</p>
-                        </div>
-                        <style>
-                            #overlay-loader {
-                                position: fixed;
-                                top: 0;
-                                left: 0;
-                                width: 100vw;
-                                height: 100vh;
-                                background: rgba(10,10,10,0.95);
-                                backdrop-filter: blur(6px);
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                z-index: 9999;
-                                color: white;
-                                font-size: 1.2rem;
-                                font-weight: 500;
-                            }
+                    #overlay-loader p {
+                        color: #e0f7ff;
+                        font-size: 1.1rem;
+                        letter-spacing: 0.5px;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
 
-                            .loader-spinner {
-                                border: 5px solid rgba(255,255,255,0.2);
-                                border-top: 5px solid #00b4d8;
-                                border-radius: 50%;
-                                width: 70px;
-                                height: 70px;
-                                animation: spin 1s linear infinite;
-                                margin-bottom: 20px;
-                            }
-
-                            @keyframes spin {
-                                0% { transform: rotate(0deg); }
-                                100% { transform: rotate(360deg); }
-                            }
-
-                            #overlay-loader p {
-                                color: #e0f7ff;
-                                font-size: 1.1rem;
-                                letter-spacing: 0.5px;
-                            }
-                        </style>
-                        """, unsafe_allow_html=True)
-
-                        # --- Processing happens here ---
+                try:
+                    structured_jd = extract_details_from_jd(job_description)
+                    if isinstance(structured_jd, str):
                         try:
-                            structured_jd = extract_details_from_jd(job_description)  # long-running function
-                            if isinstance(structured_jd, str):
-                                try:
-                                    structured_jd = json.loads(structured_jd)
-                                except json.JSONDecodeError:
-                                    structured_jd = {"raw_text": job_description}
-                        except Exception as e:
-                            st.error(f"Error processing JD: {e}")
+                            structured_jd = json.loads(structured_jd)
+                        except json.JSONDecodeError:
                             structured_jd = {"raw_text": job_description}
+                except Exception as e:
+                    st.error(f"Error processing JD: {e}")
+                    structured_jd = {"raw_text": job_description}
 
-                        # Store in session state
-                        st.session_state.job_description = structured_jd
-
-                        # Remove the loader
-                        loading_placeholder.empty()
-
-                        # Switch page after processing
-                        st.switch_page("pages/create.py")
-
-                    else:
-                        st.error("Please provide a job description to continue")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+                st.session_state.job_description = structured_jd
+                loading_placeholder.empty()
+                st.switch_page("pages/create.py")
+            else:
+                st.error("Please provide a job description to continue")

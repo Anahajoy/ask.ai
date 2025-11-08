@@ -1014,12 +1014,10 @@ def check_specific_section(section_name: str, section_data: Any) -> Dict[str, An
 
 
 def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
-
     """
     Rewrite the candidate's resume content to align with the job description.
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
-    # del st.session_state['enhanced_resume']
     rewritten_resume = resume_data.copy()
 
     # -------------------- Education and Certifications --------------------
@@ -1066,7 +1064,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-# -------------------- Normalize experience data --------------------
+    # -------------------- Normalize experience data --------------------
     experience_all = []
 
     if "experience" in resume_data and isinstance(resume_data["experience"], list):
@@ -1080,7 +1078,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume.pop("professional_experience", None)
     rewritten_resume.pop("input_method", None)  # optional, if not needed
 
-# Remove duplicates based on company + position
+    # Remove duplicates based on company + position
     seen = set()
     merged_experience = []
     for exp in experience_all:
@@ -1092,21 +1090,6 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     # Assign merged experience
     rewritten_resume["experience"] = merged_experience
     rewritten_resume["total_experience_count"] = len(merged_experience)
-
-
-    # Remove old keys
-    resume_data.pop("experience", None)
-    resume_data.pop("professional_experience", None)
-    # resume_data.pop("input_method", None)  # Remove if not needed
-
-    # Remove duplicates based on company + position
-    seen = set()
-    merged_experience = []
-    for exp in experience_all:
-        key = (exp.get("company", ""), exp.get("position", ""))
-        if key not in seen:
-            merged_experience.append(exp)
-            seen.add(key)
 
     # -------------------- Generate Experience Descriptions --------------------
     rewritten_experience = []
@@ -1250,13 +1233,43 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
         rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
     except:
         rewritten_resume["skills"] = candidate_skills
+    
+    # -------------------- Handle Custom Sections --------------------
+    # Standard keys that should NOT be treated as custom sections
+    standard_keys = {
+        "name", "email", "phone", "location", "url", "summary", "job_title",
+        "education", "experience", "skills", "projects", "certifications", 
+        "achievements", "total_experience_count", "professional_experience",
+        "certificate", "project", "input_method"
+    }
+    
+    # Method 1: Handle nested custom_sections
+    custom_sections = resume_data.get("custom_sections", {})
+    if isinstance(custom_sections, dict):
+        for title, description in custom_sections.items():
+            clean_title = str(title).strip()
+            if isinstance(description, str):
+                clean_description = description.strip()
+            else:
+                clean_description = "\n".join(map(str, description)) if isinstance(description, list) else str(description)
+            if clean_title and clean_title not in standard_keys:
+                rewritten_resume[clean_title] = clean_description
+    
+    # Method 2: Handle top-level custom sections (direct string keys)
+    for key, value in resume_data.items():
+        if key not in standard_keys and isinstance(value, str):
+            rewritten_resume[key] = value.strip()
 
-    # ✅ --- Final Cleanup: Remove old singular keys ---
+    # ✅ --- Final Cleanup: Remove old singular keys and nested custom_sections ---
     if "project" in rewritten_resume and "projects" in rewritten_resume:
         del rewritten_resume["project"]
 
     if "certificate" in rewritten_resume and "certifications" in rewritten_resume:
         del rewritten_resume["certificate"]
+    
+    # Remove nested custom_sections as we've flattened them
+    if "custom_sections" in rewritten_resume:
+        del rewritten_resume["custom_sections"]
 
     rewritten_resume["projects"] = rewritten_resume.get("projects", [])
     rewritten_resume["certifications"] = rewritten_resume.get("certifications", [])
@@ -1274,7 +1287,7 @@ def is_valid_phone(phone):
 
 def save_user_resume(email, resume_data, input_method=None):
     """Save or update a user's resume without affecting other users"""
-    user_data_file = "user_resume_data.json"
+    # user_data_file = "user_resume_data.json"
 
     # Convert date objects to strings
     def convert_dates(obj):
@@ -3507,7 +3520,6 @@ def should_regenerate_resume():
     resume_data = st.session_state.get('resume_source')
     jd_data = st.session_state.get('job_description')
     
-  
     if 'enhanced_resume' not in st.session_state:
         return True
     
@@ -3528,6 +3540,7 @@ def should_regenerate_resume():
 
 def generate_enhanced_resume():
     """Generate enhanced resume and store metadata"""
+    # print("inside rewrite the enhancement")
     resume_data = st.session_state.get('resume_source')
     jd_data = st.session_state.get('job_description')
     input_method = st.session_state.get(
@@ -3538,10 +3551,12 @@ def generate_enhanced_resume():
    
     if input_method == "Manual Entry":
         enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
-        # st.write("manual entry resume")
+        # print("manual entery")
+        # print(enhanced_resume)
+        
     else:
         enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
-        # st.write("normal entry resume")
+        # print("normal entry resume")
 
 
     st.session_state['enhanced_resume'] = enhanced_resume
@@ -3566,13 +3581,16 @@ def render_basic_details(data, is_edit):
         data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
         data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3,col4 = st.columns(4)
         with col1:
             data['phone'] = st.text_input("Phone", data.get('phone', ''), key="edit_phone")
         with col2:
             data['email'] = st.text_input("Email", data.get('email', ''), key="edit_email")
         with col3:
             data['location'] = st.text_input("Location", data.get('location', ''), key="edit_location")
+        with col4:
+            data['url'] = st.text_input("url", data.get('url', ''), key="edit_url")
+ 
 
         st.markdown('<div class="resume-section">', unsafe_allow_html=True)
         st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)

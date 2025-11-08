@@ -15,6 +15,9 @@ import streamlit as st
 import json, os
 from datetime import datetime
 from utils import load_user_doc_templates,load_user_doc_templates,save_user_doc_templates,replace_content, extract_document_structure, save_user_ppt_templates,load_user_ppt_templates,load_user_templates,save_user_templates,get_css_sophisticated_minimal,get_css_clean_contemporary,get_css_elegant_professional,get_css_modern_minimal,get_css_date_below,get_css_classic,get_css_minimalist,get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text
+from datetime import datetime
+
+
 
 
 # Define the preferred display order for sections
@@ -43,7 +46,16 @@ def format_section_title(key):
     return ' '.join(word.capitalize() for word in title.split())
 
 
-from datetime import datetime
+def get_standard_keys():
+    """Return set of standard resume keys that should not be treated as custom sections."""
+    return {
+        "name", "email", "phone", "location", "url", "summary", "job_title",
+        "education", "experience", "skills", "projects", "certifications", 
+        "achievements", "total_experience_count"
+    }
+
+
+
 
 def format_year_only(date_str):
     """Return only the year from a date string. If already a year, return as-is."""
@@ -58,12 +70,14 @@ def format_year_only(date_str):
     except:
         return date_str  
 
+
+
+# UPDATED generate_generic_html function
 def generate_generic_html(data, date_placement='right'):
     """Generates clean HTML content based on resume data, showing only years for all dates."""
     if not data: 
         return ""
 
-    # Header
     job_title_for_header = data.get('job_title', '')
     contacts = [data.get('phone'), data.get('email'), data.get('location')]
     contacts_html = " | ".join([c for c in contacts if c])
@@ -76,6 +90,7 @@ def generate_generic_html(data, date_placement='right'):
         html += f'<div class="ats-contact">{contacts_html}</div>'
     html += '</div>'
 
+    # Standard sections first
     for key in RESUME_ORDER:
         section_data = data.get(key)
         if not section_data or (isinstance(section_data, list) and not section_data):
@@ -178,6 +193,18 @@ def generate_generic_html(data, date_placement='right'):
                     bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
                     if bullet_html:
                         html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key)
+            html += f'<div class="ats-section-title">{title}</div>'
+   
+            formatted_value = value.strip().replace('\n', '<br>')
+            html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
 
     return html
 
@@ -303,6 +330,9 @@ def get_html_download_link(data, color, template_config, filename_suffix=""):
 
 
 
+
+
+# UPDATED generate_doc_html function
 def generate_doc_html(data):
     """Generate a simple HTML that can be saved as .doc."""
     html = f"""
@@ -340,6 +370,7 @@ def generate_doc_html(data):
             .item-title {{ font-weight: bold; }}
             .item-subtitle {{ font-style: italic; color: #555; }}
             .skills-group {{ margin: 3pt 0; }}
+            .custom-section {{ margin: 8pt 0; line-height: 1.4; }}
         </style>
     </head>
     <body>
@@ -350,6 +381,7 @@ def generate_doc_html(data):
         </div>
     """
     
+    # Standard sections
     for key in RESUME_ORDER:
         section_data = data.get(key)
         
@@ -378,8 +410,8 @@ def generate_doc_html(data):
                 if not isinstance(item, dict):
                     continue
                 
-                title_keys = ['title', 'name', 'degree']
-                subtitle_keys = ['company', 'institution', 'issuer', 'organization']
+                title_keys = ['title', 'name', 'degree', 'position', 'course']
+                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'university']
                 duration_keys = ['duration', 'date', 'period']
                 
                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
@@ -408,6 +440,17 @@ def generate_doc_html(data):
                         for line in description_list:
                             html += f'<li>{line}</li>'
                         html += '</ul>'
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key)
+            html += f'<h2>{title}</h2>'
+            # Replace newlines with <br> for proper rendering
+            formatted_value = value.strip().replace('\n', '<br>')
+            html += f'<p class="custom-section">{formatted_value}</p>'
 
     html += '</body></html>'
     return html
@@ -472,6 +515,10 @@ xmlns='http://www.w3.org/TR/REC-html40'>
     return doc_html
 
 
+
+
+
+# UPDATED generate_markdown_text function
 def generate_markdown_text(data):
     """Generates a plain markdown/text version of the resume."""
     text = ""
@@ -483,6 +530,7 @@ def generate_markdown_text(data):
     text += " | ".join(filter(None, contact_parts)) + "\n"
     text += "=" * 50 + "\n\n"
     
+    # Standard sections
     for key in RESUME_ORDER:
         section_data = data.get(key)
         
@@ -509,8 +557,8 @@ def generate_markdown_text(data):
                     text += f" - {item}\n"
                     continue
                 
-                title_keys = ['title', 'name', 'degree']
-                subtitle_keys = ['company', 'institution', 'issuer']
+                title_keys = ['title', 'name', 'degree', 'position', 'course']
+                subtitle_keys = ['company', 'institution', 'issuer', 'university']
                 duration_keys = ['duration', 'date']
                 
                 main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
@@ -529,6 +577,16 @@ def generate_markdown_text(data):
                     for line in description_list:
                         text += f" - {line}\n"
             text += "\n"
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key).upper()
+            text += f"{title}\n"
+            text += "-" * len(title) + "\n"
+            text += value.strip() + "\n\n"
 
     return text
 
@@ -779,7 +837,7 @@ def app_download():
 
 
     final_data = st.session_state.get('final_resume_data')
-    # st.json(final_data)
+    st.json(final_data)
 
     if final_data is None:
         st.error("❌ Resume data not found. Please return to the editor to finalize your resume.")

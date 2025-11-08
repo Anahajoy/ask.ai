@@ -305,7 +305,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
 }
 
 /* Logout button - override for header */
-.header-container .stButton > button {
+div[data-testid="stBaseButton-secondary"] > div:first-child .stButton > button {
     background: #0891b2 !important;
     border: 2px solid var(--border-gray) !important;
     color: var(--text-gray) !important;
@@ -459,6 +459,10 @@ if input_method == "Manual Entry":
                                    value=st.session_state.saved_personal_info.get("experience", ""))
         phone = st.text_input("Phone number *", placeholder="e.g., +91 ", key="phone",
                              value=st.session_state.saved_personal_info.get("phone", ""))
+        email = st.text_input("email *", placeholder="e.g., google@gmail.com", key="email",
+                             value=st.session_state.saved_personal_info.get("email", ""))
+        url = st.text_input("linkedin/github", placeholder="e.g., user/linkedin.com", key="url",
+                             value=st.session_state.saved_personal_info.get("url", ""))
        
     with col2:
         all_skills_list = load_skills_from_json()
@@ -469,8 +473,8 @@ if input_method == "Manual Entry":
             key="general_skills",
             default=st.session_state.saved_personal_info.get("skills", [])
         )
-        email = st.text_input("email *", placeholder="e.g., google@gmail.com", key="email",
-                             value=st.session_state.saved_personal_info.get("email", ""))
+        location = st.text_input("location *", placeholder="e.g.,New York", key="location",
+                             value=st.session_state.saved_personal_info.get("location", ""))
     
   
     col_save = st.columns([1, 2, 1])
@@ -487,7 +491,9 @@ if input_method == "Manual Entry":
                         "skills": skills,
                         "experience": experience,
                         "phone": phone,
-                        "email": email
+                        "email": email,
+                        "url":url,
+                        "location":location
                     }
                     st.success("✅ Personal information saved!")
             else:
@@ -781,6 +787,76 @@ if input_method == "Manual Entry":
             st.rerun()
     
     st.markdown("---")
+
+    # -------------------------------
+    # 6. Custom / Additional Sections
+    # -------------------------------
+    st.markdown('<h2><span class="section-number">6</span>Custom Sections</h2>', unsafe_allow_html=True)
+
+    # Initialize session variables
+    if "custom_indices" not in st.session_state:
+        st.session_state.custom_indices = [0]
+    if "saved_custom_sections" not in st.session_state:
+        st.session_state.saved_custom_sections = {}
+
+    remove_index_custom = None
+    custom_sections = []
+
+    for idx, i in enumerate(st.session_state.custom_indices):
+        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        st.markdown(f'<p class="card-badge">CUSTOM SECTION {idx + 1}</p>', unsafe_allow_html=True)
+
+        saved_custom = st.session_state.saved_custom_sections.get(i, {})
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            section_title = st.text_input("Section Heading *", placeholder="e.g., Languages, Achievements, Interests", 
+                                        key=f"custom_title_{i}", value=saved_custom.get("title", ""))
+        with col2:
+            section_description = st.text_area("Description / Details *", placeholder="Add details for this section...", 
+                                            key=f"custom_desc_{i}", height=120,
+                                            value=saved_custom.get("description", ""))
+
+        # Save/Remove Buttons
+        st.markdown('<div class="button-row">', unsafe_allow_html=True)
+        col_save ,col_remove= st.columns(2)
+        with col_remove:
+            if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", use_container_width=True):
+                remove_index_custom = i
+
+        with col_save:
+            if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", use_container_width=True):
+                if section_title and section_description:
+                    st.session_state.saved_custom_sections[i] = {
+                        "title": section_title,
+                        "description": section_description
+                    }
+                    st.success(f"✅ Custom Section {idx + 1} saved!")
+                else:
+                    st.error("Please fill in both the heading and description fields.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        custom_sections.append({
+            "title": section_title,
+            "description": section_description
+        })
+
+    # Remove section if needed
+    if remove_index_custom is not None:
+        st.session_state.custom_indices.remove(remove_index_custom)
+        st.rerun()
+
+    # Add more custom sections
+    col_add_custom = st.columns([1, 2, 1])
+    with col_add_custom[1]:
+        if st.button("+ Add Custom Section", key="add_custom", use_container_width=True):
+            new_idx = max(st.session_state.custom_indices) + 1 if st.session_state.custom_indices else 0
+            st.session_state.custom_indices.append(new_idx)
+            st.rerun()
+
+    st.markdown("---")
+
     
     # Submit Button
     st.markdown("<br>", unsafe_allow_html=True)
@@ -806,14 +882,23 @@ if input_method == "Manual Entry":
                             'experience': experience,
                             'phone':phone,
                             'email': email,
+                            'url':url,
+                            'location':location,
                             'professional_experience': filtered_experience,
                             'education': filtered_education,
                             'certificate': filtered_certificate,
-                            'project': filtered_project
+                            'project': filtered_project,
+                            'custom_sections': {
+                                c["title"]: c["description"]
+                                for c in custom_sections
+                                if c["title"] and c["description"]
+                            }
+     
                         }
 
                     st.session_state.resume_source = user_data
-                    st.success("Resume data saved successfully!")
+                    # st.success("Resume data saved successfully!")
+                    st.write(user_data)
 
                     if 'logged_in_user' in st.session_state:
                         st.session_state.input_method = "Manual Entry" 

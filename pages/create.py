@@ -1,11 +1,8 @@
 import streamlit as st
-from utils import  analyze_and_improve_resume,should_regenerate_resume,generate_enhanced_resume,save_and_improve,add_new_item,render_basic_details,render_skills_section,render_generic_section
-from streamlit_extras.switch_page_button import switch_page 
-
+from utils import analyze_and_improve_resume, should_regenerate_resume, generate_enhanced_resume, save_and_improve, add_new_item, render_basic_details, render_skills_section, render_generic_section
+from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
-
-
 
 if should_regenerate_resume():
     with st.spinner("Generating optimized resume..."):
@@ -13,107 +10,280 @@ if should_regenerate_resume():
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
-
 def apply_custom_css():
     """Applies improved dark theme with gradient accents."""
     st.markdown("""
     <style>
-    /* [Previous CSS remains the same until the item classes...] */
-                  /* Background */
+    [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+    #MainMenu, footer, header {visibility: hidden;}
+    
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    :root {
+        --primary-blue: #2563eb;
+        --primary-blue-hover: #1d4ed8;
+        --secondary-blue: #3b82f6;
+        --light-blue: #60a5fa;
+        --accent-blue: #1e40af;
+        --bg-dark: #0f172a;
+        --bg-card: #1e293b;
+        --bg-card-hover: #283447;
+        --text-white: #ffffff;
+        --text-gray: #94a3b8;
+        --text-light-gray: #cbd5e1;
+        --text-blue: #60a5fa;
+        --border-gray: #334155;
+        --border-light: #475569;
+        --success-green: #10b981;
+        --warning-yellow: #f59e0b;
+        --danger-red: #ef4444;
+    }
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
     .stApp {
-        background: var(--bg-dark);
+        background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f35 100%);
         min-height: 100vh;
         color: var(--text-white);
     }
-     [data-testid="stSidebarNav"] {
-            display: none !important;
-        }            
     
-    .stApp .stButton > button {
-    background: #0891b2 !important;
-    color: #ffffff !important;
-    border: none !important;
-    padding: 0.9rem 1.6rem !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 6px 18px rgba(0,191,255,0.28) !important;
-    transition: all 0.3s ease !important;
-}
-
-.stApp .stButton > button:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.05);
-}
-
-
-
-
-
-
-    /* --- Item Titles & Subtitles --- */
-    .resume-section .item-title {
-        font-size: 1.3rem !important;
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, var(--bg-card) 0%, #15202e 100%) !important;
+        border-right: 1px solid var(--border-gray);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label {
+        color: var(--text-white) !important;
+    }
+    
+    /* SIDEBAR BUTTONS */
+    [data-testid="stSidebar"] .stButton > button {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%) !important;
+        color: var(--text-white) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.85rem 1.3rem !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        width: 100% !important;
+        margin-bottom: 0.6rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
+        text-transform: none !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: linear-gradient(135deg, var(--primary-blue-hover) 0%, var(--accent-blue) 100%) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+    }
+    
+    [data-testid="stSidebar"] .stCheckbox {
+        color: var(--text-white) !important;
+        margin: 0.8rem 0 !important;
+    }
+    
+    [data-testid="stSidebar"] .stCheckbox label {
+        color: var(--text-white) !important;
+        font-weight: 500 !important;
+    }
+    
+    [data-testid="stSidebar"] hr {
+        border-color: var(--border-gray) !important;
+        opacity: 0.4;
+        margin: 1.5rem 0 !important;
+    }
+    
+    /* Sidebar Subheaders */
+    [data-testid="stSidebar"] .stMarkdown h3 {
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        color: var(--text-blue) !important;
+        margin-bottom: 1rem !important;
+        margin-top: 0.5rem !important;
+    }
+    
+    /* Main Content Area */
+    .main-content {
+        max-width: 950px;
+        margin: 0 auto;
+        padding: 2.5rem 2rem;
+    }
+    
+    /* Resume Section */
+    .resume-section {
+        background: linear-gradient(135deg, var(--bg-card) 0%, #1a2332 100%);
+        border: 1px solid var(--border-gray);
+        border-radius: 18px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .resume-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary-blue), var(--light-blue), var(--primary-blue));
+        background-size: 200% 100%;
+        animation: shimmer 3s infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    
+    .resume-section:hover {
+        border-color: var(--border-light);
+        box-shadow: 0 12px 32px rgba(37, 99, 235, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .resume-section h2 {
+        color: var(--text-white) !important;
+        font-size: 1.8rem !important;
         font-weight: 700 !important;
-        background: linear-gradient(45deg, #00BFFF, #00FF7F) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
+        margin-bottom: 1.5rem !important;
+        padding-bottom: 0.8rem !important;
+        border-bottom: 2px solid var(--border-gray) !important;
+        letter-spacing: 0.5px !important;
+    }
+    
+    .resume-section h3 {
+        color: var(--text-blue) !important;
+        font-size: 1.4rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 1rem !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    /* Custom Section Header Styling */
+    .custom-section-header {
+        color: var(--text-white) !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 1.2rem !important;
+        text-transform: capitalize !important;
+        letter-spacing: 0.5px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+    
+    .custom-section-header::before {
+        content: '📋';
+        font-size: 1.3rem;
+    }
+    
+    /* Item Titles & Subtitles */
+    .resume-section .item-title {
+        font-size: 1.35rem !important;
+        font-weight: 700 !important;
+        color: var(--light-blue) !important;
         margin-bottom: 0.5rem !important;
         display: block !important;
+        letter-spacing: 0.3px !important;
     }
 
     .resume-section .item-subtitle {
-        font-size: 1.1rem !important;
-        color: #00BFFF !important;
-        margin-bottom: 0.3rem !important;
+        font-size: 1.15rem !important;
+        color: var(--secondary-blue) !important;
+        margin-bottom: 0.4rem !important;
         font-weight: 500 !important;
         display: block !important;
     }
 
     .resume-section .item-details {
-        color: #AAAAAA !important;  /* Lighter gray for better visibility on dark bg */
-        margin-bottom: 0.5rem !important;
+        color: var(--text-gray) !important;
+        margin-bottom: 0.6rem !important;
         font-size: 0.95rem !important;
-        font-style: italic !important;  /* For dates */
+        font-style: italic !important;
     }
 
-    /* --- Bullet Lists (Fixed with explicit bullet styling) --- */
+    /* Bullet Lists */
     .resume-section .bullet-list {
         list-style-type: disc !important;
-        margin: 0.5rem 0 !important;
-        padding-left: 1.5rem !important;
-        color: #FFFFFF !important;
+        margin: 0.8rem 0 !important;
+        padding-left: 1.8rem !important;
+        color: var(--text-light-gray) !important;
     }
 
     .resume-section .bullet-list li {
-        color: #FFFFFF !important;
-        margin-bottom: 0.3rem !important;
-        line-height: 1.5 !important;
-        list-style-type: inherit !important;  /* Ensure bullets propagate */
+        color: var(--text-light-gray) !important;
+        margin-bottom: 0.5rem !important;
+        line-height: 1.7 !important;
+        list-style-type: disc !important;
     }
 
-    /* Also apply to skill lists for consistency */
+    /* Skill Lists */
     .resume-section .skill-list {
-        list-style-type: none !important;  /* No bullets for skills if preferred */
+        list-style-type: none !important;
         padding-left: 0 !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
     }
 
     .resume-section .skill-list li.skill-item {
-        display: inline-block !important;
-        background: rgba(0, 191, 255, 0.1) !important;
-        padding: 0.3rem 0.8rem !important;
-        margin: 0.2rem !important;
-        border-radius: 5px !important;
-        border: 1px solid rgba(0, 191, 255, 0.3) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
+        padding: 0.5rem 1rem !important;
+        margin: 0 !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(96, 165, 250, 0.3) !important;
+        color: var(--text-blue) !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .resume-section .skill-list li.skill-item:hover {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(59, 130, 246, 0.2) 100%) !important;
+        border-color: rgba(96, 165, 250, 0.5) !important;
+        transform: translateY(-2px);
+    }
+
+    /* Custom Section Content */
+    .custom-section-content {
+        background: rgba(15, 23, 42, 0.5) !important;
+        border: 1px solid var(--border-gray) !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        color: var(--text-light-gray) !important;
+        font-size: 1rem !important;
+        line-height: 1.8 !important;
+        white-space: pre-line !important;
     }
 
     /* Higher specificity for Streamlit containers */
     [data-testid="stHorizontalBlock"] .item-subtitle,
     div.element-container .item-subtitle,
     .stMarkdown .item-subtitle {
-        font-size: 1.1rem !important;
-        color: #00BFFF !important;
-        margin-bottom: 0.3rem !important;
+        font-size: 1.15rem !important;
+        color: var(--secondary-blue) !important;
+        margin-bottom: 0.4rem !important;
         font-weight: 500 !important;
     }
 
@@ -121,36 +291,149 @@ def apply_custom_css():
     div.element-container .bullet-list,
     .stMarkdown .bullet-list {
         list-style-type: disc !important;
-        padding-left: 1.5rem !important;
+        padding-left: 1.8rem !important;
     }
 
     [data-testid="stHorizontalBlock"] .bullet-list li,
     div.element-container .bullet-list li,
     .stMarkdown .bullet-list li {
-        color: #FFFFFF !important;
+        color: var(--text-light-gray) !important;
+        line-height: 1.7 !important;
     }
-
+    
+    /* Input Fields */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        background: var(--bg-dark) !important;
+        border: 2px solid var(--border-gray) !important;
+        border-radius: 12px !important;
+        color: var(--text-white) !important;
+        padding: 0.9rem !important;
+        font-size: 0.95rem !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: var(--primary-blue) !important;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15) !important;
+        outline: none !important;
+    }
+    
+    .stTextInput > label,
+    .stTextArea > label {
+        color: var(--text-blue) !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* Info/Warning/Error Messages */
+    .stAlert {
+        border-radius: 12px !important;
+        border-left: 4px solid var(--primary-blue) !important;
+        background: rgba(37, 99, 235, 0.1) !important;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: var(--bg-dark);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--border-gray);
+        border-radius: 5px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--border-light);
+    }
+    
+    /* Delete button styling */
+    .stButton > button[kind="secondary"] {
+        background: rgba(239, 68, 68, 0.1) !important;
+        color: var(--danger-red) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: var(--danger-red) !important;
+    }
     
     </style>
     """, unsafe_allow_html=True)
 
+def get_standard_keys():
+    """Return set of standard resume keys that should not be treated as custom sections."""
+    return {
+        "name", "email", "phone", "location", "url", "summary", "job_title",
+        "education", "experience", "skills", "projects", "certifications", 
+        "achievements", "total_experience_count"
+    }
 
+def save_custom_sections():
+    """Save custom section edits to session state."""
+    data = st.session_state['enhanced_resume']
+    standard_keys = get_standard_keys()
+    
+    # Update custom sections from session state (for edit mode)
+    for key in list(data.keys()):
+        if key not in standard_keys and isinstance(data.get(key), str):
+            edit_key = f"edit_custom_{key}"
+            if edit_key in st.session_state:
+                data[key] = st.session_state[edit_key].strip()
+    
+    # Ensure all custom sections are preserved in the data
+    st.session_state['enhanced_resume'] = data
 
 def generate_and_switch():
     """Performs final analysis and switches to download page."""
+    # Save any pending custom section edits
+    save_custom_sections()
+    
     data = st.session_state['enhanced_resume']
     
-   
-    finalized_data = analyze_and_improve_resume(data) 
+    # Extract custom sections before analysis
+    standard_keys = get_standard_keys()
+    custom_sections = {k: v for k, v in data.items() 
+                      if k not in standard_keys and isinstance(v, str)}
+    
+    # Perform analysis
+    finalized_data = analyze_and_improve_resume(data)
+    
+    # Re-add custom sections to finalized data
+    for key, value in custom_sections.items():
+        if key not in finalized_data:
+            finalized_data[key] = value
     
     st.session_state['final_resume_data'] = finalized_data
     switch_page("download")
 
-
+def flatten_custom_sections(data):
+    """
+    Converts nested custom_sections into top-level keys.
+    Example: {"custom_sections": {"Languages": "..."}} → {"Languages": "..."}
+    """
+    if 'custom_sections' in data and isinstance(data['custom_sections'], dict):
+        custom_sections = data.pop('custom_sections')
+        for key, value in custom_sections.items():
+            if key not in data:  # Don't overwrite existing keys
+                data[key] = value
+    return data
 
 def main():
     apply_custom_css()
     data = st.session_state['enhanced_resume']
+    
+    # Flatten custom_sections if they exist
+    data = flatten_custom_sections(data)
+    st.session_state['enhanced_resume'] = data
 
     st.sidebar.title("Resume Tools 🛠️")
     loading_placeholder = st.empty()
@@ -168,7 +451,7 @@ def main():
                     left: 0;
                     width: 100vw;
                     height: 100vh;
-                    background: rgba(10,10,10,0.95);
+                    background: rgba(15, 23, 42, 0.95);
                     backdrop-filter: blur(6px);
                     display: flex;
                     flex-direction: column;
@@ -181,8 +464,8 @@ def main():
                 }
 
                 .loader-spinner {
-                    border: 5px solid rgba(255,255,255,0.2);
-                    border-top: 5px solid #00b4d8;
+                    border: 5px solid rgba(96, 165, 250, 0.2);
+                    border-top: 5px solid #3b82f6;
                     border-radius: 50%;
                     width: 70px;
                     height: 70px;
@@ -203,11 +486,10 @@ def main():
             </style>
             """, unsafe_allow_html=True)
 
+        # Save custom sections before auto-improve
+        save_custom_sections()
         save_and_improve()
-
-    loading_placeholder.empty()
-
-  
+        loading_placeholder.empty()
         
     if st.sidebar.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
         loading_placeholder.markdown("""
@@ -222,7 +504,7 @@ def main():
                     left: 0;
                     width: 100vw;
                     height: 100vh;
-                    background: rgba(10,10,10,0.95);
+                    background: rgba(15, 23, 42, 0.95);
                     backdrop-filter: blur(6px);
                     display: flex;
                     flex-direction: column;
@@ -235,8 +517,8 @@ def main():
                 }
 
                 .loader-spinner {
-                    border: 5px solid rgba(255,255,255,0.2);
-                    border-top: 5px solid #00b4d8;
+                    border: 5px solid rgba(96, 165, 250, 0.2);
+                    border-top: 5px solid #3b82f6;
                     border-radius: 50%;
                     width: 70px;
                     height: 70px;
@@ -258,8 +540,6 @@ def main():
             """, unsafe_allow_html=True)
 
         generate_and_switch()
-
-  
         loading_placeholder.empty()
 
     st.sidebar.markdown("---")
@@ -272,59 +552,63 @@ def main():
         st.sidebar.markdown("---")
         st.sidebar.subheader("➕ Add New Section Items")
         st.sidebar.button(
-            "Add New Experience", 
-            on_click=add_new_item, 
+            "Add New Experience",
+            on_click=add_new_item,
             args=('experience', {
-                "position": "New Job Title",  
-                "company": "New Company", 
-                "start_date": "2025-01-01",  
+                "position": "New Job Title",
+                "company": "New Company",
+                "start_date": "2025-01-01",
                 "end_date": "2025-12-31",
                 "description": ["New responsibility 1."]
             })
         )
         st.sidebar.button(
-            "Add New Education", 
-            on_click=add_new_item, 
+            "Add New Education",
+            on_click=add_new_item,
             args=('education', {
-                "institution": "New University", 
-                "degree": "New Degree", 
+                "institution": "New University",
+                "degree": "New Degree",
                 "start_date": "2025-01-01",
                 "end_date": "2025-12-31"
             })
         )
         st.sidebar.button(
-            "Add New Certification", 
-            on_click=add_new_item, 
+            "Add New Certification",
+            on_click=add_new_item,
             args=('certifications', {
-                "name": "New Certification Name", 
+                "name": "New Certification Name",
                 "issuer": "Issuing Body",
                 "completed_date": "2025-01-01"
             })
         )
         st.sidebar.button(
-            "Add New Project", 
-            on_click=add_new_item, 
+            "Add New Project",
+            on_click=add_new_item,
             args=('projects', {
-                "name": "New Project Title", 
+                "name": "New Project Title",
                 "description": ["Project detail"]
             })
         )
 
         st.sidebar.markdown("---")
-        st.sidebar.subheader("Custom Section Management")
-        new_section_key = st.sidebar.text_input("Add a New Section Key (e.g., 'awards')")
-        if st.sidebar.button("Add Custom List Section"):
-            if new_section_key and new_section_key.lower() not in data:
-                data[new_section_key.lower()] = []
-                st.rerun()
-            elif not new_section_key:
-                st.sidebar.error("Please enter a section name")
+        st.sidebar.subheader("📝 Custom Section Management")
+        new_section_key = st.sidebar.text_input("Add a New Section (e.g., 'Languages', 'Licenses')")
+        if st.sidebar.button("➕ Add Custom Section", use_container_width=True):
+            if new_section_key and new_section_key.strip():
+                clean_key = new_section_key.strip()
+                
+                if clean_key not in data:
+                    data[clean_key] = "Enter your content here..."
+                    st.session_state['enhanced_resume'] = data
+                    st.sidebar.success(f"✅ Added '{clean_key}' section!")
+                    st.rerun()
+                else:
+                    st.sidebar.warning(f"⚠️ Section '{clean_key}' already exists")
             else:
-                st.sidebar.warning(f"Section '{new_section_key}' already exists")
+                st.sidebar.error("❌ Please enter a section name")
 
     st.sidebar.markdown("---")
-    if st.sidebar.button("🔄 Regenerate from Source"):
-
+    if st.sidebar.button("🔄 Regenerate from Source", use_container_width=True):
         if 'enhanced_resume' in st.session_state:
             del st.session_state['enhanced_resume']
         if 'last_resume_hash' in st.session_state:
@@ -335,10 +619,14 @@ def main():
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
-   
+    # Render basic details
     render_basic_details(data, is_edit=is_edit_mode)
 
+    # Track rendered keys to avoid duplicates
     rendered_keys = set()
+    standard_keys = get_standard_keys()
+    
+    # Render standard sections in order
     for key in RESUME_ORDER:
         if key in data and data[key]:
             rendered_keys.add(key)
@@ -347,10 +635,46 @@ def main():
             else:
                 render_generic_section(key, data[key], is_edit=is_edit_mode)
 
+    # Render other list-type sections that aren't in the standard order
     for key, value in data.items():
-        if key not in rendered_keys and key not in ["name", "email", "phone", "location", "summary", "job_title"]:
-            if isinstance(value, list):
+        if key not in rendered_keys and key not in standard_keys:
+            if isinstance(value, list) and value:
+                rendered_keys.add(key)
                 render_generic_section(key, value, is_edit=is_edit_mode)
+
+    # Render Custom Text Sections (Languages, Licenses, etc.) - These are top-level string keys
+    for key, value in data.items():
+        if key not in rendered_keys and key not in standard_keys and isinstance(value, str):
+            st.markdown(f"<div class='resume-section'>", unsafe_allow_html=True)
+            st.markdown(f"<h3 class='custom-section-header'>{key}</h3>", unsafe_allow_html=True)
+
+            if is_edit_mode:
+                # Editable text area for custom section
+                new_val = st.text_area(
+                    f"Edit {key}",
+                    value=value.strip(),
+                    key=f"edit_custom_{key}",
+                    height=200,
+                    help="Edit your custom section content here"
+                )
+
+                # Real-time update
+                data[key] = new_val.strip()
+                st.session_state['enhanced_resume'] = data
+                
+                # Delete button for custom sections
+                if st.button(f"🗑️ Delete '{key}' Section", key=f"delete_{key}", type="secondary"):
+                    del data[key]
+                    st.session_state['enhanced_resume'] = data
+                    st.rerun()
+            else:
+                # Display static view mode with improved styling
+                st.markdown(
+                    f"<div class='custom-section-content'>{value.strip()}</div>",
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 

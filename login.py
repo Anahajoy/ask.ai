@@ -3,7 +3,10 @@ from pathlib import Path
 import json
 import re
 import time 
-
+from utils import image_to_base64
+from PIL import Image
+import base64
+from io import BytesIO
 
 st.set_page_config(page_title="Login Page", layout="wide", initial_sidebar_state="collapsed")
 
@@ -54,6 +57,12 @@ def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
+def image_to_base64_local(image):
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return img_str
+
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -61,6 +70,12 @@ st.markdown("""
     /* Hide Streamlit default elements */
     #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
     [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+    
+    /* Remove scrollbar */
+    html, body, [data-testid="stAppViewContainer"], .main {
+        overflow: hidden !important;
+        height: 100vh !important;
+    }
     
     /* Full-screen background with modern workspace image */
     .stApp {
@@ -85,34 +100,53 @@ st.markdown("""
     
     /* Remove default padding */
     .main .block-container {
-        padding: 0;
-        margin: 0;
-        max-width: 100vw;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100vw !important;
         position: relative;
         z-index: 1;
+        overflow: hidden !important;
     }
     
     /* Center container */
     .main-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 2rem;
-        box-sizing: border-box;
+        width: 100%;
+        max-width: 500px;
+        padding: 1rem;
     }
     
-    /* Modern glassmorphism card */
+    /* Logo container - minimal spacing */
+    .logo-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 0.8rem;
+        width: 100%;
+    }
+    
+    .logo-wrapper img {
+        display: block;
+        max-width: 400px;
+        width: 100%;
+        height: auto;
+        max-height: 100px;
+        object-fit: contain;
+    }
+    
+    /* Modern glassmorphism card - reduced padding */
     .stContainer {
         max-width: 450px;
         width: 100%;
         background: rgba(255, 255, 255, 0.08);
-        padding: 48px 40px;
+        padding: 24px 32px;
         border-radius: 24px;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4),
                     0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -132,52 +166,42 @@ st.markdown("""
         }
     }
     
-    /* Logo styling */
-    .logo {
-        font-size: 2.5rem;
-        font-weight: 800;
-        margin-bottom: 0.5rem;
-        text-align: center;
-        color: #ffffff;
-        letter-spacing: -0.5px;
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-    
     .subtitle {
         text-align: center;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.9);
         font-size: 0.95rem;
-         margin-bottom: 0.1rem;   
+        margin-bottom: 0.8rem;
+        margin-top: 0;
         font-weight: 400;
         letter-spacing: 0.3px;
     }
     
-    /* Clean input fields */
-/* Clean input fields */
-.stTextInput > div > div > input {
-    background: rgba(255, 255, 255, 0.85);  /* lighter for black text */
-    color: #000000 !important;              /* black text */
-    border: 1.5px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 14px 18px;
-    font-size: 0.95rem;
-    font-weight: 400;
-    transition: all 0.3s ease;
-    font-family: 'Inter', sans-serif;
-}
+    /* Clean input fields - minimal spacing */
+    .stTextInput > div > div > input {
+        background: rgba(255, 255, 255, 0.85);
+        color: #000000 !important;
+        border: 1.5px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        font-weight: 400;
+        transition: all 0.3s ease;
+        font-family: 'Inter', sans-serif;
+    }
 
-.stTextInput > div > div > input:focus {
-    background: #ffffff; /* pure white focus */
-    border-color: rgba(8, 145, 178, 0.6);
-    box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
-    outline: none;
-}
+    .stTextInput > div > div > input:focus {
+        background: #ffffff;
+        border-color: rgba(8, 145, 178, 0.6);
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+        outline: none;
+    }
 
-.stTextInput > div > div > input::placeholder {
-    color: rgba(0, 0, 0, 0.45); /* dark placeholder */
-    font-weight: 300;
-}
-
+    .stTextInput > div > div > input::placeholder {
+        color: rgba(0, 0, 0, 0.45);
+        font-weight: 300;
+    }
+    
+    
     
     /* Solid color button - peacock blue */
     .stButton > button {
@@ -185,11 +209,11 @@ st.markdown("""
         color: #ffffff;
         border: none;
         border-radius: 12px;
-        padding: 14px 24px;
+        padding: 10px 24px;
         font-size: 1rem;
         font-weight: 600;
         width: 100%;
-        margin-top: 1.5rem;
+        margin-top: 0.8rem;
         cursor: pointer;
         transition: all 0.3s ease;
         box-shadow: 0 4px 14px 0 rgba(8, 145, 178, 0.35);
@@ -213,10 +237,10 @@ st.markdown("""
         border: none !important;
         color: rgba(255, 255, 255, 0.8) !important;
         font-size: 0.9rem !important;
-        padding: 8px 0 !important;
+        padding: 6px 0 !important;
         box-shadow: none !important;
         text-decoration: none; 
-        margin-top: 0;
+        margin-top: 0.4rem;
         font-weight: 500;
         letter-spacing: 0.3px;
         text-transform: uppercase;
@@ -231,17 +255,20 @@ st.markdown("""
     [data-testid="stHorizontalBlock"] > div > div:nth-child(2) > p {
         color: rgba(255, 255, 255, 0.25) !important;
         text-align: center; 
-        margin-top: 0.5rem !important;
+        margin-top: 0.4rem !important;
         font-size: 1rem;
     }
     
-    /* Alert styling */
+    /* Alert styling - minimal spacing */
     .stAlert {
         background: rgba(255, 255, 255, 0.1);
         backdrop-filter: blur(10px);
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.15);
         color: #ffffff;
+        margin-top: 0.4rem;
+        margin-bottom: 0.4rem;
+        padding: 0.6rem;
     }
     
     /* Input label visibility fix */
@@ -251,81 +278,97 @@ st.markdown("""
         margin: 0;
         padding: 0;
     }
-            
 
-/* Target the column that contains all form elements */
-div[data-testid="column"]:has(.form-wrapper) {
-    position: relative;
-    width: 120%;                     /* Increased width */
-    max-width: 550px;               /* Increased max-width */
-    margin-left: auto;
-    margin-right: auto;
-}
+    /* Target the column that contains all form elements */
+    div[data-testid="column"]:has(.form-wrapper) {
+        position: relative;
+        width: 100%;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
 
-/* Create background using ::before pseudo-element */
-div[data-testid="column"]:has(.form-wrapper)::before {
-    content: '';
-    position: absolute;
-    top: 30px;                      /* Reduced from 100px to start closer */
-    left: -25px;                    /* Extended left */
-    right: -25px;                   /* Extended right */
-    bottom: -20px;
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.50) 0%,
-    rgba(255, 255, 255, 0.35) 35%,
-    rgba(8, 145, 178, 0.10) 65%,
-    rgba(255, 255, 255, 0.30) 100%
-);
+    /* Create background using ::before pseudo-element */
+    div[data-testid="column"]:has(.form-wrapper)::before {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: -20px;
+        right: -20px;
+        bottom: -10px;
+        background: linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.50) 0%,
+            rgba(255, 255, 255, 0.35) 35%,
+            rgba(8, 145, 178, 0.10) 65%,
+            rgba(255, 255, 255, 0.30) 100%
+        );
+        backdrop-filter: blur(40px) saturate(150%) contrast(120%);
+        -webkit-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
+        border-radius: 22px;
+        box-shadow:
+            0 25px 80px rgba(0, 0, 0, 0.1),
+            inset 0 2px 1px rgba(255, 255, 255, 0.7),
+            inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        z-index: 0;
+        pointer-events: none;
+    }
 
-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
--webkit-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
-border-radius: 22px;
-box-shadow:
-    0 25px 80px rgba(0, 0, 0, 0.1),
-    inset 0 2px 1px rgba(255, 255, 255, 0.7),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.3);
-border: 1px solid rgba(255, 255, 255, 0.6);
-    z-index: 0;
-    pointer-events: none;
-}
+    /* Ensure form elements are above the background */
+    div[data-testid="column"]:has(.form-wrapper) > div {
+        position: relative;
+        z-index: 1;
+    }
 
-/* Ensure form elements are above the background */
-div[data-testid="column"]:has(.form-wrapper) > div {
-    position: relative;
-    z-index: 1;
-}
+    /* Remove the form-wrapper styles since we're using ::before */
+    .form-wrapper {
+        display: contents;
+    }
 
-/* Remove the form-wrapper styles since we're using ::before */
-.form-wrapper {
-    display: contents;
-}
+    /* Minimal spacing between inputs */
+    .stTextInput {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* First input spacing */
+    .stTextInput:first-of-type {
+        margin-top: 0rem;
+    }
 
-/* Adjust padding for form area - reduced top margin */
-.stTextInput:first-of-type {
-    margin-top: 0.8rem;             /* Reduced from 1.5rem */
-}
-
-/* Reduce spacing between inputs */
-.stTextInput {
-    margin-bottom: 0.8rem;          /* Reduced spacing between inputs */
-}
-
-/* Reduce button top margin */
-.stButton > button {
-    margin-top: 1rem;               /* Reduced from 1.5rem */
-}
+    /* Reduce button top margin */
+    .stButton > button {
+        margin-top: 0.6rem;
+    }
+    
+    /* Links container spacing */
+    [data-testid="stHorizontalBlock"] {
+        margin-top: 0.6rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Main container
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
-st.markdown('<div class="logo">RESUME.AI</div>', unsafe_allow_html=True)
+
+# Load and display logo
+try:
+    logo = Image.open("image/11.png")
+    st.markdown(
+        f"""
+        <div class="logo-wrapper">
+            <img src="data:image/png;base64,{image_to_base64_local(logo)}" alt="Logo">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+except Exception as e:
+    st.error(f"Logo could not be loaded: {e}")
+
 with st.container(border=False):
-    col1, col2, col3 = st.columns([1, 2, 1]) 
+    col1, col2, col3 = st.columns([0.5, 2, 0.5]) 
     
     with col2:
-        
         subtitle_text = "Create your account to get started" if st.session_state.mode == 'register' else "Welcome back! Please login to continue"
         st.markdown(f'<div class="subtitle">{subtitle_text}</div>', unsafe_allow_html=True)
 
@@ -334,11 +377,9 @@ with st.container(border=False):
         if st.session_state.mode == 'register':
             name = st.text_input("Full Name", placeholder="Enter your full name", label_visibility="collapsed", key="full_name")
 
-  
         email = st.text_input("Email", placeholder="Enter your email address", label_visibility="collapsed", key="email")
         password = st.text_input("Password", placeholder="Enter your password", type="password", label_visibility="collapsed", key="password")
         
-     
         button_text = "Sign-Up" if st.session_state.mode == 'register' else "Sign-In"
         
         if st.button(button_text, key="main_action_btn"):
@@ -362,7 +403,6 @@ with st.container(border=False):
                         if user_entry is None or stored_pw != password:
                             st.error("Invalid email or password")
                         else:
-
                             st.session_state.logged_in_user = email
                             st.session_state.username = stored_name or email.split('@')[0]
 
@@ -379,7 +419,6 @@ with st.container(border=False):
                                 time.sleep(1)
                                 st.switch_page("pages/main.py")
                     else:
- 
                         if email in users:
                             st.error("Email already registered. Please login.")
                             st.session_state.mode = 'login'
@@ -400,7 +439,6 @@ with st.container(border=False):
                             st.switch_page("pages/main.py")
             else:
                 st.warning("Please enter both email and password")
-            
 
         col_link1, col_sep, col_link2 = st.columns([1, 0.1, 1])
         
@@ -411,10 +449,11 @@ with st.container(border=False):
                 st.rerun()
         
         with col_sep:
-            st.markdown('<p style="color: rgba(255, 255, 255, 0.25); text-align: center; margin-top: 0.5rem; font-size: 1rem;">|</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color: rgba(255, 255, 255, 0.25); text-align: center; margin-top: 0.4rem; font-size: 1rem;">|</p>', unsafe_allow_html=True)
         
         with col_link2:
             if st.button("Need Help?", key="help_link", use_container_width=False):
                 st.info("Please contact support at support@ask.ai")
         st.markdown('</div>', unsafe_allow_html=True)
+
 st.markdown('</div>', unsafe_allow_html=True)

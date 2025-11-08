@@ -72,7 +72,7 @@ button[kind="header"] {display: none;}
 
 /* Background & Layout */
 .stApp {
-    background: var(--bg-dark);
+    background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
     min-height: 100vh;
     color: var(--text-white);
 }
@@ -110,6 +110,7 @@ button[kind="header"] {display: none;}
     color: var(--text-gray);
     font-size: 1rem;
     margin: 0;
+    justify-content: center;
 }
 
 /* Titles */
@@ -258,8 +259,28 @@ div[data-testid="column"]:only-child .stButton > button:hover {
             
 
 
-/* Remove buttons (in left column of 2-column layout) - RED */
+/* Remove buttons (in left column of 2-column layout) - GREEN */
 div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
+    background:  #38bdf8 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.9rem 1.6rem !important;
+    font-weight: 700 !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 6px 18px rgba(0, 168, 107, 0.28) !important;
+    
+}
+
+div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
+    background:#4895ef  !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 168, 107, 0.4) !important;
+   
+}
+
+/* Save buttons (in right column of 2-column layout) - RED */
+div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
     background: #fb7185 !important;
     color: white !important;
     border: none !important;
@@ -270,28 +291,10 @@ div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
     box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28) !important;
 }
 
-div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
+div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
     background: #dc2626 !important;
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4) !important;
-}
-
-/* Save buttons (in right column of 2-column layout) - GREEN */
-div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
-    background: #38bdf8 !important;
-    color: white !important;
-    border: none !important;
-    padding: 0.9rem 1.6rem !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 6px 18px rgba(0, 168, 107, 0.28) !important;
-}
-
-div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
-    background:#4895ef !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 168, 107, 0.4) !important;
 }
 
 /* Button Container for Remove and Save */
@@ -332,13 +335,11 @@ div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
     border: 3px dashed var(--peacock-blue);
     border-radius: 20px;
     padding: 4rem 3rem;
-    box-shadow: 0 8px 30px rgba(8, 145, 178, 0.2);
     transition: all 0.3s ease;
 }
 
 .stFileUploader:hover {
     border-color: var(--peacock-blue-light);
-    box-shadow: 0 12px 40px rgba(8, 145, 178, 0.3);
 }
 
 .stFileUploader label {
@@ -403,11 +404,15 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="header-container">', unsafe_allow_html=True)
+# st.markdown('<div class="header-container">', unsafe_allow_html=True)
 col1, col2 = st.columns([5, 1])
 with col1:
-    st.title("Create Your Resume ✍️")
-    st.markdown(f'<p class="welcome-text">Welcome back, <strong>{st.session_state.get("username", "User")}</strong>! Let\'s build your professional resume.</p>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 1rem; padding-right: 100px;">
+        <h1 style="margin-bottom: 0.5rem;">👤 Add Basic Information </h1>
+        <p class="welcome-text" style="text-align: center;">Welcome back, <strong>{}</strong>! Let's add your basic information.</p>
+    </div>
+""".format(st.session_state.get("username", "User")), unsafe_allow_html=True)
 with col2:
     st.markdown('<br>', unsafe_allow_html=True) 
     if st.button("Logout", key="log-outbtn"):
@@ -415,7 +420,7 @@ with col2:
 st.markdown('</div>', unsafe_allow_html=True)
 
 
-st.markdown('<h2><span class="section-number">1</span>Choose Input Method</h2>', unsafe_allow_html=True)
+st.markdown('<h2>Choose Input Method</h2>', unsafe_allow_html=True)
 input_method = st.radio(
     "How would you like to provide your information?",
     ["Manual Entry", "Upload Resume"],
@@ -442,7 +447,7 @@ if input_method == "Manual Entry":
     
     # Personal Information
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h2><span class="section-number">2</span>Personal Information</h2>', unsafe_allow_html=True)
+    st.markdown('<h2><span class="section-number">1</span>Personal Information</h2>', unsafe_allow_html=True)
     
     st.markdown('<div class="experience-card">', unsafe_allow_html=True)
     st.markdown(f'<p class="card-badge">BASIC DETAILS</p>', unsafe_allow_html=True)
@@ -493,7 +498,7 @@ if input_method == "Manual Entry":
     st.markdown("---")
     
     # Professional Experience
-    st.markdown('<h2><span class="section-number">3</span>Professional Experience</h2>', unsafe_allow_html=True)
+    st.markdown('<h2><span class="section-number">2</span>Professional Experience</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.exp_indices):
         st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
@@ -535,7 +540,7 @@ if input_method == "Manual Entry":
                     st.markdown('<p class="date-error">⚠️ Use MM/YYYY format</p>', unsafe_allow_html=True)
         
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        col_remove, col_save = st.columns(2)
+        col_save,col_remove = st.columns(2)
         
         with col_remove:
             if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", use_container_width=True):
@@ -579,7 +584,7 @@ if input_method == "Manual Entry":
     st.markdown("---")
 
     # Education
-    st.markdown('<h2><span class="section-number">4</span>Education</h2>', unsafe_allow_html=True)
+    st.markdown('<h2><span class="section-number">3</span>Education</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.edu_indices):
         st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
@@ -614,7 +619,7 @@ if input_method == "Manual Entry":
         
      
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        col_remove, col_save = st.columns(2)
+        col_save,col_remove  = st.columns(2)
         
         with col_remove:
             if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", use_container_width=True):
@@ -657,7 +662,7 @@ if input_method == "Manual Entry":
     st.markdown("---")
     
     # Certifications
-    st.markdown('<h2><span class="section-number">5</span>Certifications</h2>', unsafe_allow_html=True)
+    st.markdown('<h2><span class="section-number">4</span>Certifications</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.cert_indices):
         st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
@@ -677,7 +682,7 @@ if input_method == "Manual Entry":
                                      value=saved_cert.get("completed_date", ""))
      
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        col_remove, col_save = st.columns(2)
+        col_save,col_remove = st.columns(2)
         
         with col_remove:
             if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", use_container_width=True):
@@ -718,7 +723,7 @@ if input_method == "Manual Entry":
     st.markdown("---")
 
     # Projects
-    st.markdown('<h2><span class="section-number">6</span>Projects</h2>', unsafe_allow_html=True)
+    st.markdown('<h2><span class="section-number">5</span>Projects</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.project_indices):
         st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
@@ -737,7 +742,7 @@ if input_method == "Manual Entry":
                                      value=saved_proj.get("decription", ""))
      
         st.markdown('<div class="button-row">', unsafe_allow_html=True)
-        col_remove, col_save = st.columns(2)
+        col_save,col_remove = st.columns(2)
         
         with col_remove:
             if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", use_container_width=True):
@@ -781,7 +786,8 @@ if input_method == "Manual Entry":
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Generate Resume", key="man-btn", use_container_width=True):
+        if st.button("Continue", key="man-btn", use_container_width=True):
+            st.balloons()
             if not is_valid_email(email):
                 st.error("Please enter a valid email address")
             elif not is_valid_phone(phone):
@@ -824,7 +830,7 @@ if input_method == "Manual Entry":
 # Upload Resume Section
 else:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h2><span class="section-number">2</span>Upload Your Resume</h2>', unsafe_allow_html=True)
+    st.markdown('<h2>Upload Your Resume</h2>', unsafe_allow_html=True)
     
     uploaded_file = st.file_uploader(
         "Drop your PDF or DOCX resume here or click to browse",
@@ -852,6 +858,8 @@ else:
                 if extracted_text:
                     if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
                         st.error("⚠️ Session expired. Please login again.")
+                        
+                        st.switch_page("login.py")
                     
                     with st.spinner("Analyzing your resume and parsing details..."):
                         try:

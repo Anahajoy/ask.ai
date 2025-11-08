@@ -66,7 +66,7 @@ st.markdown("""
     .stApp {
         height: 100vh;
         overflow: hidden;
-        background: url('https://plus.unsplash.com/premium_photo-1673127326756-d065bce2f85e?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=396') center/cover fixed no-repeat;
+        background: url('https://plus.unsplash.com/premium_photo-1666820202651-314501c88358?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover fixed no-repeat;
         font-family: 'Inter', sans-serif;
         position: relative;
     }

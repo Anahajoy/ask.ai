@@ -1,12 +1,7 @@
 import streamlit as st
-from pathlib import Path
-import json
-import re
 import time 
 from utils import load_users,save_users,is_valid_email,get_user_resume,image_to_base64_local
 from PIL import Image
-import base64
-from io import BytesIO
 
 st.set_page_config(page_title="Login Page", layout="wide", initial_sidebar_state="collapsed")
 
@@ -300,10 +295,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Main container
+
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-# Load and display logo
+
 try:
     logo = Image.open("image/11.png")
     st.markdown(

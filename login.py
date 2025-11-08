@@ -201,8 +201,6 @@ st.markdown("""
         font-weight: 300;
     }
     
-    
-    
     /* Solid color button - peacock blue */
     .stButton > button {
         background: #0891b2;

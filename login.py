@@ -66,7 +66,7 @@ st.markdown("""
     .stApp {
         height: 100vh;
         overflow: hidden;
-        background: url('https://images.unsplash.com/photo-1464852045489-bccb7d17fe39?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=435') center/cover fixed no-repeat;
+        background: url('https://plus.unsplash.com/premium_photo-1673127326756-d065bce2f85e?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=396') center/cover fixed no-repeat;
         font-family: 'Inter', sans-serif;
         position: relative;
     }
@@ -79,7 +79,7 @@ st.markdown("""
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.88) 100%);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.21) 0%, rgba(30, 41, 59, 0.88) 100%);
         z-index: 0;
     }
     
@@ -147,7 +147,7 @@ st.markdown("""
         text-align: center;
         color: rgba(255, 255, 255, 0.7);
         font-size: 0.95rem;
-        margin-bottom: 2.5rem;
+         margin-bottom: 0.1rem;   
         font-weight: 400;
         letter-spacing: 0.3px;
     }
@@ -251,22 +251,85 @@ st.markdown("""
         margin: 0;
         padding: 0;
     }
+            
+
+/* Target the column that contains all form elements */
+div[data-testid="column"]:has(.form-wrapper) {
+    position: relative;
+    width: 120%;                     /* Increased width */
+    max-width: 550px;               /* Increased max-width */
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Create background using ::before pseudo-element */
+div[data-testid="column"]:has(.form-wrapper)::before {
+    content: '';
+    position: absolute;
+    top: 30px;                      /* Reduced from 100px to start closer */
+    left: -25px;                    /* Extended left */
+    right: -25px;                   /* Extended right */
+    bottom: -20px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.50) 0%,
+    rgba(255, 255, 255, 0.35) 35%,
+    rgba(8, 145, 178, 0.10) 65%,
+    rgba(255, 255, 255, 0.30) 100%
+);
+
+backdrop-filter: blur(40px) saturate(150%) contrast(120%);
+-webkit-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
+border-radius: 22px;
+box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.1),
+    inset 0 2px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+border: 1px solid rgba(255, 255, 255, 0.6);
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Ensure form elements are above the background */
+div[data-testid="column"]:has(.form-wrapper) > div {
+    position: relative;
+    z-index: 1;
+}
+
+/* Remove the form-wrapper styles since we're using ::before */
+.form-wrapper {
+    display: contents;
+}
+
+/* Adjust padding for form area - reduced top margin */
+.stTextInput:first-of-type {
+    margin-top: 0.8rem;             /* Reduced from 1.5rem */
+}
+
+/* Reduce spacing between inputs */
+.stTextInput {
+    margin-bottom: 0.8rem;          /* Reduced spacing between inputs */
+}
+
+/* Reduce button top margin */
+.stButton > button {
+    margin-top: 1rem;               /* Reduced from 1.5rem */
+}
 </style>
 """, unsafe_allow_html=True)
 
 # Main container
 st.markdown('<div class="main-container">', unsafe_allow_html=True)
-
+st.markdown('<div class="logo">RESUME.AI</div>', unsafe_allow_html=True)
 with st.container(border=False):
     col1, col2, col3 = st.columns([1, 2, 1]) 
-
+    
     with col2:
- 
-        st.markdown('<div class="logo">RESUME.AI</div>', unsafe_allow_html=True)
+        
         subtitle_text = "Create your account to get started" if st.session_state.mode == 'register' else "Welcome back! Please login to continue"
         st.markdown(f'<div class="subtitle">{subtitle_text}</div>', unsafe_allow_html=True)
 
-
+        st.markdown('<div class="form-wrapper">', unsafe_allow_html=True)
         name = ""
         if st.session_state.mode == 'register':
             name = st.text_input("Full Name", placeholder="Enter your full name", label_visibility="collapsed", key="full_name")
@@ -337,7 +400,7 @@ with st.container(border=False):
                             st.switch_page("pages/main.py")
             else:
                 st.warning("Please enter both email and password")
-        
+            
 
         col_link1, col_sep, col_link2 = st.columns([1, 0.1, 1])
         
@@ -353,5 +416,5 @@ with st.container(border=False):
         with col_link2:
             if st.button("Need Help?", key="help_link", use_container_width=False):
                 st.info("Please contact support at support@ask.ai")
-
+        st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)

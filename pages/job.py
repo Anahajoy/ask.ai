@@ -11,10 +11,11 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
     :root {
-        --accent-gradient: -webkit-linear-gradient(45deg, #00BFFF, #00FF7F);
-        --accent-solid1: #00BFFF;
-        --accent-solid2: #00FF7F;
-
+        --peacock-blue: #0891b2;
+        --peacock-blue-dark: #0e7490;
+        --peacock-blue-light: #06b6d4;
+        --peacock-shadow: rgba(8, 145, 178, 0.3);
+        
         --bg-dark: #0a0a0a;
         --bg-darker: #121212;
         --bg-gray: #1a1a1a;
@@ -45,7 +46,7 @@ st.markdown("""
 
     /* Header */
     .header-section {
-        background: #0891b2;
+        background: var(--peacock-blue);
         border-radius: 16px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
@@ -63,20 +64,22 @@ st.markdown("""
         left: 0;
         right: 0;
         height: 4px;
-        background: var(--accent-gradient);
+        background: linear-gradient(90deg, var(--peacock-blue-light), var(--peacock-blue-dark));
     }
 
     h2 {
-        color: var(--accent-solid1) !important;
+        color: var(--text-white) !important;
         font-weight: 700 !important;
         font-size: 2rem !important;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 1rem;
+        text-align: center;
     }
 
     .step-badge {
-        background: #0891b2;
+        background: rgba(255, 255, 255, 0.2);
         color: var(--text-white);
         width: 48px;
         height: 48px;
@@ -85,14 +88,14 @@ st.markdown("""
         line-height: 48px;
         font-weight: 700;
         font-size: 1.3rem;
-        box-shadow: 0 4px 12px rgba(0, 191, 255, 0.3);
+        box-shadow: 0 4px 12px var(--peacock-shadow);
     }
 
     /* Returning user alert */
     .returning-user-alert {
         background: linear-gradient(135deg, #1b1b1b, #222222);
         border: 1px solid #444444;
-        border-left: 4px solid var(--accent-solid1);
+        border-left: 4px solid var(--peacock-blue);
         border-radius: 12px;
         padding: 1.5rem 2rem;
         margin-bottom: 2rem;
@@ -117,12 +120,12 @@ st.markdown("""
         font-size: 0.95rem !important;
     }
 
-    /* Buttons */
+    /* Main Buttons */
     .stApp .stButton > button {
-        background: #0891b2 ;
+        background: var(--peacock-blue) !important;
         color: var(--text-white) !important;
         border: none !important;
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 6px 18px var(--peacock-shadow) !important;
         padding: 0.75rem 1.5rem !important;
         font-weight: 600 !important;
         border-radius: 10px !important;
@@ -132,43 +135,70 @@ st.markdown("""
     }
 
     .stApp .stButton > button:hover {
+        background: var(--peacock-blue-dark) !important;
         transform: translateY(-2px);
-        box-shadow: var(--shadow-lg);
-        opacity: 0.9;
+        box-shadow: 0 8px 24px var(--peacock-shadow) !important;
     }
 
-    /* Special buttons */
+    /* Start New Resume Button - Red/Dark variant */
     .stApp .stButton > button[key="add-new-resume-btn"] {
-        background: #780000 !important;
-        color: var(--accent-solid1) !important;
-        border: 2px solid var(--accent-solid1) !important;
+        background: #dc2626 !important;
+        color: var(--text-white) !important;
+        border: 2px solid #ef4444 !important;
+        box-shadow: 0 6px 18px rgba(220, 38, 38, 0.3) !important;
     }
 
     .stApp .stButton > button[key="add-new-resume-btn"]:hover {
-        background: #222222 !important;
+        background: #b91c1c !important;
+        border-color: #dc2626 !important;
+        box-shadow: 0 8px 24px rgba(220, 38, 38, 0.4) !important;
     }
 
-    /* File Uploader */
+    /* File Uploader Container */
     .stFileUploader {
         background: var(--bg-gray);
-        border: 2px dashed var(--border-gray);
-        border-radius: 12px;
-        padding: 2.5rem;
-        transition: 0.3s ease;
+        border: 3px dashed var(--peacock-blue);
+        border-radius: 16px;
+        padding: 3rem 2.5rem;
+        transition: all 0.3s ease;
         color: var(--text-white);
+        box-shadow: none;
     }
 
     .stFileUploader:hover {
-        border-color: var(--accent-solid1);
-        box-shadow: var(--shadow-md);
+        border-color: var(--peacock-blue-light);
+        box-shadow: none;
+        background: rgba(8, 145, 178, 0.05);
     }
 
-    .stFileUploader section button {
-        background: var(--accent-gradient) !important;
+    /* File Uploader Label */
+    .stFileUploader label {
         color: var(--text-white) !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1.2rem !important;
-        font-weight: 600;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+    }
+
+    /* File Uploader Browse Button */
+    .stFileUploader section button {
+        background: var(--peacock-blue) !important;
+        color: var(--text-white) !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.7rem 1.4rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px var(--peacock-shadow) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stFileUploader section button:hover {
+        background: var(--peacock-blue-dark) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--peacock-shadow) !important;
+    }
+
+    /* File Uploader Instructions */
+    .stFileUploader small {
+        color: var(--text-gray) !important;
     }
 
     /* Textarea */
@@ -182,18 +212,62 @@ st.markdown("""
     }
 
     textarea:focus {
-        border-color: var(--accent-solid1) !important;
-        box-shadow: 0 0 0 3px rgba(0,191,255,0.15);
+        border-color: var(--peacock-blue) !important;
+        box-shadow: 0 0 0 3px var(--peacock-shadow) !important;
+        background: rgba(8, 145, 178, 0.05) !important;
     }
 
     /* Success/Error/Warning messages */
-    .stSuccess {background: #0f2d0f !important; border-left: 4px solid #22c55e; color: var(--text-white);}
-    .stError {background: #2a0a0a !important; border-left: 4px solid #ef4444; color: var(--text-white);}
-    .stWarning {background: #2a1a00 !important; border-left: 4px solid #f59e0b; color: var(--text-white);}
+    .stSuccess {
+        background: rgba(8, 145, 178, 0.1) !important;
+        border-left: 4px solid var(--peacock-blue) !important;
+        color: var(--text-white) !important;
+        border-radius: 8px;
+    }
+    
+    .stError {
+        background: #2a0a0a !important;
+        border-left: 4px solid #ef4444 !important;
+        color: var(--text-white) !important;
+        border-radius: 8px;
+    }
+    
+    .stWarning {
+        background: #2a1a00 !important;
+        border-left: 4px solid #f59e0b !important;
+        color: var(--text-white) !important;
+        border-radius: 8px;
+    }
+
+    /* Radio Buttons */
+    .stRadio > div {
+        color: var(--text-white) !important;
+    }
+
+    .stRadio label {
+        color: var(--text-white) !important;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg-darker);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--peacock-blue);
+        border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--peacock-blue-dark);
+    }
 
 </style>
 """, unsafe_allow_html=True)
-
 
 
 if 'logged_in_user' not in st.session_state:
@@ -212,9 +286,9 @@ st.session_state["input_method"] = input_method
 
 
 
-st.markdown('<div class="header-section">', unsafe_allow_html=True)
-st.markdown('<h2><span class="step-badge">2</span>Target Job Description</h2>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# st.markdown('<div class="header-section">', unsafe_allow_html=True)
+st.markdown('<h2 >Target Job Description</h2>', unsafe_allow_html=True)
+
 
 
 

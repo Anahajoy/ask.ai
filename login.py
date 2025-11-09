@@ -119,8 +119,8 @@ st.markdown("""
         text-align: center;
         color: rgba(255, 255, 255, 0.9);
         font-size: 0.95rem;
-        margin-bottom: 0.8rem;
-        margin-top: 0;
+        margin-bottom: 0.10rem;
+        margin-top: 0.3rem;
         font-weight: 400;
         letter-spacing: 0.3px;
     }
@@ -239,7 +239,7 @@ st.markdown("""
     div[data-testid="column"]:has(.form-wrapper)::before {
         content: '';
         position: absolute;
-        top: -10px;
+        top: -5px;
         left: -20px;
         right: -20px;
         bottom: -10px;
@@ -252,12 +252,11 @@ st.markdown("""
         );
         backdrop-filter: blur(40px) saturate(150%) contrast(120%);
         -webkit-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
-        border-radius: 22px;
+        border-radius: 10px;
         box-shadow:
             0 25px 80px rgba(0, 0, 0, 0.1),
             inset 0 2px 1px rgba(255, 255, 255, 0.7),
             inset 0 -1px 1px rgba(255, 255, 255, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.6);
         z-index: 0;
         pointer-events: none;
     }

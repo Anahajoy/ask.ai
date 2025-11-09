@@ -665,6 +665,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
     rewritten_resume = resume_data.copy()
+    rewritten_resume.pop("input_method", None)
 
     # --- 1. Separate education and certifications ---
     education_all = resume_data.get("education", [])
@@ -1019,7 +1020,7 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
     rewritten_resume = resume_data.copy()
-
+    rewritten_resume.pop("input_method", None)
     # -------------------- Education and Certifications --------------------
     education_all = resume_data.get("education", [])
     education_list, certification_list = [], []

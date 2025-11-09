@@ -9,8 +9,11 @@ st.cache_data.clear()
 st.cache_resource.clear()
 
 if 'mode' not in st.session_state:
-    st.session_state.mode = 'login'  
+    st.session_state.mode = 'login'
 
+# Initialize page transition state
+if 'page_transitioning' not in st.session_state:
+    st.session_state.page_transitioning = False
 
 st.markdown("""
 <style>
@@ -57,6 +60,25 @@ st.markdown("""
         overflow: hidden !important;
     }
     
+    /* Fade out overlay for page transitions */
+    .fade-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.95);
+        z-index: 9999;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease-in-out;
+    }
+    
+    .fade-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+    }
+    
     /* Center container */
     .main-container {
         position: fixed;
@@ -70,6 +92,12 @@ st.markdown("""
         width: 100%;
         max-width: 500px;
         padding: 1rem;
+        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+    
+    .main-container.fade-out {
+        opacity: 0;
+        transform: translate(-50%, -45%);
     }
     
     /* Logo container - minimal spacing */
@@ -294,9 +322,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Add fade overlay div
+st.markdown('<div class="fade-overlay" id="fade-overlay"></div>', unsafe_allow_html=True)
 
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
-
+st.markdown('<div class="main-container" id="main-container">', unsafe_allow_html=True)
 
 try:
     logo = Image.open("image/11.png")
@@ -358,11 +387,31 @@ with st.container(border=False):
                                 st.session_state.resume_source = user_resume
                                 st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
                                 st.success(f"Welcome back, {st.session_state.username}! Loading your saved resume...")
-                                time.sleep(1)
+                                
+                                # Trigger fade out transition
+                                st.session_state.page_transitioning = True
+                                st.markdown("""
+                                <script>
+                                document.getElementById('fade-overlay').classList.add('active');
+                                document.getElementById('main-container').classList.add('fade-out');
+                                </script>
+                                """, unsafe_allow_html=True)
+                                
+                                time.sleep(0.8)
                                 st.switch_page("pages/job.py")
                             else:
                                 st.success(f"Welcome, {st.session_state.username}! Let's create your resume.")
-                                time.sleep(1)
+                                
+                                # Trigger fade out transition
+                                st.session_state.page_transitioning = True
+                                st.markdown("""
+                                <script>
+                                document.getElementById('fade-overlay').classList.add('active');
+                                document.getElementById('main-container').classList.add('fade-out');
+                                </script>
+                                """, unsafe_allow_html=True)
+                                
+                                time.sleep(0.8)
                                 st.switch_page("pages/main.py")
                     else:
                         if email in users:
@@ -381,7 +430,17 @@ with st.container(border=False):
                             st.session_state.username = name.strip()
                             st.session_state.mode = 'login'
                             st.success(f"Account created successfully, {name.strip()}! Redirecting...")
-                            time.sleep(1)
+                            
+                            # Trigger fade out transition
+                            st.session_state.page_transitioning = True
+                            st.markdown("""
+                            <script>
+                            document.getElementById('fade-overlay').classList.add('active');
+                            document.getElementById('main-container').classList.add('fade-out');
+                            </script>
+                            """, unsafe_allow_html=True)
+                            
+                            time.sleep(0.8)
                             st.switch_page("pages/main.py")
             else:
                 st.warning("Please enter both email and password")

@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 from pathlib import Path
 import json
@@ -20,7 +18,6 @@ if "cert_indices" not in st.session_state:
 if "project_indices" not in st.session_state:
     st.session_state.project_indices = [0]
 
-
 if "saved_personal_info" not in st.session_state:
     st.session_state.saved_personal_info = {}
 if "saved_experiences" not in st.session_state:
@@ -36,373 +33,424 @@ def check_authentication():
     if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
         st.warning("⚠️ Please login to continue")
 
-
-# Add this CSS at the top of your file (replace the button-related CSS)
-
 st.markdown("""
 <style>
-/* Hide default Streamlit UI elements */
-[data-testid="stSidebar"] {display: none;}
-[data-testid="collapsedControl"] {display: none;}
-button[kind="header"] {display: none;}
-[data-testid="stSidebarNav"] {display: none;}
-#MainMenu, footer, header {visibility: hidden;}
-
-/* Import font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-* {
-    font-family: 'Inter', sans-serif;
-}
-
-/* Color Variables */
-:root {
-    --peacock-blue: #0891b2;
-    --peacock-blue-dark: #0e7490;
-    --peacock-blue-light: #06b6d4;
-    --bg-dark: #0a0a0a;
-    --bg-darker: #0f0f0f;
-    --bg-card: #1a1a1a;
-    --text-white: #ffffff;
-    --text-gray: #a0a0a0;
-    --border-gray: #2a2a2a;
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
-}
-
-/* Background & Layout */
-.stApp {
-    background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
-    min-height: 100vh;
-    color: var(--text-white);
-}
-
-.block-container {
-    max-width: 1200px;
-    padding: 2rem 3rem;
-    margin: 0 auto;
-}
-
-/* Header Container */
-.header-container {
-    background: var(--bg-card);
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
-    margin-bottom: 2rem;
-    border: 1px solid var(--border-gray);
-    box-shadow: var(--shadow-lg);
-    position: relative;
-    overflow: hidden;
-}
-
-.header-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--peacock-blue);
-}
-
-/* Welcome Text */
-.welcome-text {
-    color: var(--text-gray);
-    font-size: 1rem;
-    margin: 0;
-    justify-content: center;
-}
-
-/* Titles */
-h1 {
-    color: var(--text-white) !important;
-    font-weight: 800 !important;
-    font-size: 2.8rem !important;
-    margin-bottom: 0.5rem !important;
-    letter-spacing: -0.8px;
-}
-
-h2 {
-    color: var(--text-white) !important;
-    font-weight: 700 !important;
-    margin-top: 3rem !important;
-    margin-bottom: 1.5rem !important;
-    font-size: 2rem !important;
-    display: flex;
-    align-items: center;
-}
-
-h3 {
-    color: var(--text-white) !important;
-    font-weight: 600 !important;
-    font-size: 1.3rem !important;
-    margin-bottom: 1rem !important;
-}
-
-/* Section Number Badge */
-.section-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--peacock-blue);
-    color: var(--text-white);
-    width: 45px;
-    height: 45px;
-    border-radius: 14px;
-    font-weight: 700;
-    font-size: 1.2rem;
-    margin-right: 18px;
-    box-shadow: 0 4px 20px rgba(8, 145, 178, 0.5);
-}
-
-/* Card Badge */
-.card-badge {
-    color: var(--peacock-blue) !important;
-    font-weight: 700 !important;
-    font-size: 0.85rem !important;
-    letter-spacing: 1px;
-    margin-bottom: 1rem !important;
-    text-transform: uppercase;
-    display: block !important;
-}
-
-/* Experience Cards */
-.experience-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-gray);
-    border-radius: 16px;
-    padding: 0.1rem 1.0rem;       
-    margin-bottom: 1rem;        
-    box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 20px rgba(8, 145, 178, 0.15);
-}
-
-
-
-/* Input Fields */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stSelectbox > div > div > div,
-.stMultiSelect > div > div,
-.stDateInput > div > div > input {
-    background: var(--bg-darker) !important;
-    border: 2px solid var(--border-gray) !important;
-    border-radius: 12px !important;
-    padding: 1rem 1.2rem !important;
-    color: var(--text-white) !important;
-    transition: all 0.3s ease !important;
-}
-
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus,
-.stSelectbox > div > div > div:focus-within,
-.stMultiSelect > div > div:focus-within {
-    border-color: var(--peacock-blue) !important;
-    box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.2) !important;
-    background: var(--bg-card) !important;
-}
-
-/* Input labels */
-.stTextInput label,
-.stTextArea label,
-.stSelectbox label,
-.stMultiSelect label,
-.stDateInput label {
-    color: var(--text-white) !important;
-    font-weight: 500 !important;
-    font-size: 0.95rem !important;
-    margin-bottom: 0.5rem !important;
-}
-
-/* Placeholder text */
-.stTextInput > div > div > input::placeholder,
-.stTextArea > div > div > textarea::placeholder {
-    color: var(--text-gray) !important;
-    opacity: 0.6;
-}
-
-/* Radio button text */
-.stRadio label {
-    color: var(--text-white) !important;
-}
-
-.stRadio > div {
-    color: var(--text-white) !important;
-}
-
-/* BUTTON STYLING - THIS IS THE CRITICAL SECTION */
-
-            
-            
-
-/* Default buttons (Add More Experience, Generate Resume, etc.) */
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button,
-div[data-testid="column"]:only-child .stButton > button {
-    background: #5390d9 !important;
-    color: var(--text-white) !important;
-    border: none !important;
-    padding: 0.9rem 1.6rem !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 6px 18px rgba(8, 145, 178, 0.28) !important;
-}
-
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) .stButton > button:hover,
-div[data-testid="column"]:only-child .stButton > button:hover {
-    background: #014f86 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(8, 145, 178, 0.4) !important;
-}
-
-            
-
-
-/* Remove buttons (in left column of 2-column layout) - GREEN */
-div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
-    background:  #38bdf8 !important;
-    color: white !important;
-    border: none !important;
-    padding: 0.9rem 1.6rem !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 6px 18px rgba(0, 168, 107, 0.28) !important;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
-}
-
-div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
-    background:#4895ef  !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 168, 107, 0.4) !important;
-   
-}
-
-/* Save buttons (in right column of 2-column layout) - RED */
-div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
-    background: #fb7185 !important;
-    color: white !important;
-    border: none !important;
-    padding: 0.9rem 1.6rem !important;
-    font-weight: 700 !important;
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.28) !important;
-}
-
-div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
-    background: #dc2626 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4) !important;
-}
-
-/* Button Container for Remove and Save */
-.button-row {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-/* Logout button - override for header */
-div[data-testid="stBaseButton-secondary"] > div:first-child .stButton > button {
-    background: #0891b2 !important;
-    border: 2px solid var(--border-gray) !important;
-    color: var(--text-gray) !important;
-    padding: 0.6rem 1.2rem !important;
-    width: auto !important;
-    box-shadow: none !important;
-}
-
-.header-container .stButton > button:hover {
-    border-color: #ef4444 !important;
-    color: #ef4444 !important;
-    background: transparent !important;
-    transform: none !important;
-}
-
-/* Date validation error */
-.date-error {
-    color: #ef4444;
-    font-size: 0.85rem;
-    margin-top: 0.25rem;
-    font-weight: 500;
-}
-
-/* File Uploader */
-.stFileUploader {
-    background: var(--bg-card);
-    border: 3px dashed var(--peacock-blue);
-    border-radius: 20px;
-    padding: 4rem 3rem;
-    transition: all 0.3s ease;
-}
-
-.stFileUploader:hover {
-    border-color: var(--peacock-blue-light);
-}
-
-.stFileUploader label {
-    color: var(--text-white) !important;
-}
-
-/* Divider */
-hr {
-    border-color: var(--border-gray) !important;
-    opacity: 0.3;
-    margin: 2rem 0;
-}
-
-/* Alert messages */
-.stAlert {
-    background: var(--bg-card) !important;
-    color: var(--text-white) !important;
-    border-radius: 12px;
-}
-
-/* Success messages */
-.stSuccess {
-    background: rgba(8, 145, 178, 0.1) !important;
-    border-left: 4px solid var(--peacock-blue) !important;
-}
-
-/* Error messages */
-.stError {
-    background: rgba(239, 68, 68, 0.1) !important;
-    border-left: 4px solid #ef4444 !important;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 12px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-darker);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--peacock-blue);
-    border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--peacock-blue-dark);
-}
-
-/* Multiselect dropdown */
-.stMultiSelect div[data-baseweb="select"] > div {
-    background: var(--bg-darker) !important;
-    border-color: var(--border-gray) !important;
-}
-
-/* Selectbox dropdown items */
-.stSelectbox div[data-baseweb="popover"] {
-    background: var(--bg-card) !important;
-}
-
+    /* Hide Streamlit elements */
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+    #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
+    
+    /* Variables */
+    :root {
+        --peacock-blue: #0891b2;
+        --peacock-blue-dark: #0e7490;
+        --peacock-blue-light: #06b6d4;
+        --bg-dark: #0a0a0a;
+        --text-white: #ffffff;
+        --text-gray: #a0a0a0;
+        --border-gray: #2a2a2a;
+    }
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Smooth page transitions */
+    .stApp {
+        background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
+        min-height: 100vh;
+        color: var(--text-white);
+        animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .block-container {
+        max-width: 1200px;
+        padding: 2rem 3rem;
+        margin: 0 auto;
+        animation: slideUp 0.6s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Header with gradient shine effect */
+    .header-container {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(16px);
+        border-radius: 20px;
+        padding: 2rem 2.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .header-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--peacock-blue), transparent);
+        animation: shimmer 3s infinite;
+    }
+    
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+    
+    h1 {
+        color: var(--text-white) !important;
+        font-weight: 800 !important;
+        font-size: 2.8rem !important;
+        margin-bottom: 0.5rem !important;
+        letter-spacing: -0.8px;
+        text-shadow: 0 2px 10px rgba(8, 145, 178, 0.3);
+    }
+    
+    h2 {
+        color: var(--text-white) !important;
+        font-weight: 700 !important;
+        margin-top: 3rem !important;
+        margin-bottom: 1.5rem !important;
+        font-size: 2rem !important;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+    
+    h2:hover {
+        transform: translateX(5px);
+    }
+    
+    /* Animated section badges */
+    .section-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--peacock-blue), var(--peacock-blue-light));
+        color: var(--text-white);
+        width: 45px;
+        height: 45px;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-right: 18px;
+        box-shadow: 0 4px 20px rgba(8, 145, 178, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    h2:hover .section-number {
+        transform: scale(1.1) rotate(5deg);
+    }
+    
+    /* Experience cards with hover effects */
+    .experience-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .experience-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(8, 145, 178, 0.1) 0%, transparent 50%);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+    }
+    
+    .experience-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 32px rgba(8, 145, 178, 0.25);
+        border-color: rgba(8, 145, 178, 0.3);
+    }
+    
+    .experience-card:hover::before {
+        opacity: 1;
+    }
+    
+    .card-badge {
+        color: var(--peacock-blue) !important;
+        font-weight: 700 !important;
+        font-size: 0.85rem !important;
+        letter-spacing: 1.5px;
+        margin-bottom: 1rem !important;
+        text-transform: uppercase;
+        display: block !important;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    /* Input fields with smooth transitions */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > div,
+    .stMultiSelect > div > div,
+    .stDateInput > div > div > input {
+        background: rgba(0, 0, 0, 0.4) !important;
+        border: 2px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 1rem 1.2rem !important;
+        color: var(--text-white) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > div:focus-within,
+    .stMultiSelect > div > div:focus-within {
+        background: rgba(8, 145, 178, 0.1) !important;
+        border-color: var(--peacock-blue) !important;
+        box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.2) !important;
+        transform: translateY(-2px);
+    }
+    
+    .stTextInput label,
+    .stTextArea label,
+    .stSelectbox label,
+    .stMultiSelect label {
+        color: var(--text-white) !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        margin-bottom: 0.5rem !important;
+        transition: color 0.3s ease;
+    }
+    
+    /* Enhanced button styles */
+    .stButton > button {
+        background: linear-gradient(135deg, #5390d9, #4ea8de) !important;
+        color: var(--text-white) !important;
+        border: none !important;
+        padding: 0.9rem 1.6rem !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 6px 18px rgba(83, 144, 217, 0.3) !important;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .stButton > button:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #014f86, #01497c) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(83, 144, 217, 0.5) !important;
+    }
+    
+    .stButton > button:active {
+        transform: translateY(-1px);
+    }
+    
+    /* Remove buttons - distinctive color */
+    div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button {
+        background: linear-gradient(135deg, #38bdf8, #0ea5e9) !important;
+        box-shadow: 0 6px 18px rgba(56, 189, 248, 0.3) !important;
+    }
+    
+    div[data-testid="stHorizontalBlock"] > div:first-child .stButton > button:hover {
+        background: linear-gradient(135deg, #4895ef, #4361ee) !important;
+        box-shadow: 0 8px 24px rgba(72, 149, 239, 0.5) !important;
+    }
+    
+    /* Save buttons - accent color */
+    div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button {
+        background: linear-gradient(135deg, #fb7185, #f43f5e) !important;
+        box-shadow: 0 6px 18px rgba(251, 113, 133, 0.3) !important;
+    }
+    
+    div[data-testid="stHorizontalBlock"] > div:last-child .stButton > button:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+        box-shadow: 0 8px 24px rgba(220, 38, 38, 0.5) !important;
+    }
+    
+    /* File uploader with animation */
+    .stFileUploader {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 3px dashed rgba(8, 145, 178, 0.5);
+        border-radius: 20px;
+        padding: 4rem 3rem;
+        transition: all 0.4s ease;
+        position: relative;
+    }
+    
+    .stFileUploader::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, var(--peacock-blue), transparent, var(--peacock-blue-light));
+        border-radius: 20px;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        z-index: -1;
+    }
+    
+    .stFileUploader:hover {
+        border-color: var(--peacock-blue-light);
+        transform: scale(1.02);
+    }
+    
+    .stFileUploader:hover::before {
+        opacity: 0.5;
+        animation: rotate 3s linear infinite;
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Radio buttons */
+    .stRadio label {
+        color: var(--text-white) !important;
+        transition: all 0.3s ease;
+    }
+    
+    .stRadio > div > label:hover {
+        transform: translateX(5px);
+    }
+    
+    /* Success/Error messages with animations */
+    .stSuccess, .stError, .stWarning {
+        animation: slideInRight 0.5s ease-out;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .stSuccess {
+        background: rgba(8, 145, 178, 0.15) !important;
+        border-left: 4px solid var(--peacock-blue) !important;
+    }
+    
+    .stError {
+        background: rgba(239, 68, 68, 0.15) !important;
+        border-left: 4px solid #ef4444 !important;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--peacock-blue), var(--peacock-blue-dark));
+        border-radius: 6px;
+        transition: background 0.3s ease;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, var(--peacock-blue-light), var(--peacock-blue));
+    }
+    
+    /* Loading animation */
+    .stSpinner > div {
+        border-color: var(--peacock-blue) !important;
+        border-top-color: transparent !important;
+    }
+    
+    /* Welcome text animation */
+    .welcome-text {
+        color: var(--text-gray);
+        font-size: 1rem;
+        margin: 0;
+        animation: fadeInUp 0.8s ease-out 0.2s both;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Logout button */
+    div[data-testid="stBaseButton-secondary"] .stButton > button {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border: 2px solid rgba(239, 68, 68, 0.3) !important;
+        color: #ef4444 !important;
+    }
+    
+    div[data-testid="stBaseButton-secondary"] .stButton > button:hover {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: #ef4444 !important;
+        transform: translateY(-2px);
+    }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 # st.markdown('<div class="header-container">', unsafe_allow_html=True)
 col1, col2 = st.columns([5, 1])

@@ -5,8 +5,91 @@ from streamlit_extras.switch_page_button import switch_page
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
 if should_regenerate_resume():
-    with st.spinner("Generating optimized resume..."):
-        generate_enhanced_resume()
+    # loading_placeholder = st.empty()
+    
+    # loading_placeholder.markdown("""
+    #     <div class="fullscreen-loader">
+    #         <div class="loader-content">
+    #             <div class="loader-spinner"></div>
+    #             <h2>Generating Optimized Resume</h2>
+    #             <p>Please wait while we optimize your content...</p>
+    #         </div>
+    #     </div>
+        
+    #     <style>
+    #         /* Full-screen overlay covering everything including sidebar */
+    #         .fullscreen-loader {
+    #             position: fixed;
+    #             top: 0;
+    #             left: 0;
+    #             width: 100vw;
+    #             height: 100vh;
+    #             background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
+    #             display: flex;
+    #             justify-content: center;
+    #             align-items: center;
+    #             z-index: 999999 !important;
+    #             animation: fadeIn 0.3s ease-in;
+    #         }
+            
+    #         @keyframes fadeIn {
+    #             from { opacity: 0; }
+    #             to { opacity: 1; }
+    #         }
+            
+    #         .loader-content {
+    #             text-align: center;
+    #             animation: slideUp 0.5s ease-out;
+    #         }
+            
+    #         @keyframes slideUp {
+    #             from {
+    #                 opacity: 0;
+    #                 transform: translateY(30px);
+    #             }
+    #             to {
+    #                 opacity: 1;
+    #                 transform: translateY(0);
+    #             }
+    #         }
+            
+    #         /* Spinner */
+    #         .loader-spinner {
+    #             width: 80px;
+    #             height: 80px;
+    #             margin: 0 auto 30px;
+    #             border: 6px solid rgba(96, 165, 250, 0.2);
+    #             border-top: 6px solid #3b82f6;
+    #             border-radius: 50%;
+    #             animation: spin 1s linear infinite;
+    #         }
+            
+    #         @keyframes spin {
+    #             0% { transform: rotate(0deg); }
+    #             100% { transform: rotate(360deg); }
+    #         }
+            
+    #         /* Text styling */
+    #         .fullscreen-loader h2 {
+    #             color: #ffffff;
+    #             font-size: 2rem;
+    #             font-weight: 700;
+    #             margin: 0 0 15px 0;
+    #             font-family: 'Inter', sans-serif;
+    #             letter-spacing: -0.5px;
+    #         }
+            
+    #         .fullscreen-loader p {
+    #             color: #94a3b8;
+    #             font-size: 1.1rem;
+    #             font-weight: 400;
+    #             margin: 0;
+    #             font-family: 'Inter', sans-serif;
+    #         }
+    #     </style>
+    # """, unsafe_allow_html=True)
+    generate_enhanced_resume()
+    # loading_placeholder.empty()
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
@@ -44,11 +127,13 @@ def apply_custom_css():
     }
     
     .stApp {
-        background: linear-gradient(135deg, var(--bg-dark) 0%, #1a1f35 100%);
+        background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
         min-height: 100vh;
         color: var(--text-white);
     }
-    
+    [data-testid="stSidebarNav"] {
+            display: none !important;
+        }
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, var(--bg-card) 0%, #15202e 100%) !important;
@@ -124,44 +209,15 @@ def apply_custom_css():
         padding: 2.5rem 2rem;
     }
     
-    /* Resume Section */
-    .resume-section {
-        background: linear-gradient(135deg, var(--bg-card) 0%, #1a2332 100%);
-        border: 1px solid var(--border-gray);
-        border-radius: 18px;
-        padding: 2.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
     
-    .resume-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--primary-blue), var(--light-blue), var(--primary-blue));
-        background-size: 200% 100%;
-        animation: shimmer 3s infinite;
-    }
     
     @keyframes shimmer {
         0% { background-position: -200% 0; }
         100% { background-position: 200% 0; }
     }
     
-    .resume-section:hover {
-        border-color: var(--border-light);
-        box-shadow: 0 12px 32px rgba(37, 99, 235, 0.15);
-        transform: translateY(-2px);
-    }
-    
     .resume-section h2 {
-        color: var(--text-white) !important;
+        color: #ffffff !important;
         font-size: 1.8rem !important;
         font-weight: 700 !important;
         margin-bottom: 1.5rem !important;
@@ -200,7 +256,7 @@ def apply_custom_css():
     .resume-section .item-title {
         font-size: 1.35rem !important;
         font-weight: 700 !important;
-        color: var(--light-blue) !important;
+        color: #ffffff !important;
         margin-bottom: 0.5rem !important;
         display: block !important;
         letter-spacing: 0.3px !important;
@@ -208,7 +264,7 @@ def apply_custom_css():
 
     .resume-section .item-subtitle {
         font-size: 1.15rem !important;
-        color: var(--secondary-blue) !important;
+        color:#ffffff !important;
         margin-bottom: 0.4rem !important;
         font-weight: 500 !important;
         display: block !important;
@@ -374,7 +430,7 @@ def get_standard_keys():
     return {
         "name", "email", "phone", "location", "url", "summary", "job_title",
         "education", "experience", "skills", "projects", "certifications", 
-        "achievements", "total_experience_count"
+         "total_experience_count","input_method"
     }
 
 def save_custom_sections():

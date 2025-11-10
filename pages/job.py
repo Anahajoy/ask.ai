@@ -2,373 +2,383 @@ import streamlit as st
 import json
 from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 
-# Custom CSS
 st.markdown("""
 <style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
-    /* Global Styles */
+    /* Hide Streamlit elements */
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+    #MainMenu, footer, header {visibility: hidden;}
+
+    :root {
+        --primary-blue: #0891b2;
+        --primary-blue-hover: #0e7490;
+        --secondary-blue: #06b6d4;
+        --danger-red: #ef4444;
+        --bg-dark: #0f172a;
+        --bg-card: rgba(255, 255, 255, 0.08);
+        --text-white: #ffffff;
+        --text-gray: #94a3b8;
+        --border-gray: rgba(255, 255, 255, 0.12);
+    }
+
     * {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    
-    /* Main container */
-    .main {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 2rem;
+
+    /* Smooth page entrance */
+    .stApp {
+        background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
         min-height: 100vh;
+        color: var(--text-white);
+        animation: fadeIn 0.5s ease-in;
     }
     
-    /* Header section */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .block-container {
+        max-width: 900px;
+        padding: 3rem 2rem;
+        margin: 0 auto;
+        animation: slideUp 0.6s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Animated header with shimmer */
     .header-section {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
         border-radius: 20px;
         padding: 2rem 2.5rem;
         margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         position: relative;
         overflow: hidden;
+        transition: all 0.3s ease;
     }
-    
+
     .header-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #1a1a1a, #4a4a4a, #1a1a1a);
-        opacity: 0.6;
-    }
-    
-    /* Title styling */
-    h2 {
-        color: #1a1a1a !important;
-        font-weight: 700 !important;
-        margin: 0 !important;
-        font-size: 1.8rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 1rem !important;
-    }
-    
-    /* Step number badge */
-    .step-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        text-align: center;
-        line-height: 40px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        box-shadow: 
-            0 4px 12px rgba(0,0,0,0.2),
-            inset 0 1px 0 rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    /* Alert box for returning users */
-    .returning-user-alert {
-        background: linear-gradient(145deg, #fff8e1 0%, #ffecb3 100%);
-        border: 2px solid #ffa726;
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 16px rgba(255, 167, 38, 0.2);
-    }
-    
-    .returning-user-alert h3 {
-        color: #e65100 !important;
-        margin-top: 0 !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 0.5rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-    
-    .returning-user-alert p {
-        color: #5d4037;
-        margin: 0.5rem 0 1rem 0;
-        font-size: 0.95rem;
-        line-height: 1.6;
-    }
-    
-    /* Add New Resume button styling */
-    .stButton > button[key="add-new-resume-btn"] {
-        background: linear-gradient(145deg, #2c2c2c 0%, #1a1a1a 100%) !important;
-        color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 12px !important;
-        padding: 0.8rem 2rem !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        width: 100% !important;
-    }
-    
-    .stButton > button[key="add-new-resume-btn"]:hover {
-        background: linear-gradient(145deg, #3d3d3d 0%, #2c2c2c 100%) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15) !important;
-    }
-    
-    /* Content container */
-    .content-container {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
-        border-radius: 20px;
-        padding: 2.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
-    }
-    
-    /* Radio buttons */
-    .stRadio > label {
-        font-weight: 600 !important;
-        color: #1a1a1a !important;
-        font-size: 1rem !important;
-        margin-bottom: 1rem !important;
-    }
-    
-    .stRadio > div {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-        padding: 1.2rem;
-        border-radius: 16px;
-        gap: 1rem;
-        border: 1px solid rgba(0,0,0,0.08);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
-    }
-    
-    .stRadio > div > label {
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
-        border: 1px solid rgba(0,0,0,0.1) !important;
-        border-radius: 12px !important;
-        padding: 0.9rem 1.8rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
-        font-weight: 500 !important;
-    }
-    
-    .stRadio > div > label:hover {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
-        border-color: rgba(0,0,0,0.15) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    /* File uploader */
-    .stFileUploader {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
-        border: 2px dashed rgba(0,0,0,0.15) !important;
-        border-radius: 16px !important;
-        padding: 2.5rem !important;
-        box-shadow: inset 0 2px 8px rgba(0,0,0,0.04) !important;
-        transition: all 0.3s ease !important;
-        margin-top: 1rem !important;
-    }
-    
-    .stFileUploader:hover {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
-        box-shadow: 
-            inset 0 2px 8px rgba(0,0,0,0.06),
-            0 4px 12px rgba(0,0,0,0.08) !important;
-    }
-    
-    .stFileUploader label {
-        color: #666666 !important;
-        font-weight: 500 !important;
-    }
-    
-    /* Text area */
-    .stTextArea > label {
-        font-weight: 600 !important;
-        color: #1a1a1a !important;
-        font-size: 1rem !important;
-        margin-bottom: 0.8rem !important;
-    }
-    
-    .stTextArea > div > div > textarea {
-        background: linear-gradient(145deg, #fafafa 0%, #f5f5f5 100%) !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
-        border-radius: 12px !important;
-        font-family: 'Inter', sans-serif !important;
-        color: #1a1a1a !important;
-        padding: 1rem !important;
-        font-size: 0.9rem !important;
-        line-height: 1.6 !important;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-    
-    .stTextArea > div > div > textarea:focus {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%) !important;
-        box-shadow: 
-            0 0 0 3px rgba(26, 26, 26, 0.08),
-            inset 0 2px 4px rgba(0,0,0,0.02) !important;
-        transform: translateY(-1px) !important;
-    }
-    
-    /* Submit button */
-    .stButton > button[key="jb-btn"] {
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%) !important;
-        color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 14px !important;
-        padding: 1.1rem 3rem !important;
-        font-size: 1rem !important;
-        font-weight: 700 !important;
-        width: 100% !important;
-        margin-top: 2rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 
-            0 8px 30px rgba(0,0,0,0.2),
-            inset 0 1px 0 rgba(255,255,255,0.15) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
-        position: relative !important;
-        overflow: hidden !important;
-    }
-    
-    .stButton > button[key="jb-btn"]::before {
         content: '';
         position: absolute;
         top: 0;
         left: -100%;
         width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s;
+        height: 4px;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+        animation: shimmer 3s infinite;
     }
     
-    .stButton > button[key="jb-btn"]:hover::before {
-        left: 100%;
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+
+    h2 {
+        color: var(--text-white) !important;
+        font-weight: 700 !important;
+        font-size: 2rem !important;
+        text-align: center;
+        margin: 1rem 0;
+        animation: fadeInUp 0.8s ease-out;
     }
     
-    .stButton > button[key="jb-btn"]:hover {
-        background: linear-gradient(135deg, #3d3d3d 0%, #2c2c2c 100%) !important;
-        transform: translateY(-3px) !important;
-        box-shadow: 
-            0 12px 40px rgba(0,0,0,0.3),
-            inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Content container with glassmorphism */
+    .content-container {
+        background: var(--bg-card);
+        backdrop-filter: blur(16px);
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border-gray);
+        transition: all 0.4s ease;
+        animation: scaleIn 0.5s ease-out;
     }
     
-    /* Success/Error messages */
-    .stSuccess {
-        background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
-        border: 1px solid #86efac !important;
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .content-container:hover {
+        box-shadow: 0 12px 40px rgba(8, 145, 178, 0.2);
+    }
+
+    label, .stApp label {
+        color: var(--text-white) !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        transition: color 0.3s ease;
+    }
+
+    /* Primary buttons with ripple effect */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue)) !important;
+        color: var(--text-white) !important;
+        border: none !important;
+        box-shadow: 0 6px 18px rgba(8, 145, 178, 0.35) !important;
+        padding: 0.85rem 1.8rem !important;
+        font-weight: 600 !important;
         border-radius: 12px !important;
-        color: #166534 !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-size: 0.95rem !important;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .stButton > button:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .stButton > button:hover {
+        background: linear-gradient(135deg, var(--primary-blue-hover), var(--primary-blue)) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(8, 145, 178, 0.5) !important;
+    }
+    
+    .stButton > button:active {
+        transform: translateY(-1px);
+    }
+
+    /* Danger button */
+    div.stButton > button[key="add-new-resume-btn"] {
+        background: linear-gradient(135deg, var(--danger-red), #f87171) !important;
+        box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35) !important;
+    }
+
+    div.stButton > button[key="add-new-resume-btn"]:hover {
+        background: linear-gradient(135deg, #dc2626, var(--danger-red)) !important;
+        box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5) !important;
+    }
+
+    /* File uploader with enhanced animation */
+    .stFileUploader {
+        background: var(--bg-card);
+        backdrop-filter: blur(16px);
+        border: 3px dashed rgba(8, 145, 178, 0.5);
+        border-radius: 20px;
+        padding: 3rem 2.5rem;
+        transition: all 0.4s ease;
+        position: relative;
+    }
+    
+    .stFileUploader::before {
+        content: '';
+        position: absolute;
+        top: -3px;
+        left: -3px;
+        right: -3px;
+        bottom: -3px;
+        background: linear-gradient(45deg, var(--primary-blue), transparent, var(--secondary-blue));
+        border-radius: 20px;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        z-index: -1;
+    }
+
+    .stFileUploader:hover {
+        border-color: var(--secondary-blue);
+        transform: scale(1.01);
+        box-shadow: 0 0 30px rgba(8, 145, 178, 0.3);
+    }
+    
+    .stFileUploader:hover::before {
+        opacity: 0.3;
+    }
+
+    .stFileUploader label {
+        color: var(--text-white) !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+    }
+
+    .stFileUploader section button {
+        background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue)) !important;
+        color: var(--text-white) !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.7rem 1.4rem !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(8, 145, 178, 0.35) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stFileUploader section button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(8, 145, 178, 0.5) !important;
+    }
+
+    /* Textarea with smooth focus */
+    textarea, .stTextArea > div > div > textarea {
+        background: rgba(0, 0, 0, 0.4) !important;
+        border: 2px solid var(--border-gray) !important;
+        border-radius: 12px !important;
+        color: var(--text-white) !important;
         padding: 1rem !important;
-        font-weight: 500 !important;
-        box-shadow: 0 4px 12px rgba(134, 239, 172, 0.2) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    textarea:focus {
+        background: rgba(8, 145, 178, 0.1) !important;
+        border-color: var(--primary-blue) !important;
+        box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.2) !important;
+        transform: translateY(-2px);
+    }
+
+    /* Success/Error messages with slide animation */
+    .stSuccess, .stError, .stWarning {
+        animation: slideInRight 0.5s ease-out;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .stSuccess {
+        background: rgba(16, 185, 129, 0.15) !important;
+        border-left: 4px solid #10b981 !important;
     }
     
     .stError {
-        background: linear-gradient(145deg, #fef2f2 0%, #fee2e2 100%) !important;
-        border: 1px solid #fca5a5 !important;
-        border-radius: 12px !important;
-        color: #991b1b !important;
-        padding: 1rem !important;
-        font-weight: 500 !important;
-        box-shadow: 0 4px 12px rgba(252, 165, 165, 0.2) !important;
+        background: rgba(239, 68, 68, 0.15) !important;
+        border-left: 4px solid var(--danger-red) !important;
     }
     
-    /* Spinner */
-    .stSpinner > div {
-        border-color: #1a1a1a !important;
+    .stWarning {
+        background: rgba(245, 158, 11, 0.15) !important;
+        border-left: 4px solid #f59e0b !important;
+    }
+
+    /* Radio buttons with smooth transition */
+    .stRadio > div {
+        color: var(--text-white) !important;
+    }
+
+    .stRadio label {
+        color: var(--text-white) !important;
+        transition: all 0.3s ease;
     }
     
-    /* Helper text */
-    .help-text {
-        color: #666666;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        font-style: italic;
+    .stRadio > div > label:hover {
+        transform: translateX(5px);
+        color: var(--secondary-blue) !important;
     }
-    
-    /* Section divider */
-    .section-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
-        margin: 2rem 0;
+
+    /* Enhanced scrollbar */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-blue), var(--primary-blue-hover));
+        border-radius: 6px;
+        transition: background 0.3s ease;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, var(--secondary-blue), var(--primary-blue));
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Check if user is logged in
+
 if 'logged_in_user' not in st.session_state:
     st.warning("Please login first!")
     st.switch_page("login.py")
 
-# Get input method from session state
-input_method = st.session_state.get("input_method", "Manual Entry")
+resume_data = st.session_state.get("resume_source", {})
+input_method = st.session_state.get(
+    "input_method", 
+    resume_data.get("input_method", "Manual Entry")
+)
+st.session_state["input_method"] = input_method
 
-# Header Section
-st.markdown('<div class="header-section">', unsafe_allow_html=True)
-st.markdown('<h2><span class="step-badge">2</span>Target Job Description</h2>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<h2>Target Job Description</h2>', unsafe_allow_html=True)
 
-# Check if user has existing resume data (returning user)
 resume_source = st.session_state.get("resume_source", None)
 
 if resume_source:
-    # Show alert for users with existing resume data
-    st.markdown('<div class="returning-user-alert">', unsafe_allow_html=True)
-    st.markdown('<h3>👋 Welcome Back!</h3>', unsafe_allow_html=True)
-    st.markdown('<p>We found your saved resume data. You can continue with your existing resume or create a new one from scratch.</p>', unsafe_allow_html=True)
+    st.markdown(f'<p>Your last resume was created. You can proceed with it, or click the button below to start a new resume from scratch.</p>', unsafe_allow_html=True)
     
-    if st.button("🔄 Add New Resume Content", key="add-new-resume-btn"):
-        # Clear all resume-related session state
-        keys_to_delete = ['resume_source', 'enhanced_resume', 'job_description', 
-                         'resume_processed', 'exp_indices', 'edu_indices', 'cert_indices']
-        
-        for key in keys_to_delete:
-            if key in st.session_state:
-                del st.session_state[key]
-        
-        # Reset indices to default
-        st.session_state.exp_indices = [0]
-        st.session_state.edu_indices = [0]
-        st.session_state.cert_indices = [0]
-        
-        st.success("Resume data cleared! Redirecting to create new resume...")
-        st.switch_page("pages/main.py")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    col_a, col_b = st.columns([1, 4])
+    with col_a: 
+        if st.button("Start New Resume", key="add-new-resume-btn"):
+            keys_to_delete = ['resume_source', 'enhanced_resume', 'job_description', 
+                             'resume_processed', 'exp_indices', 'edu_indices', 'cert_indices', 'project_indices']
+            
+            for key in keys_to_delete:
+                if key in st.session_state:
+                    del st.session_state[key]
+            
+            st.switch_page("../ask.ai/pages/main.py")
 
-# Check for resume data
+# --- Job Description Input ---
 if resume_source is None:
-    st.error("No resume data found. Please upload or enter your data first.")
-    if st.button("Go to Resume Builder"):
-        st.switch_page("pages/main.py")
+    st.error("No resume data found. Please go back to the main page to upload or enter your data first.")
+    if st.button("Go to Resume Builder", key="go-to-main-btn"):
+        st.switch_page("../ask.ai/pages/main.py")
 else:
-    # Main content
-    st.markdown('<div class="content-container">', unsafe_allow_html=True)
-    
-    # Job description input method
     jd_method = st.radio(
         "Choose how to provide the job description:",
         ["Type or Paste", "Upload File"],
-        horizontal=True
+        horizontal=True,
+        key="jd_method_radio"
     )
-    
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     
     job_description = ""
 
@@ -387,49 +397,87 @@ else:
                     job_description = extract_text_from_docx(jd_file)
                 st.success("Job description uploaded successfully!")
             
-            # Show extracted text in a disabled text area
             if job_description:
                 st.text_area(
-                    "Extracted Content",
+                    "Extracted Job Description Content (Review before processing)",
                     value=job_description,
                     height=200,
-                    disabled=True,
                     help="Preview of the extracted job description"
                 )
-
-    else:  # Type or Paste
+    else:
         job_description = st.text_area(
-            "Job Description",
+            "Paste the Job Description Text *",
             value="",
             height=250,
-            placeholder="Paste the complete job description here...\n\nExample:\nWe are looking for a Senior Software Engineer with 5+ years of experience...",
-            help="The AI will analyze this job description and tailor your resume accordingly"
+            placeholder="Paste the complete job description here..."
         )
-        
-        if job_description:
-            word_count = len(job_description.split())
-            st.markdown(f'<p class="help-text">Word count: {word_count}</p>', unsafe_allow_html=True)
 
-    # Submit button in centered column
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Continue to Resume", key="jb-btn"):
+        loading_placeholder = st.empty()
+
+        if st.button("Continue to Resume Generation ➡️", key="jb-btn"):
             if job_description:
-                with st.spinner("Analyzing job description..."):
+                loading_placeholder.markdown("""
+                <div id="overlay-loader">
+                    <div class="loader-spinner"></div>
+                    <p>Analyzing job description...</p>
+                </div>
+                <style>
+                    #overlay-loader {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(15, 23, 42, 0.95);
+                        backdrop-filter: blur(6px);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 9999;
+                        color: white;
+                        font-size: 1.2rem;
+                        font-weight: 500;
+                    }
+
+                    .loader-spinner {
+                        border: 5px solid rgba(96, 165, 250, 0.2);
+                        border-top: 5px solid #3b82f6;
+                        border-radius: 50%;
+                        width: 70px;
+                        height: 70px;
+                        animation: spin 1s linear infinite;
+                        margin-bottom: 20px;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+
+                    #overlay-loader p {
+                        color: #e0f7ff;
+                        font-size: 1.1rem;
+                        letter-spacing: 0.5px;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+
+                try:
                     structured_jd = extract_details_from_jd(job_description)
-                    
-                    # Handle JSON parsing
                     if isinstance(structured_jd, str):
                         try:
                             structured_jd = json.loads(structured_jd)
                         except json.JSONDecodeError:
-                            structured_jd = {"text": structured_jd}
-                    
-                    st.session_state.job_description = structured_jd
-                
-                st.success("Job description processed successfully!")
+                            structured_jd = {"raw_text": job_description}
+                except Exception as e:
+                    st.error(f"Error processing JD: {e}")
+                    structured_jd = {"raw_text": job_description}
+
+                st.session_state.job_description = structured_jd
+                loading_placeholder.empty()
                 st.switch_page("pages/create.py")
             else:
                 st.error("Please provide a job description to continue")
-    
-    st.markdown('</div>', unsafe_allow_html=True)

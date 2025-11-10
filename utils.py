@@ -2,68 +2,32 @@ from openpyxl import load_workbook
 import streamlit as st
 import pdfplumber
 from docx import Document
-from typing import List, Dict
+from typing import List, Dict,Any
 import json
 import requests
 import os
-import re
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem
-from reportlab.lib.styles import getSampleStyleSheet
+import io
 from reportlab.lib.pagesizes import A4
-from io import BytesIO
-import streamlit as st
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, ListFlowable, ListItem, Table, TableStyle, HRFlowable
-from reportlab.lib import colors
-import pdfkit
-from html2docx import html2docx
-from io import BytesIO
-from typing import Dict, Any
-from docx import Document
-from io import BytesIO
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-import streamlit as st
-import json
-import bcrypt
-import os
+from pathlib import Path
+import base64
+import requests
+from difflib import SequenceMatcher
 import re
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.style import WD_STYLE_TYPE
-import pdfplumber
-from io import BytesIO
-import base64
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-import requests
-from typing import Dict, Any, List, Optional
-import streamlit as st
-import requests
 import json
+import requests
+from pathlib import Path
+from bs4 import BeautifulSoup
+from pptx import Presentation
+from pptx.util import Pt
+from docx import Document
+from docx.shared import RGBColor
+from collections import Counter
+import hashlib
+from copy import deepcopy
+import time
 import base64
 from io import BytesIO
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-import streamlit as st
-import base64
-from typing import Dict, Any
-from io import BytesIO
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+
 
 
 
@@ -79,8 +43,9 @@ headers = {
     }
 # TO EXTRACT DATA FROM THE UPLOADED FILE#
 
-import requests, json, streamlit as st
-from typing import Dict, Any
+TEMPLATES_DIR = "uploaded_templates.json"
+users_file = Path(__file__).parent / "users.json"
+user_data_file = Path(__file__).parent/"user_resume_data.json"
 
 
 @st.cache_data
@@ -197,7 +162,24 @@ def call_llm(payload):
     llm_text = data['choices'][0]['message']['content']
     return llm_text
 
-# ALL THE SKILL LIST #
+
+
+@st.cache_data(show_spinner=False)
+def load_skills_from_json():
+    # """Load skills from the cached JSON file"""
+    # get_all_skills_from_llm()
+    try:
+        if os.path.exists(SKILL_CACHE_FILE):
+            with open(SKILL_CACHE_FILE, "r") as f:
+                return json.load(f)
+        else:
+            # If file doesn't exist, generate it
+            return get_all_skills_from_llm()
+    except Exception as e:
+        st.error(f"Error loading skills: {e}")
+        # Fallback to basic skills if there's an error
+        return ["Python", "JavaScript", "SQL", "Cloud Computing", "Project Management", "Data Analysis"]
+
 
 SKILL_CACHE_FILE = "../ask.ai/json/skill.json"
 
@@ -207,51 +189,309 @@ def get_all_skills_from_llm():
         with open(SKILL_CACHE_FILE, "r") as f:
             return json.load(f)
 
-    prompt = (
-        "Provide a comprehensive list of skills commonly required across various job roles and industries, "
-        "including technical, soft, and domain-specific skills. "
-        "Return only a JSON array of skill names without any categories, explanations, or extra text."
-    )
+    all_skills = set()
+    
+    # Define multiple focused prompts to get comprehensive coverage
+    prompt_categories = [
+        {
+            "category": "Manual Labor & Service",
+            "prompt": """List 200+ specific skills for: cleaning staff, janitors, dishwashers, laborers, warehouse workers, 
+            packers, stock clerks, maintenance workers, landscapers, groundskeepers, movers, delivery personnel, 
+            sanitation workers, custodians, housekeepers, laundry workers, kitchen helpers."""
+        },
+        {
+            "category": "Agriculture & Farming",
+            "prompt": """List 200+ specific skills for: farmers, farm workers, crop managers, livestock handlers, 
+            agricultural technicians, irrigation specialists, harvesters, dairy workers, poultry workers, 
+            farm equipment operators, greenhouse workers, vineyard workers, aquaculture workers, agronomists."""
+        },
+        {
+            "category": "Transportation & Logistics",
+            "prompt": """List 200+ specific skills for: truck drivers, taxi drivers, bus drivers, delivery drivers, 
+            forklift operators, crane operators, pilots, ship captains, train conductors, dispatchers, 
+            logistics coordinators, supply chain managers, freight handlers, route planners, fleet managers."""
+        },
+        {
+            "category": "Construction & Trades",
+            "prompt": """List 200+ specific skills for: carpenters, electricians, plumbers, welders, masons, 
+            HVAC technicians, roofers, painters, drywall installers, tile setters, glaziers, insulators, 
+            heavy equipment operators, pipefitters, ironworkers, sheet metal workers, construction managers."""
+        },
+        {
+            "category": "Food Service & Hospitality",
+            "prompt": """List 200+ specific skills for: chefs, cooks, bakers, bartenders, servers, baristas, 
+            food prep workers, line cooks, pastry chefs, sous chefs, catering managers, restaurant managers, 
+            hotel managers, front desk agents, concierges, housekeeping managers, event coordinators."""
+        },
+        {
+            "category": "Retail & Sales",
+            "prompt": """List 200+ specific skills for: retail associates, cashiers, sales representatives, 
+            merchandisers, store managers, buyers, inventory specialists, loss prevention, visual merchandisers, 
+            account executives, business development, inside sales, outside sales, territory managers."""
+        },
+        {
+            "category": "Healthcare & Medical",
+            "prompt": """List 200+ specific skills for: nurses, doctors, surgeons, medical assistants, 
+            paramedics, EMTs, pharmacists, pharmacy technicians, radiologists, lab technicians, 
+            phlebotomists, dental assistants, physical therapists, occupational therapists, medical coders."""
+        },
+        {
+            "category": "Education & Training",
+            "prompt": """List 200+ specific skills for: teachers, professors, tutors, instructional designers, 
+            training specialists, curriculum developers, education administrators, school counselors, 
+            librarians, teaching assistants, special education teachers, ESL teachers, corporate trainers."""
+        },
+        {
+            "category": "Manufacturing & Production",
+            "prompt": """List 200+ specific skills for: machine operators, production workers, assemblers, 
+            quality inspectors, manufacturing engineers, production supervisors, CNC operators, fabricators, 
+            industrial maintenance, production planners, process engineers, lean specialists, Six Sigma experts."""
+        },
+        {
+            "category": "IT & Software Development",
+            "prompt": """List 300+ specific technical skills including: programming languages (Python, Java, C++, C#, 
+            JavaScript, TypeScript, Ruby, Go, Rust, PHP, Swift, Kotlin, R, MATLAB, Scala, etc.), frameworks 
+            (React, Angular, Vue, Django, Flask, Spring, .NET, Node.js, Express, Laravel, etc.), databases, 
+            cloud platforms, DevOps tools, version control, testing frameworks, APIs, microservices."""
+        },
+        {
+            "category": "Cybersecurity & Network",
+            "prompt": """List 200+ specific skills for: security analysts, penetration testers, ethical hackers, 
+            security engineers, network administrators, firewall specialists, SIEM analysts, SOC analysts, 
+            malware analysts, cryptographers, compliance officers, risk assessors, incident responders."""
+        },
+        {
+            "category": "Data Science & Analytics",
+            "prompt": """List 200+ specific skills including: data analysis tools, statistical methods, 
+            machine learning algorithms, deep learning, NLP, computer vision, big data technologies (Hadoop, Spark), 
+            visualization tools (Tableau, Power BI, Looker), SQL variants, Python libraries (pandas, numpy, scikit-learn), 
+            R packages, data modeling, ETL processes, data warehousing."""
+        },
+        {
+            "category": "Business & Finance",
+            "prompt": """List 200+ specific skills for: accountants, bookkeepers, financial analysts, auditors, 
+            tax professionals, investment bankers, wealth managers, controllers, CFOs, budget analysts, 
+            credit analysts, financial planners, actuaries, payroll specialists, accounts payable/receivable."""
+        },
+        {
+            "category": "Marketing & Advertising",
+            "prompt": """List 200+ specific skills including: SEO, SEM, PPC, social media platforms (Facebook Ads, 
+            Google Ads, LinkedIn Ads, TikTok Ads), email marketing, content marketing, copywriting, brand management, 
+            market research, analytics tools (Google Analytics, Adobe Analytics), CRM systems, marketing automation, 
+            growth hacking, influencer marketing, affiliate marketing, video marketing."""
+        },
+        {
+            "category": "Creative & Design",
+            "prompt": """List 200+ specific skills including: Adobe Creative Suite (Photoshop, Illustrator, InDesign, 
+            After Effects, Premiere Pro), Figma, Sketch, UI/UX design, graphic design, web design, motion graphics, 
+            3D modeling (Blender, Maya, 3ds Max), video editing, photography, illustration, typography, 
+            color theory, wireframing, prototyping."""
+        },
+        {
+            "category": "Engineering",
+            "prompt": """List 200+ specific skills for: mechanical engineers, electrical engineers, civil engineers, 
+            chemical engineers, aerospace engineers, industrial engineers, environmental engineers, software engineers, 
+            systems engineers, including CAD tools (AutoCAD, SolidWorks, CATIA, Revit), simulation software, 
+            technical drawing, project engineering, quality engineering."""
+        },
+        {
+            "category": "Legal & Compliance",
+            "prompt": """List 150+ specific skills for: lawyers, paralegals, legal assistants, compliance officers, 
+            contract managers, legal researchers, court reporters, mediators, arbitrators, patent attorneys, 
+            corporate counsel, litigation specialists, regulatory experts, legal technology."""
+        },
+        {
+            "category": "HR & Recruitment",
+            "prompt": """List 150+ specific skills for: HR managers, recruiters, talent acquisition, HR generalists, 
+            compensation specialists, benefits administrators, HR analytics, HRIS systems (Workday, SAP SuccessFactors, 
+            Oracle HCM), employee relations, performance management, training coordinators, organizational development."""
+        },
+        {
+            "category": "Executive & Leadership",
+            "prompt": """List 200+ specific skills for: CEOs, COOs, CFOs, CIOs, CTOs, VPs, directors, senior managers 
+            including: strategic planning, business strategy, P&L management, M&A, stakeholder management, 
+            corporate governance, change management, executive communication, board relations, investor relations, 
+            crisis management, succession planning, organizational design."""
+        },
+        {
+            "category": "Soft Skills & General",
+            "prompt": """List 200+ specific soft skills and general competencies including: communication types 
+            (verbal, written, presentation, public speaking, negotiation), leadership styles, emotional intelligence, 
+            problem-solving approaches, critical thinking, creativity, adaptability, time management, organization, 
+            collaboration, conflict resolution, decision-making, customer service, active listening."""
+        }
+    ]
+    
+    print("🔄 Generating comprehensive skill database across all sectors...")
+    
+    for idx, category_data in enumerate(prompt_categories, 1):
+        print(f"📊 Processing category {idx}/{len(prompt_categories)}: {category_data['category']}")
+        
+        full_prompt = f"""{category_data['prompt']}
 
-    payload = {
-        "model": "meta/llama-3.1-70b-instruct",
-        "messages": [
-            {"role": "system", "content": "You are a skill extraction expert. Return a clean JSON array."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": 0.1,
-        "max_tokens": 3000
-    }
+Return ONLY a JSON array of individual skill names. Be very specific and comprehensive. 
+Include technical skills, tools, software, methodologies, certifications, and specific abilities.
+No categories, no explanations, no numbering - just skill names."""
 
-    llm_response = call_llm(payload)
+        payload = {
+            "model": "meta/llama-3.1-70b-instruct",
+            "messages": [
+                {"role": "system", "content": "You are a skill taxonomy expert. Return a comprehensive JSON array of specific, actionable skill names."},
+                {"role": "user", "content": full_prompt}
+            ],
+            "temperature": 0.3,
+            "max_tokens": 8000
+        }
 
-    try:
-        skills_list = json.loads(llm_response)
-    except json.JSONDecodeError:
-        # If JSON parse fails, fallback to cleaning and splitting text
-        cleaned_text = re.sub(r'[0-9]+\w*', '', llm_response)  # remove numbered prefixes
-        skills_list = [
-            skill.strip().strip('"') for skill in re.split(r'[\n,•*-]+', cleaned_text) if skill.strip()
-        ]
-
-    # Clean, remove categories and incomplete entries
-    clean_skills = []
-    for skill in skills_list:
-        skill = skill.strip().strip('"').strip()
-        if skill.lower().startswith("category"):
+        try:
+            llm_response = call_llm(payload)
+            
+            try:
+                skills_list = json.loads(llm_response)
+            except json.JSONDecodeError:
+                # Robust extraction
+                cleaned_text = re.sub(r'[0-9]+\.?\s*', '', llm_response)
+                cleaned_text = re.sub(r'```json|```', '', cleaned_text)
+                skills_list = [
+                    skill.strip().strip('"').strip("'").strip(',').strip('[]') 
+                    for skill in re.split(r'[\n,•*-]+', cleaned_text) 
+                    if skill.strip()
+                ]
+            
+            # Clean and add skills
+            excluded_keywords = ["category", "skills:", "example", "e.g.", "etc.", "including", "such as"]
+            
+            for skill in skills_list:
+                skill = skill.strip().strip('"').strip("'").strip(',').strip()
+                
+                # Skip if contains excluded keywords
+                if any(keyword in skill.lower() for keyword in excluded_keywords):
+                    continue
+                
+                # Skip very short or very long entries
+                if len(skill) < 2 or len(skill) > 70:
+                    continue
+                
+                # Skip entries with parentheses at the end
+                if re.search(r'\([^)]*$', skill):
+                    continue
+                
+                # Skip entries that look like descriptions
+                if skill.count(' ') > 6:
+                    continue
+                
+                if skill:
+                    all_skills.add(skill.title())
+            
+            print(f"   ✅ Added skills. Total so far: {len(all_skills)}")
+            
+        except Exception as e:
+            print(f"   ⚠️ Error in category {category_data['category']}: {e}")
             continue
-        if re.search(r'\(e\.g\.?$', skill.lower()):
-            continue
-        if skill:
-            clean_skills.append(skill.title())
-
-    unique_skills = sorted(set(clean_skills))
-
+    
+    # Add comprehensive baseline skills to ensure coverage
+    baseline_skills = [
+        # Manual & Service
+        "Cleaning", "Janitorial Work", "Floor Cleaning", "Window Cleaning", "Carpet Cleaning",
+        "Dishwashing", "Laundry", "Ironing", "Mopping", "Vacuuming", "Sweeping", "Dusting",
+        "Waste Management", "Recycling", "Sanitation", "Disinfection", "Pest Control",
+        
+        # Agriculture
+        "Farming", "Crop Management", "Livestock Care", "Tractor Operation", "Harvesting",
+        "Planting", "Irrigation", "Soil Testing", "Fertilization", "Crop Rotation",
+        "Animal Husbandry", "Dairy Farming", "Poultry Farming", "Beekeeping", "Composting",
+        
+        # Transportation
+        "Driving", "Truck Driving", "Bus Driving", "Taxi Driving", "Forklift Operation",
+        "CDL License", "Vehicle Maintenance", "Route Planning", "GPS Navigation", "Loading",
+        "Unloading", "Delivery", "Dispatch", "Logistics", "Fleet Management",
+        
+        # Construction
+        "Carpentry", "Plumbing", "Electrical Work", "Welding", "Masonry", "HVAC",
+        "Roofing", "Painting", "Drywall", "Tiling", "Flooring", "Concrete Work",
+        "Blueprint Reading", "Framing", "Demolition", "Scaffolding",
+        
+        # Food Service
+        "Cooking", "Baking", "Food Preparation", "Food Safety", "Menu Planning",
+        "Knife Skills", "Grilling", "Frying", "Sautéing", "Plating", "Bartending",
+        "Coffee Making", "Food Handling", "Kitchen Management", "Recipe Development",
+        
+        # Retail
+        "Customer Service", "Cash Handling", "POS Systems", "Inventory Management",
+        "Merchandising", "Sales", "Upselling", "Stock Replenishment", "Loss Prevention",
+        "Visual Merchandising", "Product Knowledge", "Returns Processing",
+        
+        # Healthcare
+        "Patient Care", "First Aid", "CPR", "BLS", "ACLS", "Vital Signs",
+        "Medical Terminology", "Phlebotomy", "IV Insertion", "Wound Care",
+        "Medication Administration", "EMR Systems", "HIPAA Compliance",
+        
+        # IT & Programming
+        "Python", "Java", "JavaScript", "C++", "C#", "PHP", "Ruby", "Go", "Rust",
+        "TypeScript", "Swift", "Kotlin", "R", "MATLAB", "SQL", "HTML", "CSS",
+        "React", "Angular", "Vue.js", "Node.js", "Django", "Flask", "Spring Boot",
+        "Git", "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Linux", "Windows Server",
+        
+        # Data & Analytics
+        "Data Analysis", "Excel", "Power BI", "Tableau", "SQL", "Python", "R",
+        "Statistics", "Data Visualization", "ETL", "Data Modeling", "Machine Learning",
+        "Deep Learning", "TensorFlow", "PyTorch", "Pandas", "NumPy", "Scikit-learn",
+        
+        # Cybersecurity
+        "Network Security", "Penetration Testing", "Ethical Hacking", "Firewall Management",
+        "SIEM", "IDS/IPS", "Vulnerability Assessment", "Security Auditing", "Cryptography",
+        "Incident Response", "Malware Analysis", "Security Compliance",
+        
+        # Business & Finance
+        "Accounting", "Bookkeeping", "Financial Analysis", "Budgeting", "Forecasting",
+        "Tax Preparation", "Auditing", "QuickBooks", "SAP", "Oracle Financials",
+        "Financial Modeling", "Excel VBA", "Financial Reporting", "AP/AR",
+        
+        # Marketing
+        "SEO", "SEM", "PPC", "Google Ads", "Facebook Ads", "Social Media Marketing",
+        "Content Marketing", "Email Marketing", "Copywriting", "Google Analytics",
+        "Marketing Automation", "CRM", "Salesforce", "HubSpot", "Mailchimp",
+        
+        # Design
+        "Graphic Design", "UI/UX Design", "Adobe Photoshop", "Adobe Illustrator",
+        "Figma", "Sketch", "InDesign", "After Effects", "Premiere Pro", "Video Editing",
+        "Photography", "Photo Editing", "Web Design", "Mobile Design", "Wireframing",
+        
+        # Soft Skills
+        "Communication", "Leadership", "Teamwork", "Problem Solving", "Critical Thinking",
+        "Time Management", "Organization", "Adaptability", "Creativity", "Collaboration",
+        "Negotiation", "Conflict Resolution", "Decision Making", "Public Speaking",
+        "Presentation Skills", "Active Listening", "Emotional Intelligence", "Work Ethic",
+        "Attention to Detail", "Multitasking", "Stress Management", "Customer Focus",
+        
+        # Project Management
+        "Project Management", "Agile", "Scrum", "Kanban", "Waterfall", "JIRA", "Asana",
+        "MS Project", "Risk Management", "Stakeholder Management", "Resource Planning",
+        "PMP", "PRINCE2", "Change Management",
+        
+        # Engineering
+        "AutoCAD", "SolidWorks", "CATIA", "Revit", "MATLAB", "Simulink", "ANSYS",
+        "CAD", "CAM", "FEA", "CFD", "Technical Drawing", "GD&T", "Quality Control",
+        
+        # Executive
+        "Strategic Planning", "Business Strategy", "P&L Management", "M&A",
+        "Corporate Governance", "Stakeholder Management", "Board Relations",
+        "Executive Leadership", "Change Management", "Business Development"
+    ]
+    
+    # Add all baseline skills
+    all_skills.update([skill.title() for skill in baseline_skills])
+    
+    # Convert to sorted list
+    unique_skills = sorted(list(all_skills))
+    
+    # Save to cache
+    os.makedirs(os.path.dirname(SKILL_CACHE_FILE), exist_ok=True)
     with open(SKILL_CACHE_FILE, "w") as f:
         json.dump(unique_skills, f, indent=2)
 
+    print(f"\n✅ Generated {len(unique_skills)} unique skills covering all job sectors and levels!")
     return unique_skills
-
 
 
 # ALL THE JOB ROLE LIST#
@@ -425,6 +665,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
     rewritten_resume = resume_data.copy()
+    rewritten_resume.pop("input_method", None)
 
     # --- 1. Separate education and certifications ---
     education_all = resume_data.get("education", [])
@@ -438,7 +679,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
         else:
             education_list.append(item)
 
-    # Include certifications from a separate key if exists
+   
     cert_data = resume_data.get("certifications", [])
     if isinstance(cert_data, list):
         certification_list.extend(cert_data)
@@ -446,7 +687,7 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["education"] = education_list
     rewritten_resume["certifications"] = certification_list
 
-    # --- 2. Flatten skills ---
+   
     candidate_skills = resume_data.get("skills", [])
     if isinstance(candidate_skills, list) and candidate_skills:
         if isinstance(candidate_skills[0], dict):
@@ -586,6 +827,8 @@ def generate_basic_description(position: str, company: str, candidate_skills: li
 
 # --- Helper function for LLM API ---
 def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
+  
+
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
         "messages": [
@@ -595,10 +838,33 @@ def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
         "temperature": 0.1,
         "max_tokens": max_tokens
     }
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    result = response.json()
-    return result['choices'][0]['message']['content']
+
+    # Try a few times if the server gives 500 or times out
+    for attempt in range(3):
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+
+        except requests.exceptions.Timeout:
+            print(f"⏳ Timeout on attempt {attempt + 1}, retrying...")
+            time.sleep(2 ** attempt)
+
+        except requests.exceptions.HTTPError as e:
+            if response.status_code >= 500:
+                print(f"⚠️ Server error 500 on attempt {attempt + 1}, retrying...")
+                time.sleep(2 ** attempt)
+            else:
+                # Show more details for debugging
+                print("❌ Client error:", response.text)
+                break
+
+        except Exception as e:
+            print("Unexpected error:", e)
+            break
+
+    return "⚠️ Sorry, the AI service is currently unavailable. Please try again later."
 
 
 
@@ -610,15 +876,6 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
     and professional formatting while preserving all information, using an external API.
     """
     
-    # --- EXTERNAL API CONFIGURATION (MOCKED/PLACEHOLDER) ---
-    # NOTE: You MUST replace these placeholders with your actual API endpoint 
-    # and authorization credentials for the Llama model provider.
-    # url = "https://api.your-llama-provider.com/generate" 
-    # headers = {
-    #     "Authorization": "Bearer YOUR_API_KEY", # <-- REPLACE WITH YOUR KEY
-    #     "Content-Type": "application/json"
-    # }
-    # # -----------------------------------------------------
 
     resume_text = json.dumps(resume_data, indent=2)
     
@@ -679,7 +936,6 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
             return resume_data
 
         improved_data = json.loads(response_text[json_start:json_end])
-        st.success("🤖 Content successfully refined and improved using Llama API.")
         return improved_data
 
     except requests.exceptions.RequestException as e:
@@ -758,16 +1014,13 @@ def check_specific_section(section_name: str, section_data: Any) -> Dict[str, An
 
 
 
-
-
-
 def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     """
     Rewrite the candidate's resume content to align with the job description.
     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
     """
     rewritten_resume = resume_data.copy()
-
+    rewritten_resume.pop("input_method", None)
     # -------------------- Education and Certifications --------------------
     education_all = resume_data.get("education", [])
     education_list, certification_list = [], []
@@ -808,23 +1061,48 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     responsibilities = jd_data.get("responsibilities", [])
     required_skills = jd_data.get("required_skills", [])
 
+    rewritten_resume["job_title"] = job_title
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-    professional_experience = resume_data.get("professional_experience", [])
+    # -------------------- Normalize experience data --------------------
+    experience_all = []
+
+    if "experience" in resume_data and isinstance(resume_data["experience"], list):
+        experience_all.extend(resume_data["experience"])
+
+    if "professional_experience" in resume_data and isinstance(resume_data["professional_experience"], list):
+        experience_all.extend(resume_data["professional_experience"])
+
+    # Remove the old keys from rewritten_resume
+    rewritten_resume.pop("experience", None)
+    rewritten_resume.pop("professional_experience", None)
+    rewritten_resume.pop("input_method", None)  # optional, if not needed
+
+    # Remove duplicates based on company + position
+    seen = set()
+    merged_experience = []
+    for exp in experience_all:
+        key = (exp.get("company", ""), exp.get("position", ""))
+        if key not in seen:
+            merged_experience.append(exp)
+            seen.add(key)
+
+    # Assign merged experience
+    rewritten_resume["experience"] = merged_experience
+    rewritten_resume["total_experience_count"] = len(merged_experience)
 
     # -------------------- Generate Experience Descriptions --------------------
     rewritten_experience = []
     all_exp_desc = []
 
-    for exp in professional_experience:
+    for exp in merged_experience:
         position = exp.get("position", "Professional")
         company = exp.get("company", "A Company")
         start_date = exp.get("start_date", "")
         end_date = exp.get("end_date", "")
         exp_skills = exp.get("exp_skills", [])
 
-        # Build LLM prompt for description
         exp_prompt = f"""
         You are an expert career coach. Rewrite the professional experience for {resume_data.get('name','')}
         for a {position} position at {company}, from {start_date} to {end_date}.
@@ -837,39 +1115,39 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
         rewritten_exp_text = call_llm_api(exp_prompt, 500)
 
         try:
-            # Parse LLM JSON output
             json_start = rewritten_exp_text.find('[')
             json_end = rewritten_exp_text.rfind(']') + 1
             rewritten_exp_list = json.loads(rewritten_exp_text[json_start:json_end])
-
-            # Take the first object and clean description
             rewritten_exp_obj = rewritten_exp_list[0] if rewritten_exp_list else {}
             desc = rewritten_exp_obj.get("description", [])
             if isinstance(desc, str):
                 desc = [line.strip() for line in desc.split("\n") if line.strip()]
 
-            # Update exp dictionary: remove exp_skills, add description
-            exp.clear()
-            exp.update({
+            new_exp = {
                 "company": company,
                 "position": position,
                 "start_date": start_date,
                 "end_date": end_date,
                 "description": desc if desc else [f"Worked as a {position} at {company}."]
-            })
+            }
+            rewritten_experience.append(new_exp)
+            all_exp_desc.extend(desc)
 
-        except Exception as e:
-            # fallback if LLM fails
-            exp.clear()
-            exp.update({
+        except Exception:
+            fallback_desc = [f"Worked as a {position} at {company}, utilizing skills: {', '.join(exp_skills)}."]
+            new_exp = {
                 "company": company,
                 "position": position,
                 "start_date": start_date,
                 "end_date": end_date,
-                "description": [f"Worked as a {position} at {company}, utilizing skills: {', '.join(exp_skills)}."]
-            })
+                "description": fallback_desc
+            }
+            rewritten_experience.append(new_exp)
+            all_exp_desc.extend(fallback_desc)
 
+    # Finalize experience
     rewritten_resume["experience"] = rewritten_experience
+    rewritten_resume["total_experience_count"] = len(rewritten_experience)
 
     # -------------------- Generate Professional Summary --------------------
     summary_prompt = f"""
@@ -881,7 +1159,6 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
     Return 2-3 sentence polished ATS-friendly summary only.
     """
     rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
-    rewritten_resume["job_title"] = job_title
 
     # -------------------- Generate Project Descriptions --------------------
     if "project" in resume_data:
@@ -893,7 +1170,6 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
             tools_used = proj.get("tools", [])
             original_desc = proj.get("description", proj.get("decription", ""))
 
-            # Create LLM prompt to generate description naturally
             proj_prompt = f"""
             You are an expert career coach. Rewrite this project description for a {job_title} role:
             Project Name: {project_name}
@@ -921,15 +1197,16 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
                 if isinstance(desc, str):
                     proj_obj["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
 
-                # Ensure name and overview exist
                 proj_obj["name"] = project_name
                 proj_obj["overview"] = proj_obj.get("overview", "")
-
                 rewritten_projects.append(proj_obj)
 
             except:
-                # fallback if LLM fails
-                fallback_desc = [line.strip() for line in original_desc.split("\n") if line.strip()] if isinstance(original_desc, str) else [f"Worked on {project_name} using {', '.join(tools_used)}."]
+                fallback_desc = (
+                    [line.strip() for line in original_desc.split("\n") if line.strip()]
+                    if isinstance(original_desc, str)
+                    else [f"Worked on {project_name} using {', '.join(tools_used)}."]
+                )
                 rewritten_projects.append({
                     "name": project_name,
                     "description": fallback_desc,
@@ -957,178 +1234,2688 @@ def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
         rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
     except:
         rewritten_resume["skills"] = candidate_skills
+    
+    # -------------------- Handle Custom Sections --------------------
+    # Standard keys that should NOT be treated as custom sections
+    standard_keys = {
+        "name", "email", "phone", "location", "url", "summary", "job_title",
+        "education", "experience", "skills", "projects", "certifications", 
+        "achievements", "total_experience_count", "professional_experience",
+        "certificate", "project", "input_method"
+    }
+    
+    # Method 1: Handle nested custom_sections
+    custom_sections = resume_data.get("custom_sections", {})
+    if isinstance(custom_sections, dict):
+        for title, description in custom_sections.items():
+            clean_title = str(title).strip()
+            if isinstance(description, str):
+                clean_description = description.strip()
+            else:
+                clean_description = "\n".join(map(str, description)) if isinstance(description, list) else str(description)
+            if clean_title and clean_title not in standard_keys:
+                rewritten_resume[clean_title] = clean_description
+    
+    # Method 2: Handle top-level custom sections (direct string keys)
+    for key, value in resume_data.items():
+        if key not in standard_keys and isinstance(value, str):
+            rewritten_resume[key] = value.strip()
+
+    # ✅ --- Final Cleanup: Remove old singular keys and nested custom_sections ---
+    if "project" in rewritten_resume and "projects" in rewritten_resume:
+        del rewritten_resume["project"]
+
+    if "certificate" in rewritten_resume and "certifications" in rewritten_resume:
+        del rewritten_resume["certificate"]
+    
+    # Remove nested custom_sections as we've flattened them
+    if "custom_sections" in rewritten_resume:
+        del rewritten_resume["custom_sections"]
+
+    rewritten_resume["projects"] = rewritten_resume.get("projects", [])
+    rewritten_resume["certifications"] = rewritten_resume.get("certifications", [])
 
     return rewritten_resume
 
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def is_valid_phone(phone):
+    pattern = r'^\+?\d{7,15}$'
+    return re.match(pattern, phone) is not None
 
 
+def save_user_resume(email, resume_data, input_method=None):
+    """Save or update a user's resume without affecting other users"""
+    # user_data_file = "user_resume_data.json"
 
+    # Convert date objects to strings
+    def convert_dates(obj):
+        if isinstance(obj, dict):
+            return {k: convert_dates(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_dates(item) for item in obj]
+        elif hasattr(obj, 'isoformat'):  # date/datetime
+            return obj.isoformat()
+        return obj
 
+    resume_data = convert_dates(resume_data)
 
+    # ✅ Inject input_method into resume data
+    if input_method:
+        resume_data["input_method"] = input_method
 
+    # Load existing data
+    try:
+        if user_data_file.exists():
+            with open(user_data_file, 'r', encoding='utf-8') as f:
+                all_data = json.load(f)
+        else:
+            all_data = {}
+    except Exception as e:
+        st.error(f"Error loading user data: {e}")
+        all_data = {}
 
-# def rewrite_resume_for_job_manual(resume_data: dict, jd_data: dict) -> dict:
-#     """
-#     Rewrite the candidate's resume content to align with the job description.
-#     Emphasizes skills, achievements, experience, and projects in an ATS-friendly way.
-#     """
-#     rewritten_resume = resume_data.copy()
+    # Update only this user
+    all_data[email] = resume_data
 
-
-#     education_all = resume_data.get("education", [])
-#     education_list, certification_list = [], []
-
-#     for item in education_all:
-#         if any(k in item for k in ["duration", "gpa", "degree"]):
-#             education_list.append(item)
-#         elif any(k in item for k in ["issuer", "name"]):
-#             certification_list.append(item)
-#         else:
-#             education_list.append(item)
-
-
-#     cert_data = resume_data.get("certifications", [])
-#     if isinstance(cert_data, list):
-#         certification_list.extend(cert_data)
-
-#     rewritten_resume["education"] = education_list
-#     rewritten_resume["certifications"] = certification_list
-
-#     candidate_skills = resume_data.get("skills", [])
-#     if isinstance(candidate_skills, list) and candidate_skills:
-#         if isinstance(candidate_skills[0], dict):
-#             flat_skills = []
-#             for group in candidate_skills:
-#                 if isinstance(group, dict):
-#                     for vals in group.values():
-#                         if isinstance(vals, list):
-#                             flat_skills.extend([str(v) for v in vals if v])
-#             candidate_skills = flat_skills
-#         else:
-#             candidate_skills = [str(s) for s in candidate_skills if s]
-#     else:
-#         candidate_skills = []
+    # Save back
+    try:
+        with open(user_data_file, 'w', encoding='utf-8') as f:
+            json.dump(all_data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving resume data: {e}")
+        return False
     
-#     experience = resume_data.get("experience", []) #example : 2 years*
+def get_user_template_path(user_email):
+    """Return the JSON path for the given user's templates."""
+    if not user_email:
+        raise ValueError("❌ user_email is None — make sure the user is logged in before saving templates.")
+    
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    safe_email = user_email.replace("@", "_at_").replace(".", "_dot_")
+    return os.path.join(TEMPLATES_DIR, f"{safe_email}.json")
 
-#     professional_experience = resume_data.get("professional_experience",[]) #example details of experince like company name posisiton start date end date skills earned
+
+
+
+
+import base64
+
+def get_user_ppt_template_path(user_email):
+    """Get the file path for user's PPT templates."""
+    return os.path.join("user_data", f"{user_email}_ppt_templates.json")
+
+def load_user_templates(user_email):
+    """Load templates from JSON file for the logged-in user."""
+    path = get_user_template_path(user_email)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_user_templates(user_email, templates):
+    """Save templates to JSON file for the logged-in user."""
+    path = get_user_template_path(user_email)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(templates, f, indent=4, ensure_ascii=False)
+
+def load_user_ppt_templates(user_email):
+    """Load PowerPoint templates from JSON file for the logged-in user."""
+    path = get_user_ppt_template_path(user_email)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            templates = json.load(f)
+            # Convert base64 back to binary for ppt_data and convert lists back to sets
+            for key in templates:
+                if 'ppt_data' in templates[key]:
+                    templates[key]['ppt_data'] = base64.b64decode(templates[key]['ppt_data'])
+                # Convert lists back to sets
+                if 'heading_shapes' in templates[key]:
+                    templates[key]['heading_shapes'] = set(templates[key]['heading_shapes'])
+                if 'basic_info_shapes' in templates[key]:
+                    templates[key]['basic_info_shapes'] = set(templates[key]['basic_info_shapes'])
+            return templates
+    return {}
+
+def save_user_ppt_templates(user_email, templates):
+    """Save PowerPoint templates to JSON file for the logged-in user."""
+    path = get_user_ppt_template_path(user_email)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    
+    # Create a copy to avoid modifying the original
+    templates_copy = {}
+    for key, val in templates.items():
+        templates_copy[key] = val.copy()
+        # Convert binary ppt_data to base64 for JSON storage
+        if 'ppt_data' in val and isinstance(val['ppt_data'], bytes):
+            templates_copy[key]['ppt_data'] = base64.b64encode(val['ppt_data']).decode('utf-8')
+        # Convert sets to lists for JSON serialization
+        if 'heading_shapes' in val and isinstance(val['heading_shapes'], set):
+            templates_copy[key]['heading_shapes'] = list(val['heading_shapes'])
+        if 'basic_info_shapes' in val and isinstance(val['basic_info_shapes'], set):
+            templates_copy[key]['basic_info_shapes'] = list(val['basic_info_shapes'])
+    
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(templates_copy, f, indent=4, ensure_ascii=False)
+
+
+
+def calculate_ats_score(resume_data, job_description):
+    """
+    Calculate ATS score based on keyword matching between resume and JD.
+    Returns a score out of 100 and breakdown details.
+    """
+    if not job_description or not resume_data:
+        return {"score": 0, "breakdown": {}, "missing_keywords": []}
+    
+    # FIXED: Handle job_description if it's a dict
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = job_description
+    
+    # Extract keywords from job description
+    jd_keywords = extract_keywords(jd_text)
+    
+    # Extract all text from resume
+    resume_text = extract_resume_text(resume_data)
+    resume_keywords = extract_keywords(resume_text)
+    
+    # Calculate matching
+    matched_keywords = jd_keywords.intersection(resume_keywords)
+    match_percentage = (len(matched_keywords) / len(jd_keywords) * 100) if jd_keywords else 0
+    
+    # Calculate breakdown by sections
+    breakdown = {
+        "skills_match": calculate_skills_match(resume_data.get('skills', {}), jd_text),
+        "experience_match": calculate_text_match(
+            extract_section_text(resume_data.get('experience', [])), 
+            jd_text
+        ),
+        "keyword_match": match_percentage
+    }
+    
+    # Calculate overall score (weighted)
+    overall_score = (
+        breakdown["skills_match"] * 0.4 +
+        breakdown["experience_match"] * 0.3 +
+        breakdown["keyword_match"] * 0.3
+    )
+    
+    # Find missing important keywords
+    missing_keywords = list(jd_keywords - resume_keywords)[:10]  # Top 10 missing
+    
+    return {
+        "score": round(overall_score, 1),
+        "breakdown": breakdown,
+        "matched_keywords": list(matched_keywords)[:15],
+        "missing_keywords": missing_keywords
+    }
+
+
+def extract_jd_text(jd_dict):
+    """Extract text from job description dictionary."""
+    if not isinstance(jd_dict, dict):
+        return str(jd_dict)
+    
+    text_parts = []
+    
+    # Common JD fields
+    jd_fields = [
+        'job_title', 'title', 'position', 
+        'description', 'job_description',
+        'responsibilities', 'requirements', 
+        'qualifications', 'skills_required',
+        'preferred_skills', 'experience_required',
+        'summary', 'overview', 'about_role'
+    ]
+    
+    # Extract text from all fields
+    for field in jd_fields:
+        if field in jd_dict:
+            value = jd_dict[field]
+            if isinstance(value, str):
+                text_parts.append(value)
+            elif isinstance(value, list):
+                text_parts.extend([str(item) for item in value])
+    
+    # If no specific fields found, extract all string values
+    if not text_parts:
+        for key, value in jd_dict.items():
+            if isinstance(value, str):
+                text_parts.append(value)
+            elif isinstance(value, list):
+                text_parts.extend([str(item) for item in value if item])
+    
+    return ' '.join(text_parts)
+
+
+def extract_keywords(text):
+    """Extract meaningful keywords from text."""
+    if not text:
+        return set()
+    
+    # Ensure text is a string
+    if not isinstance(text, str):
+        text = str(text)
+    
+    # Convert to lowercase
+    text = text.lower()
+    
+    # Remove special characters and split into words
+    words = re.findall(r'\b[a-z]{3,}\b', text)
+    
+    # Common stop words to exclude
+    stop_words = {
+        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was',
+        'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may',
+        'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'she', 'use', 'way',
+        'about', 'after', 'also', 'back', 'been', 'before', 'being', 'both', 'could',
+        'each', 'from', 'have', 'here', 'into', 'just', 'like', 'more', 'most', 'only',
+        'other', 'over', 'such', 'than', 'that', 'them', 'then', 'there', 'these',
+        'they', 'this', 'through', 'time', 'very', 'were', 'what', 'when', 'where',
+        'which', 'while', 'will', 'with', 'would', 'your', 'work', 'using', 'able'
+    }
+    
+    # Filter out stop words and keep meaningful keywords
+    keywords = {word for word in words if word not in stop_words and len(word) > 3}
+    
+    return keywords
+
+
+def extract_resume_text(resume_data):
+    """Extract all text content from resume data."""
+    text_parts = []
+    
+    # Add summary
+    if resume_data.get('summary'):
+        text_parts.append(resume_data['summary'])
+    
+    # Add skills
+    skills = resume_data.get('skills', {})
+    for skill_list in skills.values():
+        if isinstance(skill_list, list):
+            text_parts.extend(skill_list)
+    
+    # Add experience
+    for exp in resume_data.get('experience', []):
+        if exp.get('position'):
+            text_parts.append(exp['position'])
+        if exp.get('title'):
+            text_parts.append(exp['title'])
+        if exp.get('description'):
+            if isinstance(exp['description'], list):
+                text_parts.extend(exp['description'])
+            else:
+                text_parts.append(str(exp['description']))
+    
+    # Add projects
+    for proj in resume_data.get('projects', []):
+        if proj.get('name'):
+            text_parts.append(proj['name'])
+        if proj.get('description'):
+            if isinstance(proj['description'], list):
+                text_parts.extend(proj['description'])
+            else:
+                text_parts.append(str(proj['description']))
+    
+    # Add education
+    for edu in resume_data.get('education', []):
+        if edu.get('degree'):
+            text_parts.append(edu['degree'])
+        if edu.get('course'):
+            text_parts.append(edu['course'])
+    
+    # Add certifications
+    for cert in resume_data.get('certifications', []):
+        # Add certifications
+        for cert in resume_data.get('certifications', []):
+            if isinstance(cert, dict):
+                # cert is a dictionary
+                name = cert.get('certificate_name') or cert.get('name')
+            else:
+                # cert is a string
+                name = cert
+            
+            if name:
+                text_parts.append(name)
+
+    
+    return ' '.join([str(part) for part in text_parts])
+
+
+def extract_section_text(section_list):
+    """Extract text from a list section."""
+    text_parts = []
+    for item in section_list:
+        if isinstance(item, dict):
+            for value in item.values():
+                if isinstance(value, str):
+                    text_parts.append(value)
+                elif isinstance(value, list):
+                    text_parts.extend([str(v) for v in value])
+    return ' '.join(text_parts)
+
+
+def calculate_skills_match(resume_skills, job_description):
+    """Calculate how many resume skills match the job description."""
+    if not resume_skills or not job_description:
+        return 0
+    
+    # Ensure job_description is a string
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = str(job_description)
+    
+    jd_lower = jd_text.lower()
+    total_skills = 0
+    matched_skills = 0
+    
+    for skill_category, skills_list in resume_skills.items():
+        if isinstance(skills_list, list):
+            for skill in skills_list:
+                total_skills += 1
+                if str(skill).lower() in jd_lower:
+                    matched_skills += 1
+    
+    return (matched_skills / total_skills * 100) if total_skills > 0 else 0
+
+
+def calculate_text_match(text, job_description):
+    """Calculate keyword match percentage between text and JD."""
+    if not text or not job_description:
+        return 0
+    
+    # Ensure inputs are strings
+    if isinstance(job_description, dict):
+        jd_text = extract_jd_text(job_description)
+    else:
+        jd_text = str(job_description)
+    
+    text_keywords = extract_keywords(text)
+    jd_keywords = extract_keywords(jd_text)
+    
+    if not jd_keywords:
+        return 0
+    
+    matched = text_keywords.intersection(jd_keywords)
+    return (len(matched) / len(jd_keywords) * 100)
+
+
+def get_score_color(score):
+    """Return color based on score."""
+    if score >= 80:
+        return "#00FF7F"  # Green
+    elif score >= 60:
+        return "#FFD700"  # Gold
+    elif score >= 40:
+        return "#FFA500"  # Orange
+    else:
+        return "#FF6347"  # Red
+
+
+def get_score_label(score):
+    """Return label based on score."""
+    if score >= 80:
+        return "Excellent Match"
+    elif score >= 60:
+        return "Good Match"
+    elif score >= 40:
+        return "Fair Match"
+    else:
+        return "Needs Improvement"
     
 
+# --- Template CSS & HTML Generation Functions (Same as before) ---
+def get_css_minimalist(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Arial', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            color: #000;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1px;
+            margin-top: 8px;
+            margin-bottom: 3px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 2px; 
+            margin-bottom: 0; 
+            line-height: 1.1; 
+            font-size: 9.5pt;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; 
+        }}
+        .ats-item-title-group {{ 
+            flex-grow: 1; 
+            padding-right: 8px; 
+        }}
+        .ats-item-title {{ 
+            font-weight: bold; 
+            color: #000; 
+            display: inline; 
+        }} 
+        .ats-item-subtitle {{ 
+            font-style: italic; 
+            color: #555; 
+            display: inline; 
+            font-size: 9pt;
+        }}
+        .ats-item-duration {{ 
+            font-size: 9pt; 
+            color: #666; 
+            white-space: nowrap;
+            flex-shrink: 0;
+            text-align: right; 
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc; 
+            margin-left: 18px; 
+            padding-left: 0; 
+            margin-top: 2px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 0px; 
+            line-height: 1.2; 
+        }}
+        .ats-header {{ margin-bottom: 8px; }}
+        .ats-header h1 {{ margin: 0; padding: 0; font-size: 16pt; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_horizontal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Times New Roman', serif; 
+            font-size: 9.5pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.15; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 16pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: {color}; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            border-bottom: 2px solid {color}; 
+            padding-bottom: 1px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 9pt; white-space: nowrap; color: #666; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 9pt; }}
+        .ats-bullet-list {{ list-style-type: circle; margin-left: 20px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_bold_title(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Verdana', sans-serif; 
+            font-size: 8.5pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: {color}; font-size: 15pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ 
+            font-size: 11pt; 
+            color: #555; 
+            margin: 2px 0 5px 0; 
+            text-align: center;
+        }}
+        .ats-contact {{ font-size: 8pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " • "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: #000; 
+            font-size: 10pt; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+            border-bottom: 1.5px solid #CCC; 
+        }}
+        .ats-item-header {{ 
+            margin-top: 2px; 
+            margin-bottom: 0px; 
+            line-height: 1.1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }}
+        .ats-item-title-group {{
+            flex-grow: 1;
+            padding-right: 8px;
+        }}
+        .ats-item-title {{ font-weight: bold; color: {color}; display: inline; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline; font-size: 8.5pt; }}
+        .ats-item-duration {{ 
+            font-size: 8pt; 
+            color: #666;
+            white-space: nowrap;
+            flex-shrink: 0;
+            text-align: right;
+        }}
+        .ats-bullet-list {{ list-style-type: square; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_date_below(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Calibri', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 17pt; margin: 0; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: {color}; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; }}
+        .ats-item-title {{ font-weight: bold; color: #000; display: inline-block; }}
+        .ats-item-duration {{ font-size: 8.5pt; color: {color}; display: block; font-style: italic; margin-top: 1px; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: inline-block; margin-left: 5px; font-size: 8.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_section_box(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Arial', sans-serif; 
+            font-size: 9pt; 
+            color: #333; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.2; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: {color}; font-size: 16pt; margin: 0; text-transform: uppercase; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 8.5pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            background-color: {color}; 
+            color: white; 
+            font-size: 10pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            padding: 2px 8px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: #000; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 8.5pt; white-space: nowrap; color: #666; }}
+        .ats-item-subtitle {{ font-style: italic; color: #555; display: block; font-size: 8.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 18px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+def get_css_classic(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.3in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Times New Roman', serif; 
+            font-size: 10pt; 
+            color: #000; 
+            max-width: 100%; 
+            margin: 0; 
+            padding: 0.3in;
+            line-height: 1.15; 
+        }}
+        .ats-header {{ text-align: center; padding-bottom: 3px; margin-bottom: 8px; }}
+        .ats-header h1 {{ color: #000; font-size: 18pt; margin: 0; }}
+        .ats-job-title-header {{ font-size: 11pt; margin: 2px 0 5px 0; }}
+        .ats-contact {{ font-size: 9pt; margin-top: 3px; }}
+        .ats-contact span:not(:last-child)::after {{ content: " | "; white-space: pre; }}
+        .ats-section-title {{ 
+            color: #000; 
+            font-size: 10.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            border-bottom: 1px solid #000; 
+            padding-bottom: 1px; 
+            margin-top: 8px; 
+            margin-bottom: 3px; 
+        }}
+        .ats-item-header {{ margin-top: 2px; margin-bottom: 1px; line-height: 1.1; display: flex; justify-content: space-between; }}
+        .ats-item-title {{ font-weight: bold; color: {color}; flex-grow: 1; }}
+        .ats-item-duration {{ font-size: 9.5pt; white-space: nowrap; color: #000; }}
+        .ats-item-subtitle {{ font-style: italic; color: #000; display: block; font-size: 9.5pt; }}
+        .ats-bullet-list {{ list-style-type: disc; margin-left: 22px; padding-left: 0; margin-top: 2px; margin-bottom: 3px; }}
+        .ats-bullet-list li {{ margin-bottom: 0px; line-height: 1.2; }}
+        .ats-skills-group {{ margin-bottom: 3px; }}
+        p {{ margin: 5px 0; }}
+        </style>
+    """
+
+
+def get_css_clean_contemporary(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.35in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Calibri', 'Arial', sans-serif;
+            font-size: 9pt;
+            color: #333;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+        }}
+        
+        /* Colored header box/banner */
+        .ats-header {{ 
+            background-color: {color};
+            padding: 20px 0.5in;
+            margin: 0 0 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        
+        .ats-header h1 {{ 
+            margin: 0 0 5px 0;
+            font-size: 26pt;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }}
+        
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
+            margin: 3px 0 6px 0;
+        }}
+        
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: rgba(255, 255, 255, 0.95);
+            margin-top: 4px;
+        }}
+        
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        
+        .ats-page-content {{
+            padding: 0 0.5in;
+        }}
+        
+        .ats-section-title {{ 
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            padding-left: 8px;
+            border-left: 3px solid {color};
+        }}
+        
+        .ats-item-header {{ 
+            margin-top: 8px;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            line-height: 1.1;
+        }}
+        
+        .ats-item-title-group {{
+            flex-grow: 1;
+        }}
+        
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: {color};
+            display: inline;
+        }}
+        
+        .ats-item-subtitle {{ 
+            font-size: 9pt;
+            color: #666;
+            display: inline;
+            margin-left: 8px;
+        }}
+        
+        .ats-item-subtitle::before {{
+            content: "• ";
+        }}
+        
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #999;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 18px;
+            padding-left: 0;
+            margin-top: 3px;
+            margin-bottom: 8px;
+        }}
+        
+        .ats-bullet-list li {{ 
+            margin-bottom: 2px;
+            line-height: 1.4;
+            color: #555;
+        }}
+        
+        .ats-skills-group {{ 
+            margin-bottom: 5px;
+            font-size: 9pt;
+            line-height: 1.4;
+        }}
+        
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: {color};
+        }}
+        
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.5;
+        }}
+        </style>
+    """
+
+def get_css_sophisticated_minimal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.4in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Helvetica Neue', 'Arial', sans-serif;
+            font-size: 9pt;
+            color: #2d2d2d;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.4in 0.55in;
+            line-height: 1.5;
+        }}
+        .ats-header {{ 
+            margin-bottom: 24px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 2px 0;
+            font-size: 30pt;
+            font-weight: 300;
+            color: #1a1a1a;
+            letter-spacing: 2px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 11pt;
+            color: #666;
+            font-weight: 400;
+            margin: 4px 0 10px 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #888;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+            margin-top: 8px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10pt;
+            font-weight: 600;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 10px;
+            margin-bottom: 5px;
+            line-height: 1.1;
+            padding-bottom: 8px;
+        }}
+        .ats-item-title-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 3px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 600;
+            font-size: 10pt;
+            color: {color};
+            letter-spacing: 0.3px;
+        }}
+        .ats-item-subtitle {{ 
+            font-size: 9pt;
+            color: #666;
+            font-style: italic;
+            display: block;
+            margin-top: 2px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #999;
+            font-weight: 400;
+            white-space: nowrap;
+        }}
+        .ats-item-divider {{
+            border-bottom: 0.5px solid #f0f0f0;
+            margin-top: 8px;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 16px;
+            padding-left: 0;
+            margin-top: 4px;
+            margin-bottom: 0px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 3px;
+            line-height: 1.5;
+            color: #4a4a4a;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 6px;
+            font-size: 9pt;
+            line-height: 1.5;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 600;
+            color: #1a1a1a;
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.6;
+            text-align: justify;
+        }}
+        </style>
+    """
+
+
+def get_css_modern_minimal(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.4in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 9pt;
+            color: #2c3e50;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.4in 0.5in;
+            line-height: 1.4;
+        }}
+        .ats-header {{ 
+            margin-bottom: 25px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 4px 0;
+            font-size: 28pt;
+            font-weight: 700;
+            color: {color};
+            letter-spacing: 0.5px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: #4a5568;
+            font-weight: 500;
+            margin: 3px 0 6px 0;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #718096;
+            border-top: 1.5px solid #e2e8f0;
+            padding-top: 8px;
+            margin-top: 6px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 11pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            padding-bottom: 3px;
+            border-bottom: 2px solid {color};
+        }}
+        .ats-item-header {{ 
+            margin-top: 8px;
+            margin-bottom: 4px;
+            line-height: 1.1;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }}
+        .ats-item-title-group {{
+            flex-grow: 1;
+            padding-right: 10px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: #2d3748;
+            display: inline;
+        }}
+        .ats-item-subtitle {{ 
+            font-style: italic;
+            font-size: 9pt;
+            color: #4a5568;
+            display: inline;
+            margin-left: 6px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #718096;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 18px;
+            padding-left: 0;
+            margin-top: 3px;
+            margin-bottom: 8px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 2px;
+            line-height: 1.4;
+            color: #4a5568;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 5px;
+            font-size: 9pt;
+            line-height: 1.4;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: #2d3748;
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.5;
+            text-align: justify;
+        }}
+        </style>
+    """
+
+
+def get_css_elegant_professional(color):
+    return f"""
+        <style>
+        @page {{ margin: 0.45in; size: letter; }}
+        body {{ margin: 0; padding: 0; }}
+        .ats-page {{ 
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 9pt;
+            color: #333333;
+            max-width: 100%;
+            margin: 0;
+            padding: 0.45in 0.55in;
+            line-height: 1.45;
+        }}
+        .ats-header {{ 
+            text-align: center;
+            margin-bottom: 22px;
+            border-bottom: 2.5px double {color};
+            padding-bottom: 15px;
+        }}
+        .ats-header h1 {{ 
+            margin: 0 0 6px 0;
+            font-size: 30pt;
+            font-weight: 400;
+            color: {color};
+            letter-spacing: 1.5px;
+        }}
+        .ats-job-title-header {{ 
+            font-size: 12pt;
+            color: #555;
+            font-style: italic;
+            margin: 4px 0 8px 0;
+        }}
+        .ats-contact {{ 
+            font-size: 9pt;
+            color: #666;
+            letter-spacing: 0.3px;
+            margin-top: 6px;
+        }}
+        .ats-contact span:not(:last-child)::after {{ 
+            content: " | "; 
+            white-space: pre; 
+        }}
+        .ats-section-title {{ 
+            font-size: 10.5pt;
+            font-weight: 700;
+            color: {color};
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }}
+        .ats-item-header {{ 
+            margin-top: 10px;
+            margin-bottom: 5px;
+            line-height: 1.1;
+        }}
+        .ats-item-title-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }}
+        .ats-item-title {{ 
+            font-weight: 700;
+            font-size: 10pt;
+            color: {color};
+        }}
+        .ats-item-subtitle {{ 
+            font-style: italic;
+            font-size: 9pt;
+            color: #666;
+            display: block;
+            margin-top: 1px;
+        }}
+        .ats-item-duration {{ 
+            font-size: 8.5pt;
+            color: #777;
+            font-style: italic;
+            white-space: nowrap;
+        }}
+        .ats-bullet-list {{ 
+            list-style-type: disc;
+            margin-left: 20px;
+            padding-left: 0;
+            margin-top: 4px;
+            margin-bottom: 10px;
+        }}
+        .ats-bullet-list li {{ 
+            margin-bottom: 3px;
+            line-height: 1.45;
+            color: #444;
+        }}
+        .ats-skills-group {{ 
+            margin-bottom: 6px;
+            font-size: 9pt;
+            line-height: 1.5;
+        }}
+        .ats-skills-group strong {{ 
+            font-weight: 700;
+            color: {color};
+        }}
+        p {{ 
+            margin: 5px 0;
+            line-height: 1.55;
+            text-align: justify;
+        }}
+        </style>
+    """
+
+
+
+
+def analyze_slide_structure(slide_texts):
+    """Use LLM to find headings, subheadings, and related contents - INCLUDING BASIC INFO"""
+    system_prompt = """
+You are a presentation content analyzer.
+
+You will receive a list of text boxes per slide, each with coordinates (x, y) and text content.
+
+Your goal:
+- Identify **basic information** (name, title, contact info, summary) - these should be marked as editable
+- Identify **main headings** (e.g., "Selected Experiences", "Core Competencies", "Profile")
+- Identify **subheadings** under a main heading
+- Group all descriptive text under the closest subheading
+
+CRITICAL: Basic information like name, job title, contact info, and summary SHOULD be marked as editable content, NOT locked headings.
+
+Return **strictly valid JSON**:
+[
+  {
+    "slide_number": 1,
+    "sections": [
+      {
+        "heading": "Profile",
+        "heading_shape_idx": 0,
+        "is_basic_info": true,
+        "subsections": [
+          {
+            "subheading": "",
+            "subheading_shape_idx": null,
+            "content_shape_idx": 1,
+            "content_text": "Sudheer Varma\\nOracle Cloud HCM Techno Functional Consultant\\n8+ years of experience",
+            "content_type": "basic_info"
+          }
+        ]
+      }
+    ]
+  }
+]
+"""
+    user_prompt = f"Analyze these slide texts and extract ALL content including basic information:\n{json.dumps(slide_texts, indent=2)}"
+
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.3,
+        "max_tokens": 2500
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result_text = response.json()["choices"][0]["message"]["content"]
+        
+        try:
+            structured = json.loads(result_text)
+        except json.JSONDecodeError:
+            match = re.search(r'\[.*\]', result_text, re.DOTALL)
+            structured = json.loads(match.group(0)) if match else []
+        
+        return structured
+    except:
+        return []
     
-
-#     job_title = jd_data.get("job_title", "")
-#     job_summary = jd_data.get("job_summary", "")
-#     responsibilities = jd_data.get("responsibilities", [])
-#     required_skills = jd_data.get("required_skills", [])
-
-#     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
-#     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
-
-#     all_exp_desc = []
-
-
-#     for exp in professional_experience:
-#             if isinstance(exp, dict):
-#                 exp_skills = exp.get("exp_skills", [])
-#                 if isinstance(exp_skills, list) and exp_skills:
-#                     if isinstance(exp_skills[0], dict):
-#                         take_skills = []
-#                         for sets in exp_skills:
-#                             if isinstance(sets, dict):
-#                                 for vals in sets.values():
-#                                     if isinstance(vals, list):
-#                                         take_skills.extend([str(v) for v in vals if v])
-#                         exp_skills = take_skills
-#                     else:
-#                         exp_skills = [str(s) for s in exp_skills if s]
-#                 else:
-#                     exp_skills = []
-
-#     if not all_exp_desc:  
-#         exp_prompt = f"""
-#         Rewrite the candidate's experience for a {exp.get(position)}.
-#         Include measurable achievements, relevant keywords, and ATS-friendly formatting.
-#         Maintain JSON structure: description (array of strings), overview.
-#         use :{json.dumps(exp_skills)} for reference.
-#         Original Experience: {json.dumps(experience)}
-#         Responsibilities: {', '.join(responsibilities)}
-#         Required Skills: {', '.join(required_skills)}
-#         Return ONLY valid JSON array.
-#         """
-#         rewritten_exp_text = call_llm_api(exp_prompt, 500)
-#         try:
-#             json_start = rewritten_exp_text.find('[')
-#             json_end = rewritten_exp_text.rfind(']') + 1
-#             rewritten_experience = json.loads(rewritten_exp_text[json_start:json_end])
-#             for exp in rewritten_experience:
-#                 desc = exp.get("description", [])
-#                 if not desc or (isinstance(desc, list) and not any(line.strip() for line in desc)):
-#                     position = exp.get("position", "Professional")
-#                     company = exp.get("company", "A Company")
-#                     placeholder_desc = generate_basic_description(position, company, candidate_skills, call_llm_api)
-#                     exp["description"] = placeholder_desc
-#                     desc = placeholder_desc
-#                 if isinstance(desc, str):
-#                     exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
-#             rewritten_resume["experience"] = rewritten_experience
-#         except:
-#             rewritten_resume["experience"] = experience
+def analyze_content_length(text):
+    """Analyze content length and return category"""
+    word_count = len(text.split())
+    char_count = len(text)
+    
+    if word_count < 30 or char_count < 150:
+        return "very_short", word_count, char_count
+    elif word_count < 60 or char_count < 400:
+        return "short", word_count, char_count
+    elif word_count < 100 or char_count < 700:
+        return "medium", word_count, char_count
+    else:
+        return "long", word_count, char_count
 
 
 
-#     summary_prompt = f"""
-#     You are an expert career coach. Rewrite a professional summary for {resume_data.get('name','')}
-#     applying for a {job_title} position at {jd_data.get('company','')}.
-#     Highlight relevant skills, achievements, and experience. Use the candidate's original summary:
-#     {resume_data.get('summary','')} and experience highlights: {all_exp_desc[:10]}
-#     Consider the job requirements: {', '.join(required_skills)}
-#     Return 2-3 sentence polished ATS-friendly summary only.
-#     with out description
-#     """
-#     rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
-#     rewritten_resume["job_title"] = job_title
+def generate_ppt_sections(resume_data, structured_slides):
+    """Generate AI content for ALL sections including basic info"""
+    sections = []
+    for slide in structured_slides:
+        for section in slide.get("sections", []):
+            # Check if this is basic info section
+            is_basic_info = section.get("is_basic_info", False)
+            
+            entry = {
+                "slide_number": slide.get("slide_number"),
+                "heading": section.get("heading", ""),
+                "heading_shape_idx": section.get("heading_shape_idx"),
+                "is_basic_info": is_basic_info,
+                "subsections": []
+            }
 
-#     if "projects" in resume_data:
-#         projects = resume_data.get("projects", [])
-#         proj_prompt = f"""
-#         Rewrite the candidate's project descriptions for a {job_title} role.
-#         Highlight achievements and relevant skills, keep JSON: name, description (array of strings), overview.
-#         Original Projects: {json.dumps(projects)}
-#         Responsibilities: {', '.join(responsibilities)}
-#         Required Skills: {', '.join(required_skills)}
-#         Return ONLY valid JSON array.
-#         """
-#         rewritten_proj_text = call_llm_api(proj_prompt, 400)
-#         try:
-#             json_start = rewritten_proj_text.find('[')
-#             json_end = rewritten_proj_text.rfind(']') + 1
-#             rewritten_projects = json.loads(rewritten_proj_text[json_start:json_end])
-#             for proj in rewritten_projects:
-#                 desc = proj.get("description", [])
-#                 if isinstance(desc, str):
-#                     proj["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
-#             rewritten_resume["projects"] = rewritten_projects
-#         except:
-#             rewritten_resume["projects"] = projects
+            for subsec in section.get("subsections", []):
+                original_text = subsec.get("content_text", "")
+                content_type = subsec.get("content_type", "normal")
+                
+                # For basic info, we need special handling
+                if is_basic_info or content_type == "basic_info":
+                    # Basic info should be short and concise
+                    target_word_count = min(len(original_text.split()), 50)
+                    target_char_count = min(len(original_text), 300)
+                    length_category = "short"
+                else:
+                    length_category, word_count, char_count = analyze_content_length(original_text)
+                    target_word_count = word_count
+                    target_char_count = char_count
+                
+                entry["subsections"].append({
+                    "subheading": subsec.get("subheading", ""),
+                    "subheading_shape_idx": subsec.get("subheading_shape_idx"),
+                    "content_shape_idx": subsec.get("content_shape_idx"),
+                    "original_content": original_text,
+                    "target_word_count": target_word_count,
+                    "target_char_count": target_char_count,
+                    "length_category": length_category,
+                    "content_type": content_type,
+                    "is_basic_info": is_basic_info
+                })
+
+            sections.append(entry)
+
+    system_prompt = """
+You are a professional AI assistant that generates polished PowerPoint content from resume data.
+
+CRITICAL REQUIREMENTS:
+1. Match the target length specified for each section PRECISELY
+2. For BASIC INFORMATION sections (name, title, contact, summary), replace with actual resume data
+3. For EXPERIENCE sections, generate professional content that matches the target length
+
+SPECIAL HANDLING FOR BASIC INFORMATION:
+- Replace name with: {name}
+- Replace title/position with actual experience titles
+- Update contact info: {email}, {phone}, {location}
+- For profile/summary: use the resume summary
+
+TASK:
+- For basic info sections: DIRECTLY REPLACE with actual resume data
+- For other sections: Generate professional content that MATCHES target word count
+- Always write in a formal, presentation-friendly tone
+- Rewrite resume data to sound concise, polished, and visually engaging
+- DO NOT use bullet points - write in paragraph form
+- IMPORTANT: Respect the target_word_count for each section
+
+OUTPUT FORMAT (strict JSON):
+[
+  {
+    "slide_number": 1,
+    "heading": "Profile",
+    "is_basic_info": true,
+    "subsections": [
+      {
+        "subheading": "",
+        "content_shape_idx": 1,
+        "target_word_count": 25,
+        "generated_content": "Anaha Joy\\nMagento 2 Developer\\n2+ years of experience\\n+91 8304078233 | anahajoy2022@gmail.com"
+      }
+    ]
+  }
+]
+"""
+
+    user_prompt = f"""
+Resume Data:
+{json.dumps(resume_data, indent=2)}
+
+PPT Structure with Target Lengths:
+{json.dumps(sections, indent=2)}
+
+Generate content for ALL sections:
+- For BASIC INFO: Directly replace with actual resume data
+- For EXPERIENCE: Generate professional content matching target length
+"""
+
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 0.45,
+        "max_tokens": 4000
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        result_text = response.json()["choices"][0]["message"]["content"]
+        
+        try:
+            structured_output = json.loads(result_text)
+        except json.JSONDecodeError:
+            match = re.search(r'\[.*\]', result_text, re.DOTALL)
+            structured_output = json.loads(match.group(0)) if match else []
+        
+        return structured_output
+    except:
+        return []
+    
+def trim_content_to_length(content, target_word_count, target_char_count):
+    """Trim content to match target length while maintaining coherence"""
+    current_words = len(content.split())
+    current_chars = len(content)
+    
+    # If content is within acceptable range (±20%), return as is
+    word_diff = abs(current_words - target_word_count) / max(target_word_count, 1)
+    if word_diff < 0.2:
+        return content
+    
+    # If too long, trim sentences
+    if current_words > target_word_count * 1.2:
+        sentences = content.split('. ')
+        trimmed = []
+        word_count = 0
+        
+        for sentence in sentences:
+            sentence_words = len(sentence.split())
+            if word_count + sentence_words <= target_word_count * 1.1:
+                trimmed.append(sentence)
+                word_count += sentence_words
+            else:
+                break
+        
+        result = '. '.join(trimmed)
+        if result and not result.endswith('.'):
+            result += '.'
+        return result
+    
+    return content
+def similarity_score(a, b):
+    """Calculate similarity between two strings"""
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+def match_generated_to_original(original_elements, generated_sections, prs):
+    """
+    Smart matching system that maps generated content to original PPT positions
+    NOW ALLOWS BASIC INFO TO BE EDITABLE
+    """
+    content_mapping = {}
+    heading_shapes = set()
+    basic_info_shapes = set()
+    
+    for gen_section in generated_sections:
+        slide_num = gen_section.get("slide_number", 1)
+        is_basic_info = gen_section.get("is_basic_info", False)
+        
+        # Mark heading as non-editable UNLESS it's basic info
+        heading_shape_idx = gen_section.get("heading_shape_idx")
+        if heading_shape_idx is not None and not is_basic_info:
+            heading_shapes.add(f"{slide_num}_{heading_shape_idx}")
+        
+        for subsec in gen_section.get("subsections", []):
+            # Mark subheading as non-editable
+            subheading_shape_idx = subsec.get("subheading_shape_idx")
+            if subheading_shape_idx is not None:
+                heading_shapes.add(f"{slide_num}_{subheading_shape_idx}")
+            
+            # Map generated content to content shape
+            content_shape_idx = subsec.get("content_shape_idx")
+            generated_content = subsec.get("generated_content", "")
+            target_word_count = subsec.get("target_word_count", 0)
+            target_char_count = subsec.get("target_char_count", 0)
+            
+            # For basic info, always replace
+            if is_basic_info or subsec.get("is_basic_info", False):
+                basic_info_shapes.add(f"{slide_num}_{content_shape_idx}")
+            
+            # Trim content to match target length
+            if generated_content and target_word_count:
+                generated_content = trim_content_to_length(
+                    generated_content, 
+                    target_word_count, 
+                    target_char_count
+                )
+            
+            if content_shape_idx is not None and generated_content:
+                key = f"{slide_num}_{content_shape_idx}"
+                content_mapping[key] = generated_content
+            elif generated_content:
+                # Fallback: find best matching content by similarity
+                subheading = subsec.get("subheading", "")
+                original_content = subsec.get("original_content", "")
+                
+                # Find shapes on this slide
+                best_match_key = None
+                best_score = 0
+                
+                for elem in original_elements:
+                    if elem['slide'] == slide_num:
+                        elem_key = f"{elem['slide']}_{elem['shape']}"
+                        
+                        # Skip if already mapped or is heading
+                        if elem_key in content_mapping or elem_key in heading_shapes:
+                            continue
+                        
+                        # Check if this shape contains similar content
+                        score = similarity_score(elem['original_text'], original_content)
+                        
+                        if score > best_score and score > 0.3:
+                            best_score = score
+                            best_match_key = elem_key
+                
+                if best_match_key:
+                    content_mapping[best_match_key] = generated_content
+    
+    return content_mapping, heading_shapes, basic_info_shapes
+
+def clear_and_replace_text(shape, new_text):
+    """Replace text while preserving formatting"""
+    if not shape.has_text_frame:
+        return
+    
+    # Store original formatting
+    original_font = None
+    if shape.text_frame.paragraphs and shape.text_frame.paragraphs[0].runs:
+        first_run = shape.text_frame.paragraphs[0].runs[0]
+        original_font = {
+            'name': first_run.font.name,
+            'size': first_run.font.size,
+            'bold': first_run.font.bold,
+            'italic': first_run.font.italic,
+        }
+        try:
+            if first_run.font.color.type == 1:
+                original_font['color'] = first_run.font.color.rgb
+        except:
+            pass
+    
+    # Clear all text
+    for paragraph in shape.text_frame.paragraphs:
+        for run in paragraph.runs:
+            run.text = ""
+    
+    # Replace with new text
+    if shape.text_frame.paragraphs:
+        first_paragraph = shape.text_frame.paragraphs[0]
+        if first_paragraph.runs:
+            first_run = first_paragraph.runs[0]
+        else:
+            first_run = first_paragraph.add_run()
+        
+        first_run.text = new_text
+        
+        # Restore formatting
+        if original_font:
+            if original_font.get('name'):
+                first_run.font.name = original_font['name']
+            if original_font.get('size'):
+                first_run.font.size = original_font['size']
+            if original_font.get('bold') is not None:
+                first_run.font.bold = original_font['bold']
+            if original_font.get('italic') is not None:
+                first_run.font.italic = original_font['italic']
+            if original_font.get('color'):
+                try:
+                    first_run.font.color.rgb = original_font['color']
+                except:
+                    pass
+        
+        # Remove extra paragraphs
+        while len(shape.text_frame.paragraphs) > 1:
+            p = shape.text_frame.paragraphs[-1]
+            shape.text_frame._element.remove(p._element)
+
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+import io
+import json
+import re
+
+# ============= HELPER FUNCTIONS =============
+
+def is_heading(para):
+    """Check if paragraph is a heading"""
+    if para.style.name.startswith('Heading') or para.style.name == 'Title':
+        return True
+    
+    if para.runs and para.runs[0].bold and len(para.text.strip().split()) <= 10:
+        return True
+    
+    return False
+
+def detect_section(text):
+    """Detect which section a paragraph belongs to"""
+    text_lower = text.lower().strip()
+    
+    section_keywords = {
+        'experience': ['experience', 'employment', 'work history', 'professional experience'],
+        'education': ['education', 'academic', 'qualification'],
+        'skills': ['skills', 'technical skills', 'competencies', 'expertise', 'tools', 'languages'],
+        'projects': ['projects', 'key projects'],
+        'certifications': ['certifications', 'certificates', 'licenses'],
+        'achievements': ['achievements', 'accomplishments', 'awards'],
+        'summary': ['summary', 'profile', 'about', 'objective', 'professional summary'],
+    }
+    
+    for section, keywords in section_keywords.items():
+        if any(keyword == text_lower or keyword in text_lower for keyword in keywords):
+            return section
+    
+    return None
+
+def extract_document_structure(uploaded_file):
+    """Extract document structure with sections"""
+    doc = Document(uploaded_file)
+    structure = []
+    current_section = None
+    section_content_start = None
+    
+    for idx, para in enumerate(doc.paragraphs):
+        text = para.text.strip()
+        if not text:
+            continue
+        
+        # Check if it's a header
+        is_header = is_heading(para)
+        detected_section = detect_section(text) if is_header else None
+        
+        # If we found a new section
+        if detected_section:
+            # Save previous section if exists
+            if current_section and section_content_start is not None:
+                structure.append({
+                    'section': current_section,
+                    'header_idx': section_content_start - 1,
+                    'content_start': section_content_start,
+                    'content_end': idx - 1
+                })
+            
+            current_section = detected_section
+            section_content_start = idx + 1
+        
+        # Handle header content (name, title, contact)
+        elif idx <= 3 and not current_section:
+            if idx == 0:
+                structure.append({'section': 'name', 'para_idx': idx})
+            elif idx == 1:
+                structure.append({'section': 'job_title', 'para_idx': idx})
+            elif idx == 2 or idx == 3:
+                structure.append({'section': 'contact', 'para_idx': idx})
+    
+    # Save last section
+    if current_section and section_content_start is not None:
+        structure.append({
+            'section': current_section,
+            'header_idx': section_content_start - 1,
+            'content_start': section_content_start,
+            'content_end': len(doc.paragraphs) - 1
+        })
+    
+    return doc, structure
+
+def clean_list_representation(data):
+    """Clean Python list/dict string representations"""
+    if isinstance(data, str):
+        # Try to parse as JSON
+        try:
+            return json.loads(data.replace("'", '"'))
+        except:
+            pass
+        
+        # Remove Python dict/list syntax
+        data = re.sub(r"^\{|\}$", "", data)  # Remove outer braces
+        data = re.sub(r"^\[|\]$", "", data)  # Remove outer brackets
+        data = re.sub(r"['\"]", "", data)     # Remove quotes
+        
+    return data
+
+def format_skills(skills_data):
+    """Format skills data properly"""
+    if isinstance(skills_data, dict):
+        lines = []
+        for key, value in skills_data.items():
+            key_title = key.replace('_', ' ').title()
+            
+            if isinstance(value, list):
+                # Join list items with commas
+                value_str = ", ".join(str(v) for v in value)
+                lines.append(f"{key_title}: {value_str}")
+            elif isinstance(value, str):
+                # Clean string representation
+                cleaned = clean_list_representation(value)
+                if isinstance(cleaned, list):
+                    value_str = ", ".join(str(v) for v in cleaned)
+                    lines.append(f"{key_title}: {value_str}")
+                else:
+                    lines.append(f"{key_title}: {cleaned}")
+            else:
+                lines.append(f"{key_title}: {value}")
+        
+        return "\n\n".join(lines)
+    
+    elif isinstance(skills_data, list):
+        return ", ".join(str(s) for s in skills_data)
+    
+    elif isinstance(skills_data, str):
+        # Clean any Python syntax
+        cleaned = clean_list_representation(skills_data)
+        if isinstance(cleaned, (list, dict)):
+            return format_skills(cleaned)
+        return cleaned
+    
+    return str(skills_data)
+
+def format_experience(exp_list):
+    """Format experience data with bold subheadings"""
+    result = []
+    for exp in exp_list:
+        job_title = exp.get('job_title', exp.get('position', ''))
+        company = exp.get('company', '')
+        location = exp.get('location', '')
+        start_date = exp.get('start_date', '')
+        end_date = exp.get('end_date', '')
+        
+        # Format date range
+        duration = f"{start_date} - {end_date}" if start_date or end_date else ""
+        
+        # Get responsibilities
+        responsibilities = exp.get('responsibilities', exp.get('description', []))
+        if isinstance(responsibilities, str):
+            # Clean string representation
+            cleaned = clean_list_representation(responsibilities)
+            if isinstance(cleaned, list):
+                responsibilities = cleaned
+            else:
+                responsibilities = [cleaned]
+        
+        result.append({
+            'job_title': job_title,
+            'company': company,
+            'duration': duration,
+            'location': location,
+            'bullets': [str(r).strip() for r in responsibilities if r]
+        })
+    
+    return result
+
+def format_education(edu_list):
+    """Format education data"""
+    result = []
+    for edu in edu_list:
+        degree = edu.get('degree', '')
+        institution = edu.get('institution', '')
+        location = edu.get('location', '')
+        year = edu.get('year', '')
+        start_date = edu.get('start_date', '')
+        end_date = edu.get('end_date', '')
+        
+        # Use year or date range
+        duration = year if year else (f"{start_date} - {end_date}" if start_date or end_date else "")
+        
+        result.append({
+            'degree': degree,
+            'institution': institution,
+            'year': duration,
+            'location': location
+        })
+    
+    return result
+
+def format_projects(proj_list):
+    """Format projects data with bold titles"""
+    result = []
+    for proj in proj_list:
+        title = proj.get('title', proj.get('name', ''))
+        description = proj.get('description', [])
+        
+        if isinstance(description, str):
+            cleaned = clean_list_representation(description)
+            if isinstance(cleaned, list):
+                description = cleaned
+            else:
+                description = [cleaned]
+        
+        result.append({
+            'title': title,
+            'bullets': [str(d).strip() for d in description if d]
+        })
+    
+    return result
+
+def format_certifications(cert_list):
+    """Format certifications"""
+    result = []
+    for cert in cert_list:
+        if isinstance(cert, str):
+            result.append(cert)
+        elif isinstance(cert, dict):
+            name = cert.get('name', cert.get('title', ''))
+            issuer = cert.get('issuer', cert.get('institution', ''))
+            if name:
+                line = name
+                if issuer:
+                    line += f" {issuer}"
+                result.append(line)
+    
+    return result
+
+def replace_paragraph_preserving_format(para, new_text, keep_bold=False):
+    """Replace paragraph text while preserving all formatting"""
+    if not para.runs:
+        para.add_run(new_text)
+        return
+    
+    # Store first run's formatting
+    first_run = para.runs[0]
+    font_name = first_run.font.name
+    font_size = first_run.font.size
+    bold = first_run.font.bold if keep_bold else False
+    italic = first_run.font.italic
+    
+    try:
+        color = first_run.font.color.rgb
+    except:
+        color = None
+    
+    # Clear all runs
+    for run in para.runs:
+        run.text = ""
+    
+    # Remove extra runs
+    while len(para.runs) > 1:
+        para._element.remove(para.runs[-1]._element)
+    
+    # Set new text and restore formatting
+    para.runs[0].text = new_text
+    if font_name:
+        para.runs[0].font.name = font_name
+    if font_size:
+        para.runs[0].font.size = font_size
+    if color:
+        try:
+            para.runs[0].font.color.rgb = color
+        except:
+            pass
+    para.runs[0].font.bold = bold
+    para.runs[0].font.italic = italic
+
+def add_formatted_run(para, text, bold=False, italic=False, ref_run=None):
+    """Add a run with specific formatting"""
+    run = para.add_run(text)
+    
+    if ref_run:
+        if ref_run.font.name:
+            run.font.name = ref_run.font.name
+        if ref_run.font.size:
+            run.font.size = ref_run.font.size
+        try:
+            if ref_run.font.color.rgb:
+                run.font.color.rgb = ref_run.font.color.rgb
+        except:
+            pass
+    
+    run.font.bold = bold
+    run.font.italic = italic
+    
+    return run
+
+def replace_experience_content(doc, start_idx, end_idx, exp_data, ref_para):
+    """Replace experience content with bold job titles and italic companies"""
+    # Get reference formatting
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
+    
+    # Build text with proper formatting
+    text_parts = []
+    
+    for exp in exp_data:
+        # Format: **Job Title** *Company*
+        job_company = f"{exp['job_title']} {exp['company']}".strip()
+        
+        text_parts.append(job_company)
+        
+        # Add bullets
+        for bullet in exp['bullets']:
+            text_parts.append(f"• {bullet}")
+        
+        text_parts.append("")  # Empty line between experiences
+    
+    # Join and replace
+    full_text = "\n".join(text_parts).strip()
+    
+    if start_idx < len(doc.paragraphs):
+        para = doc.paragraphs[start_idx]
+        
+        # Clear existing content
+        for run in para.runs:
+            run.text = ""
+        while len(para.runs) > 1:
+            para._element.remove(para.runs[-1]._element)
+        
+        # Add content with mixed formatting
+        current_text = ""
+        for exp in exp_data:
+            # Add job title (bold) and company (italic)
+            if exp['job_title']:
+                job_run = para.add_run(exp['job_title'] + " ")
+                job_run.font.bold = True
+                if ref_run:
+                    if ref_run.font.name:
+                        job_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        job_run.font.size = ref_run.font.size
+            
+            if exp['company']:
+                company_run = para.add_run(exp['company'])
+                company_run.font.italic = True
+                if ref_run:
+                    if ref_run.font.name:
+                        company_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        company_run.font.size = ref_run.font.size
+            
+            # Add line break
+            para.add_run("\n")
+            
+            # Add bullets
+            for bullet in exp['bullets']:
+                bullet_run = para.add_run(f"• {bullet}\n")
+                if ref_run:
+                    if ref_run.font.name:
+                        bullet_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        bullet_run.font.size = ref_run.font.size
+            
+            # Add spacing between experiences
+            para.add_run("\n")
+    
+    return list(range(start_idx + 1, end_idx + 1))
+
+def replace_projects_content(doc, start_idx, end_idx, proj_data, ref_para):
+    """Replace projects content with bold titles"""
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
+    
+    if start_idx < len(doc.paragraphs):
+        para = doc.paragraphs[start_idx]
+        
+        # Clear existing content
+        for run in para.runs:
+            run.text = ""
+        while len(para.runs) > 1:
+            para._element.remove(para.runs[-1]._element)
+        
+        # Add content with bold titles
+        for proj in proj_data:
+            # Add project title (bold)
+            if proj['title']:
+                title_run = para.add_run(proj['title'])
+                title_run.font.bold = True
+                if ref_run:
+                    if ref_run.font.name:
+                        title_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        title_run.font.size = ref_run.font.size
+                
+                para.add_run("\n")
+            
+            # Add bullets
+            for bullet in proj['bullets']:
+                bullet_run = para.add_run(f"• {bullet}\n")
+                if ref_run:
+                    if ref_run.font.name:
+                        bullet_run.font.name = ref_run.font.name
+                    if ref_run.font.size:
+                        bullet_run.font.size = ref_run.font.size
+            
+            # Add spacing
+            para.add_run("\n")
+    
+    return list(range(start_idx + 1, end_idx + 1))
+
+def replace_section_content(doc, start_idx, end_idx, formatted_data, ref_para, section_type):
+    """Replace section content with new data"""
+    # Handle special formatting for experience and projects
+    if section_type == 'experience' and isinstance(formatted_data, list):
+        return replace_experience_content(doc, start_idx, end_idx, formatted_data, ref_para)
+    
+    if section_type == 'projects' and isinstance(formatted_data, list):
+        return replace_projects_content(doc, start_idx, end_idx, formatted_data, ref_para)
+    
+    # Regular content replacement
+    ref_run = ref_para.runs[0] if ref_para and ref_para.runs else None
+    
+    # Build text content
+    text_lines = []
+    
+    if isinstance(formatted_data, list):
+        if formatted_data and isinstance(formatted_data[0], dict):
+            # Education or other structured data
+            for item in formatted_data:
+                parts = []
+                if item.get('degree'):
+                    parts.append(item['degree'])
+                if item.get('institution'):
+                    parts.append(item['institution'])
+                
+                header = " ".join(parts)
+                if header:
+                    text_lines.append(header)
+                
+                if item.get('year'):
+                    text_lines.append(item['year'])
+                
+                text_lines.append("")
+        else:
+            # Simple list (certifications)
+            for item in formatted_data:
+                text_lines.append(f"• {item}")
+    
+    elif isinstance(formatted_data, str):
+        text_lines.append(formatted_data)
+    
+    # Join text
+    full_text = "\n".join(text_lines).strip()
+    
+    # Replace content
+    if start_idx < len(doc.paragraphs):
+        para = doc.paragraphs[start_idx]
+        replace_paragraph_preserving_format(para, full_text, keep_bold=False)
+    
+    return list(range(start_idx + 1, end_idx + 1))
+
+def replace_content(doc, structure, final_data):
+    """Main function to replace content"""
+    paragraphs_to_remove = set()
+    replaced_count = 0
+    sections_to_remove = set()
+    
+    # First pass: identify sections not in final_data
+    for item in structure:
+        section = item['section']
+        if section not in ['name', 'job_title', 'contact']:
+            if section not in final_data or not final_data[section]:
+                # Mark entire section for removal
+                if 'header_idx' in item:
+                    sections_to_remove.add(item['header_idx'])
+                if 'content_start' in item:
+                    for idx in range(item['content_start'], item['content_end'] + 1):
+                        sections_to_remove.add(idx)
+    
+    # Second pass: replace content
+    for item in structure:
+        section = item['section']
+        
+        # Skip sections marked for removal
+        if 'header_idx' in item and item['header_idx'] in sections_to_remove:
+            continue
+        
+        # Handle header sections
+        if section == 'name':
+            if 'para_idx' in item and 'name' in final_data:
+                para_idx = item['para_idx']
+                if para_idx < len(doc.paragraphs):
+                    replace_paragraph_preserving_format(doc.paragraphs[para_idx], final_data['name'], keep_bold=True)
+                    replaced_count += 1
+        
+        elif section == 'job_title':
+            if 'para_idx' in item and 'job_title' in final_data:
+                para_idx = item['para_idx']
+                if para_idx < len(doc.paragraphs):
+                    replace_paragraph_preserving_format(doc.paragraphs[para_idx], final_data['job_title'], keep_bold=False)
+                    replaced_count += 1
+        
+        elif section == 'contact':
+            if 'para_idx' in item:
+                contact_parts = []
+                if final_data.get('phone'):
+                    contact_parts.append(final_data['phone'])
+                if final_data.get('email'):
+                    contact_parts.append(final_data['email'])
+                if final_data.get('location'):
+                    contact_parts.append(final_data['location'])
+                
+                if contact_parts:
+                    para_idx = item['para_idx']
+                    if para_idx < len(doc.paragraphs):
+                        replace_paragraph_preserving_format(doc.paragraphs[para_idx], " | ".join(contact_parts), keep_bold=False)
+                        replaced_count += 1
+        
+        # Handle content sections
+        else:
+            if 'content_start' in item and section in final_data and final_data[section]:
+                content_start = item['content_start']
+                content_end = item['content_end']
+                ref_para = doc.paragraphs[content_start] if content_start < len(doc.paragraphs) else None
+                
+                # Format data based on section
+                formatted_data = None
+                
+                if section == 'experience':
+                    formatted_data = format_experience(final_data['experience'])
+                elif section == 'education':
+                    formatted_data = format_education(final_data['education'])
+                elif section == 'skills':
+                    formatted_data = format_skills(final_data['skills'])
+                elif section == 'projects':
+                    formatted_data = format_projects(final_data['projects'])
+                elif section == 'certifications':
+                    formatted_data = format_certifications(final_data['certifications'])
+                elif section == 'summary':
+                    formatted_data = final_data['summary']
+                
+                if formatted_data:
+                    to_remove = replace_section_content(doc, content_start, content_end, formatted_data, ref_para, section)
+                    paragraphs_to_remove.update(to_remove)
+                    replaced_count += 1
+    
+    # Combine all paragraphs to remove
+    paragraphs_to_remove.update(sections_to_remove)
+    
+    # Remove marked paragraphs
+    for idx in sorted(paragraphs_to_remove, reverse=True):
+        if idx < len(doc.paragraphs):
+            p = doc.paragraphs[idx]._element
+            p.getparent().remove(p)
+    
+    # Save document
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+    
+    return output, replaced_count, len(paragraphs_to_remove)
+
+import json
+import os
+import base64
+
+# ============= DOC TEMPLATE STORAGE FUNCTIONS =============
+
+def get_user_doc_templates_path(username):
+    """Get the path for user's document templates JSON file"""
+    templates_dir = "user_doc_templates"
+    os.makedirs(templates_dir, exist_ok=True)
+    return os.path.join(templates_dir, f"{username}_doc_templates.json")
+
+def load_user_doc_templates(username):
+    """Load user's saved document templates"""
+    filepath = get_user_doc_templates_path(username)
+    
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                templates = json.load(f)
+                
+                # Convert binary data back from base64
+                for template_id, template_data in templates.items():
+                    if 'doc_data_b64' in template_data:
+                        templates[template_id]['doc_data'] = base64.b64decode(template_data['doc_data_b64'])
+                        del templates[template_id]['doc_data_b64']
+                
+                return templates
+        except Exception as e:
+            print(f"Error loading doc templates: {str(e)}")
+            return {}
+    
+    return {}
+
+def save_user_doc_templates(username, templates):
+    """Save user's document templates to JSON"""
+    filepath = get_user_doc_templates_path(username)
+    
+    try:
+        # Convert binary data to base64 for JSON serialization
+        templates_to_save = {}
+        
+        for template_id, template_data in templates.items():
+            templates_to_save[template_id] = template_data.copy()
+            
+            # Convert binary doc_data to base64
+            if 'doc_data' in template_data:
+                templates_to_save[template_id]['doc_data_b64'] = base64.b64encode(template_data['doc_data']).decode('utf-8')
+                del templates_to_save[template_id]['doc_data']
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(templates_to_save, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f"Error saving doc templates: {str(e)}")
+        return False
+
+def delete_user_doc_template(username, template_id):
+    """Delete a specific doc template"""
+    templates = load_user_doc_templates(username)
+    
+    if template_id in templates:
+        del templates[template_id]
+        save_user_doc_templates(username, templates)
+        return True
+    
+    return False
 
 
-#     skills_prompt = f"""
-#     Analyze and categorize the candidate's skills for a {job_title} role.
-#     Merge existing skills with required skills. Categorize into:
-#     technicalSkills, tools, cloudSkills, softSkills, languages.
-#     Candidate Skills: {', '.join(candidate_skills[:30])}
-#     Required Skills: {', '.join(required_skills)}
-#     Return ONLY a JSON object with above categories.
-#     """
-#     skills_text = call_llm_api(skills_prompt, 300)
-#     try:
-#         json_start = skills_text.find('{')
-#         json_end = skills_text.rfind('}') + 1
-#         parsed_skills = json.loads(skills_text[json_start:json_end])
-#         categorized_skills = {k: parsed_skills.get(k, []) for k in 
-#                               ["technicalSkills","tools","cloudSkills","softSkills","languages"]}
-#         rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
-#     except:
-#         rewritten_resume["skills"] = candidate_skills
+# ============= PPT TEMPLATE STORAGE FUNCTIONS =============
 
-#     return rewritten_resume
+def get_user_ppt_templates_path(username):
+    """Get the path for user's PPT templates JSON file"""
+    templates_dir = "user_ppt_templates"
+    os.makedirs(templates_dir, exist_ok=True)
+    return os.path.join(templates_dir, f"{username}_ppt_templates.json")
+
+def load_user_ppt_templates(username):
+    """Load user's saved PPT templates"""
+    filepath = get_user_ppt_templates_path(username)
+    
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                templates = json.load(f)
+                
+                # Convert binary data back from base64
+                for template_id, template_data in templates.items():
+                    if 'ppt_data_b64' in template_data:
+                        templates[template_id]['ppt_data'] = base64.b64decode(template_data['ppt_data_b64'])
+                        del templates[template_id]['ppt_data_b64']
+                    
+                    # Convert sets back from lists
+                    if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], list):
+                        templates[template_id]['heading_shapes'] = set(template_data['heading_shapes'])
+                    
+                    if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], list):
+                        templates[template_id]['basic_info_shapes'] = set(template_data['basic_info_shapes'])
+                
+                return templates
+        except Exception as e:
+            print(f"Error loading PPT templates: {str(e)}")
+            return {}
+    
+    return {}
+
+def save_user_ppt_templates(username, templates):
+    """Save user's PPT templates to JSON"""
+    filepath = get_user_ppt_templates_path(username)
+    
+    try:
+        templates_to_save = {}
+        
+        for template_id, template_data in templates.items():
+            templates_to_save[template_id] = template_data.copy()
+            
+            # Convert binary ppt_data to base64
+            if 'ppt_data' in template_data:
+                templates_to_save[template_id]['ppt_data_b64'] = base64.b64encode(template_data['ppt_data']).decode('utf-8')
+                del templates_to_save[template_id]['ppt_data']
+            
+            # Convert sets to lists for JSON
+            if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], set):
+                templates_to_save[template_id]['heading_shapes'] = list(template_data['heading_shapes'])
+            
+            if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], set):
+                templates_to_save[template_id]['basic_info_shapes'] = list(template_data['basic_info_shapes'])
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(templates_to_save, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f"Error saving PPT templates: {str(e)}")
+        return False
+
+
+def get_resume_hash(resume_data):
+    """Generate a hash of resume data to detect changes"""
+    resume_str = json.dumps(resume_data, sort_keys=True, default=str)
+    return hashlib.md5(resume_str.encode()).hexdigest()
+
+def should_regenerate_resume():
+    """Check if we need to regenerate the enhanced resume"""
+    current_user = st.session_state.get('logged_in_user')
+    resume_data = st.session_state.get('resume_source')
+    jd_data = st.session_state.get('job_description')
+    
+    if 'enhanced_resume' not in st.session_state:
+        return True
+    
+   
+    if st.session_state.get('last_resume_user') != current_user:
+        return True
+    
+    
+    current_resume_hash = get_resume_hash(resume_data) if resume_data else None
+    if st.session_state.get('last_resume_hash') != current_resume_hash:
+        return True
+
+    current_jd_hash = get_resume_hash(jd_data) if jd_data else None
+    if st.session_state.get('last_jd_hash') != current_jd_hash:
+        return True
+    
+    return False
+
+def generate_enhanced_resume():
+    """Generate enhanced resume and store metadata"""
+    # print("inside rewrite the enhancement")
+    resume_data = st.session_state.get('resume_source')
+    jd_data = st.session_state.get('job_description')
+    input_method = st.session_state.get(
+    "input_method", 
+    resume_data.get("input_method", "Manual Entry")
+)
+    current_user = st.session_state.get('logged_in_user')
+   
+    if input_method == "Manual Entry":
+        enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
+        # print("manual entery")
+        # print(enhanced_resume)
+        
+    else:
+        enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
+        # print("normal entry resume")
+
+
+    st.session_state['enhanced_resume'] = enhanced_resume
+    st.session_state['last_resume_user'] = current_user
+    st.session_state['last_resume_hash'] = get_resume_hash(resume_data) if resume_data else None
+    st.session_state['last_jd_hash'] = get_resume_hash(jd_data) if jd_data else None
+    
+    return enhanced_resume
+
+
+
+def format_section_title(key):
+    """Converts keys like 'certifications' to 'Certifications'."""
+    title = key.replace('_', ' ')
+    return ' '.join(word.capitalize() for word in title.split())
+
+
+def render_basic_details(data, is_edit):
+    """Top header section (Name, title, contact info)."""
+    if is_edit:
+        st.markdown('<h2>Basic Details</h2>', unsafe_allow_html=True)
+        data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
+        data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
+
+        col1, col2, col3,col4 = st.columns(4)
+        with col1:
+            data['phone'] = st.text_input("Phone", data.get('phone', ''), key="edit_phone")
+        with col2:
+            data['email'] = st.text_input("Email", data.get('email', ''), key="edit_email")
+        with col3:
+            data['location'] = st.text_input("Location", data.get('location', ''), key="edit_location")
+        with col4:
+            data['url'] = st.text_input("url", data.get('url', ''), key="edit_url")
+ 
+
+        st.markdown('<div class="resume-section">', unsafe_allow_html=True)
+        st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
+        data['summary'] = st.text_area("Summary", data.get('summary', ''), height=150, key="edit_summary")
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
+        if data.get('job_title'):
+            st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
+
+        contact_html = f"""
+        <div class="contact-info">
+            {data.get('phone', '')} | {data.get('email', '')} | {data.get('location', '')}
+        </div>
+        """
+        st.markdown(contact_html, unsafe_allow_html=True)
+
+        if data.get('summary'):
+            st.markdown('<div class="resume-section">', unsafe_allow_html=True)
+            st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
+            st.markdown(f"<p style='color:#E0E0E0;'>{data['summary']}</p>", unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+def format_date(date_string):
+    """
+    Converts date from YYYY-MM-DD to MMM YYYY format.
+    Example: "2025-10-14" -> "Oct 2025"
+    """
+    if not date_string or date_string.strip() == '':
+        return ''
+    
+    try:
+        from datetime import datetime
+        date_obj = datetime.strptime(date_string, '%Y-%m-%d')
+        return date_obj.strftime('%b %Y')
+    except:
+        return date_string  # Return original if parsing fails
+
+
+def render_list_item(item, index, key_prefix, section_title, is_edit=True):
+    """Generic list item renderer for both edit and view modes with dynamic field handling."""
+    
+    # Normalize item to dict
+    if isinstance(item, str):
+        item = {"title": item}
+    
+    # Define field priority order for display
+    title_keys = ['position', 'title', 'name', 'degree', 'institution', 'company', 'certificate_name']
+    subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name']
+    detail_keys_to_skip = ['position', 'title', 'name', 'degree', 'company', 'institution', 
+                           'description', 'overview', 'issuer', 'start_date', 'end_date', 
+                           'duration', 'certificate_name', 'organization', 'provider_name',
+                           'details', 'achievement']
+
+    if not is_edit:
+        html_content = "<div>"
+        
+        # Get main title (first available from title_keys)
+        main_title = None
+        for key in title_keys:
+            if key in item and item[key]:
+                main_title = item[key]
+                break
+        
+        if main_title:
+            html_content += f'<div class="item-title">{main_title}</div>'
+            
+            # Get subtitle (first available from subtitle_keys, but not same as title)
+            subtitle = None
+            for key in subtitle_keys:
+                if key in item and item[key] and item[key] != main_title:
+                    subtitle = item[key]
+                    break
+            
+            if subtitle:
+                html_content += f'<div class="item-subtitle">{subtitle}</div>'
+
+        # Format dates to MMM YYYY
+        duration = item.get('duration')
+        if not duration:
+            start_date = format_date(item.get('start_date', ''))
+            end_date = format_date(item.get('end_date', ''))
+            if start_date or end_date:
+                duration = f"{start_date} - {end_date}"
+        
+        if duration and duration.strip() != '-':
+            html_content += f'<div class="item-details"><em>{duration}</em></div>'
+
+        # Handle description/overview/details/achievement fields
+        description_fields = ['description', 'overview', 'details', 'achievement']
+        main_description_list = None
+        for field in description_fields:
+            if field in item:
+                main_description_list = item[field]
+                break
+        
+        if main_description_list:
+            if isinstance(main_description_list, str):
+                main_description_list = [main_description_list]
+            if isinstance(main_description_list, list) and main_description_list:
+                bullet_html = "".join([f"<li>{line}</li>" for line in main_description_list if line])
+                html_content += f'<ul class="bullet-list">{bullet_html}</ul>'
+        
+        # Display any remaining fields not in skip list
+        for k, v in item.items():
+            if isinstance(v, str) and v.strip() and k not in detail_keys_to_skip + ['duration']:
+                formatted_k = format_section_title(k)
+                html_content += f'<div class="item-details">**{formatted_k}:** {v}</div>'
+
+        html_content += "</div>"
+        return html_content
+    
+    else:
+        # EDIT MODE
+        edited_item = item.copy()
+        
+        # Get all fields in item
+        edit_fields = list(item.keys())
+        
+        # Priority fields for ordering
+        priority_fields = ['position', 'title', 'name', 'company', 'institution', 'degree', 
+                          'certificate_name', 'issuer', 'organization', 'provider_name',
+                          'duration', 'start_date', 'end_date', 'description', 'overview', 
+                          'details', 'achievement']
+        
+        # Order fields: priority first, then rest
+        ordered_fields = []
+        for field in priority_fields:
+            if field in edit_fields:
+                ordered_fields.append(field)
+                edit_fields.remove(field)
+        ordered_fields.extend(edit_fields)
+        
+        # Render input fields for each field in order
+        for k in ordered_fields:
+            v = item[k]
+            if isinstance(v, str):
+                edited_item[k] = st.text_input(
+                    format_section_title(k), 
+                    v, 
+                    key=f"{key_prefix}_{k}_{index}"
+                )
+            elif isinstance(v, list):
+                text = "\n".join(v)
+                edited_text = st.text_area(
+                    format_section_title(k), 
+                    text, 
+                    height=150, 
+                    key=f"{key_prefix}_area_{k}_{index}"
+                )
+                edited_item[k] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+        
+        return edited_item
+    
+def render_generic_section(section_key, data_list, is_edit):
+    """Renders dynamic list sections with consistent formatting."""
+    section_title = format_section_title(section_key)
+    if not data_list: 
+        return
+
+    st.markdown('<div class="resume-section">', unsafe_allow_html=True)
+    st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
+
+    for i, item in enumerate(data_list):
+        # Normalize all items to dictionaries
+        if not isinstance(item, dict):
+            if isinstance(item, str):
+                item = {"title": item}
+            else:
+                item = {"title": str(item)}
+            data_list[i] = item  # Update the list with normalized item
+
+        with st.container(border=False):
+            # Build expander title from available fields
+            expander_title_parts = [
+                item.get('position'),
+                item.get('title'),
+                item.get('name'),
+                item.get('certificate_name'),
+                item.get('company'),
+                item.get('institution'),
+                item.get('issuer')
+            ]
+            expander_title = next((t for t in expander_title_parts if t), f"{section_title[:-1]} Item {i+1}")
+            
+            if is_edit:
+                with st.expander(f"📝 Edit: **{expander_title}**", expanded=False):
+                    temp_item = deepcopy(item) 
+                    edited_item = render_list_item(temp_item, i, f"{section_key}_edit_{i}", section_title, is_edit=True)
+                    
+                    if edited_item:
+                        st.session_state['enhanced_resume'][section_key][i] = edited_item
+                    
+                    if st.button(f"❌ Remove this {section_title[:-1]}", key=f"{section_key}_remove_{i}"):
+                        st.session_state['enhanced_resume'][section_key].pop(i)
+                        st.rerun()
+                
+                # Show view mode preview below edit section
+                st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
+            else:
+                # View mode only
+                st.markdown(render_list_item(item, i, f"{section_key}_view_{i}", section_title, is_edit=False), unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def render_skills_section(data, is_edit):
+    """Handles the nested dictionary structure of the 'skills' section."""
+    skills_data = data.get('skills', {})
+    if not skills_data: return
+
+    st.markdown('<div class="resume-section">', unsafe_allow_html=True)
+    st.markdown('<h2>Skills</h2>', unsafe_allow_html=True)
+
+    if is_edit:
+        with st.expander("📝 Edit Skills (Separate by Line)", expanded=False):
+            for skill_type, skill_list in skills_data.items():
+                st.subheader(format_section_title(skill_type))
+                skill_text = "\n".join(skill_list)
+                
+                edited_text = st.text_area(f"Edit {skill_type}", skill_text, height=100, key=f"skills_edit_{skill_type}")
+                
+                st.session_state['enhanced_resume']['skills'][skill_type] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+    
+    for skill_type, skill_list in skills_data.items():
+        if skill_list:
+            st.markdown(f"**{format_section_title(skill_type)}:**", unsafe_allow_html=True)
+            skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skill_list])
+            st.markdown(f'<ul class="skill-list">{skills_html}</ul>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def add_new_item(section_key, default_item):
+    """Generic function to add a new item to any list section."""
+    if section_key not in st.session_state['enhanced_resume']:
+        st.session_state['enhanced_resume'][section_key] = []
+            
+    st.session_state['enhanced_resume'][section_key].append(default_item)
+    st.rerun()
+
+# MODIFIED: Save and Improve with hash update
+def save_and_improve():
+    """Calls auto_improve_resume and updates session state."""
+    data = deepcopy(st.session_state['enhanced_resume'])
+    user_skills_before = deepcopy(data.get('skills', {}))
+    job_description = st.session_state.get('job_description', '') 
+
+    
+    improved_data = analyze_and_improve_resume(data, job_description)
+    
+    # Skills merging logic
+    llm_skills_after = improved_data.get('skills', {})
+    merged_skills = {}
+    all_categories = set(user_skills_before.keys()) | set(llm_skills_after.keys())
+
+    for category in all_categories:
+        user_list = user_skills_before.get(category, [])
+        llm_list = llm_skills_after.get(category, [])
+        
+        user_set = set(user_list)
+        llm_set = set(llm_list)
+        final_skills_set = user_set.copy()
+        
+        for skill in llm_set:
+            if skill not in final_skills_set:
+                final_skills_set.add(skill)
+                
+        merged_skills[category] = sorted(list(final_skills_set))
+
+    improved_data['skills'] = merged_skills
+    st.session_state['enhanced_resume'] = improved_data
+    if 'ats_score_data' in st.session_state:
+        del st.session_state['ats_score_data']
+    
+    # Update hash so it doesn't regenerate
+    st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
+    
+    st.success("Resume content saved and improved! Check the updated details below.")
+
+
+
+def image_to_base64_local(image):
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return img_str
+
+
+def load_users():
+    try:
+        if users_file.exists():
+            with open(users_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        return {}
+    
+def save_users(users):
+    try:
+        with open(users_file, 'w', encoding='utf-8') as f:
+            json.dump(users, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving users: {e}")
+
+
+def load_user_resume_data():
+    """Load all users' resume data"""
+    try:
+        if user_data_file.exists():
+            with open(user_data_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        return {}
+
+def get_user_resume(email):
+    """Get resume data for a specific user"""
+    all_data = load_user_resume_data()
+    user_resume = all_data.get(email, None)
+    
+    if user_resume and isinstance(user_resume, dict) and len(user_resume) > 0:
+        return user_resume
+    return None
+
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None

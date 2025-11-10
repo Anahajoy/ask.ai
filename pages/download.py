@@ -828,82 +828,75 @@ def app_download():
             color: #000000;
         }}
         
-# STEP 1: Add this CSS to your main st.markdown() block at the top of app_download()
-# Find the line around 110 where you have the big CSS block
-# Add this CSS INSIDE that block, after the sidebar styles
 
 
-        
-        /* ============================
-        Template Card Button Styling
+/* ============================
+   USE and DELETE Button Styling
+   ============================ */
+
+/* Green USE buttons (type="primary") */
+button[data-testid="stBaseButton-primary"] {{
+    background: #10b981 !important;  /* Changed from #059669 to lighter green */
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.85em !important;
+    padding: 10px 20px !important;
+    min-height: 40px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+    width: 100% !important;
+}}
+
+button[data-testid="stBaseButton-primary"]:hover {{
+    background: #fffff !important;  /* Darker green on hover */
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5) !important;
+}}
+
+/* Light Red DELETE buttons (type="secondary") */
+button[data-testid="stBaseButton-secondary"] {{
+    background: #f87171 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.85em !important;
+    padding: 10px 20px !important;
+    min-height: 40px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(248, 113, 113, 0.3) !important;
+    width: 100% !important;
+}}
+
+button[data-testid="stBaseButton-secondary"]:hover {{
+    background: #ef4444 !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5) !important;
+}}
+         /* ============================
+        🎨 SYSTEM TEMPLATES DROPDOWN - BLUE BUTTONS
         ============================ */
-        
-        /* Target all buttons inside template display area */
-        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"] {{
+        /* System template select button */
+        .system-template-select {{
+            background: linear-gradient(135deg, #0077B6 0%, #0096C7 100%) !important;
+            color: white !important;
+            border: none !important;
+            padding: 10px 20px !important;
             border-radius: 8px !important;
             font-weight: 600 !important;
-            font-size: 0.85em !important;
+            font-size: 1em !important;
             transition: all 0.3s ease !important;
-            border: none !important;
+            box-shadow: 0 2px 8px rgba(0, 119, 182, 0.3) !important;
+            width: 100% !important;
+            margin: 5px 0 !important;
         }}
         
-        /* Green USE buttons - target by button text content */
-        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Use")) {{
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
-        }}
-        
-        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Use")):hover {{
-            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        .system-template-select:hover {{
+            background: linear-gradient(135deg, #005F8C 0%, #0077B6 100%) !important;
             transform: translateY(-2px) scale(1.02) !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5) !important;
-        }}
-        
-        /* Red DELETE buttons - target by button text content */
-        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Delete")) {{
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
-        }}
-        
-        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Delete")):hover {{
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-            transform: translateY(-2px) scale(1.02) !important;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5) !important;
-        }}
-        
-        /* Alternative approach - target by position in parent */
-        /* First button in two-column layout gets green */
-        div[data-testid="column"]:first-child button[data-testid="stBaseButton-secondary"] {{
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
-        }}
-        
-        div[data-testid="column"]:first-child button[data-testid="stBaseButton-secondary"]:hover {{
-            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-            transform: translateY(-2px) scale(1.02) !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5) !important;
-        }}
-        
-        /* Second button in two-column layout gets red */
-        div[data-testid="column"]:last-child button[data-testid="stBaseButton-secondary"] {{
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
-        }}
-        
-        div[data-testid="column"]:last-child button[data-testid="stBaseButton-secondary"]:hover {{
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-            transform: translateY(-2px) scale(1.02) !important;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5) !important;
-        }}
-        
-        /* NUCLEAR OPTION - If nothing else works, target ALL secondary buttons */
-        /* and use JavaScript to detect button text */
-        button.st-emotion-cache-xkcxs.ef3psqc13[data-testid="stBaseButton-secondary"] {{
-            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(0, 119, 182, 0.5) !important;
         }}
         
     </style>
@@ -949,31 +942,26 @@ def app_download():
 
     # --- TAB 1: SYSTEM TEMPLATES ---
     with tab1:
-        st.markdown("### Available System Templates")
-        st.caption("Choose from professionally designed ATS-friendly templates")
+        # System template selection dropdown
+        system_template_names = list(SYSTEM_TEMPLATES.keys())
+        selected_system_template = st.selectbox(
+            "Select a System Template:",
+            system_template_names,
+            key="system_template_dropdown",
+            help="Choose a template from our professionally designed collection"
+        )
+
+        # ADD THIS CODE HERE:
+        if selected_system_template:
+            template_config = SYSTEM_TEMPLATES[selected_system_template]
+            
+            # Store the selected template in session state
+            st.session_state.selected_template = selected_system_template
+            st.session_state.selected_template_config = template_config
+            st.session_state.template_source = 'system'
+            
+    # Rest of your code continues...
         
-        # Template selection
-        cols = st.columns(3)
-        for idx, (template_name, template_config) in enumerate(SYSTEM_TEMPLATES.items()):
-            with cols[idx % 3]:
-                with st.container():
-                    st.markdown(f"""
-                    <div class="template-card">
-                        <h4>{template_name}</h4>
-                        <p style="font-size: 0.9em; color: #666;">Click to preview and customize</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if st.button(f"Select {template_name}", key=f"sys_template_{idx}", use_container_width=True):
-                        st.session_state.selected_template = template_name
-                        st.session_state.selected_template_config = template_config
-                        st.session_state.template_source = 'system'
-                        st.rerun()
-        
-        # Show preview and color selection if a template is selected
-        if st.session_state.get('selected_template') and st.session_state.get('template_source') == 'system':
-            st.markdown("---")
-            st.markdown(f"### Preview: {st.session_state.selected_template}")
             
             # Color selection in main body
             col1, col2 = st.columns([3, 1])
@@ -1043,7 +1031,7 @@ def app_download():
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(f"Use", key=f"use_html_{template_id}", use_container_width=True):
+                            if st.button(f"Use", key=f"use_html_{template_id}",type="primary", use_container_width=True):
                                 if 'temp_upload_config' in st.session_state:
                                     del st.session_state.temp_upload_config
                                 
@@ -1058,7 +1046,7 @@ def app_download():
                                 st.rerun()
 
                         with col2:
-                            if st.button(f"Delete", key=f"delete_html_{template_id}", use_container_width=True):
+                            if st.button(f"Delete", key=f"delete_html_{template_id}",type="secondary", use_container_width=True):
                                 if st.session_state.get('current_upload_id') == template_id:
                                     st.session_state.pop('selected_template_preview', None)
                                     st.session_state.pop('selected_template', None)
@@ -1094,7 +1082,7 @@ def app_download():
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(f"Use", key=f"use_doc_{template_id}", use_container_width=True):
+                            if st.button(f"Use", key=f"use_doc_{template_id}",type="primary", use_container_width=True):
                                 # Process and display the doc template
                                 try:
                                     import io
@@ -1122,7 +1110,7 @@ def app_download():
                                     st.error(f"Error loading template: {str(e)}")
 
                         with col2:
-                            if st.button(f"Delete", key=f"delete_doc_{template_id}", use_container_width=True):
+                            if st.button(f"Delete", key=f"delete_doc_{template_id}",type="secondary", use_container_width=True):
                                 # Clear selection if deleting currently selected template
                                 if st.session_state.get('selected_doc_template_id') == template_id:
                                     st.session_state.pop('generated_doc', None)
@@ -1160,7 +1148,7 @@ def app_download():
 
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.button(f"Use", key=f"use_ppt_{template_id}", use_container_width=True):
+                            if st.button(f"Use", key=f"use_ppt_{template_id}",type="primary", use_container_width=True):
                                 try:
                                     import io
                                     from pptx import Presentation
@@ -1236,7 +1224,7 @@ def app_download():
                                     st.error(f"Error loading template: {str(e)}")
 
                         with col2:
-                            if st.button(f"Delete", key=f"delete_ppt_{template_id}", use_container_width=True):
+                            if st.button(f"Delete", key=f"delete_ppt_{template_id}",type="secondary", use_container_width=True):
                                 # Clear selection if deleting currently selected template
                                 if st.session_state.get('selected_ppt_template_id') == template_id:
                                     st.session_state.pop('generated_ppt', None)

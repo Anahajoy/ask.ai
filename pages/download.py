@@ -910,7 +910,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 
     if final_data is None:
         st.error("❌ Resume data not found. Please return to the editor to finalize your resume.")
-        if st.button("⬅️ Go Back to Editor"):
+        if st.button("⬅️ Go Back to Editor", type="primary"):
             switch_page("main")
         return
 
@@ -919,13 +919,13 @@ button[data-testid="stBaseButton-secondary"]:hover {{
             final_data = json.loads(final_data)
         except json.JSONDecodeError:
             st.error("❌ Error: Could not parse resume data.")
-            if st.button("⬅️ Go Back to Editor"):
+            if st.button("⬅️ Go Back to Editor", type="primary"):
                 switch_page("main")
             return
             
     if not isinstance(final_data, dict):
         st.error("❌ Resume data is in an unusable format.")
-        if st.button("⬅️ Go Back to Editor"):
+        if st.button("⬅️ Go Back to Editor", type="primary"):
             switch_page("main")
         return
 
@@ -1846,7 +1846,8 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                     data=st.session_state.generated_doc,
                     file_name=filename,
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True
+                    use_container_width=True,
+                    type="primary"
                 )
                 
             except Exception as e:
@@ -1985,7 +1986,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
             except Exception as e:
                 st.error(f"Preview error: {str(e)}")
         st.markdown("---")
-        if st.button("⬅️ Go Back to Editor", use_container_width=True):
+        if st.button("⬅️ Go Back to Editor", type="primary", use_container_width=True):
             switch_page("create")
 
     # --- Sidebar ---

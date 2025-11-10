@@ -828,6 +828,153 @@ def app_download():
             color: #000000;
         }}
         
+# STEP 1: Add this CSS to your main st.markdown() block at the top of app_download()
+# Find the line around 110 where you have the big CSS block
+# Add this CSS INSIDE that block, after the sidebar styles
+
+
+        
+        /* ============================
+        Template Card Button Styling
+        ============================ */
+        
+        /* Target all buttons inside template display area */
+        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"] {{
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            font-size: 0.85em !important;
+            transition: all 0.3s ease !important;
+            border: none !important;
+        }}
+        
+        /* Green USE buttons - target by button text content */
+        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Use")) {{
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+        }}
+        
+        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Use")):hover {{
+            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5) !important;
+        }}
+        
+        /* Red DELETE buttons - target by button text content */
+        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Delete")) {{
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+        }}
+        
+        div[data-testid="stVerticalBlock"] div[data-testid="column"] button[data-testid="stBaseButton-secondary"]:has(p:text("Delete")):hover {{
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5) !important;
+        }}
+        
+        /* Alternative approach - target by position in parent */
+        /* First button in two-column layout gets green */
+        div[data-testid="column"]:first-child button[data-testid="stBaseButton-secondary"] {{
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+        }}
+        
+        div[data-testid="column"]:first-child button[data-testid="stBaseButton-secondary"]:hover {{
+            background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.5) !important;
+        }}
+        
+        /* Second button in two-column layout gets red */
+        div[data-testid="column"]:last-child button[data-testid="stBaseButton-secondary"] {{
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3) !important;
+        }}
+        
+        div[data-testid="column"]:last-child button[data-testid="stBaseButton-secondary"]:hover {{
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+            transform: translateY(-2px) scale(1.02) !important;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5) !important;
+        }}
+        
+        /* NUCLEAR OPTION - If nothing else works, target ALL secondary buttons */
+        /* and use JavaScript to detect button text */
+        button.st-emotion-cache-xkcxs.ef3psqc13[data-testid="stBaseButton-secondary"] {{
+            transition: all 0.3s ease !important;
+        }}
+        
+    </style>
+    
+    <script>
+        // JavaScript to target buttons by text content
+        document.addEventListener('DOMContentLoaded', function() {{
+            const buttons = document.querySelectorAll('button[data-testid="stBaseButton-secondary"]');
+            buttons.forEach(button => {{
+                const text = button.textContent.trim();
+                if (text === 'Use') {{
+                    button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                    button.style.color = 'white';
+                    button.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                    
+                    button.addEventListener('mouseenter', function() {{
+                        this.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+                        this.style.transform = 'translateY(-2px) scale(1.02)';
+                        this.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.5)';
+                    }});
+                    
+                    button.addEventListener('mouseleave', function() {{
+                        this.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        this.style.transform = 'none';
+                        this.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                    }});
+                }} else if (text === 'Delete') {{
+                    button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                    button.style.color = 'white';
+                    button.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                    
+                    button.addEventListener('mouseenter', function() {{
+                        this.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                        this.style.transform = 'translateY(-2px) scale(1.02)';
+                        this.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.5)';
+                    }});
+                    
+                    button.addEventListener('mouseleave', function() {{
+                        this.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                        this.style.transform = 'none';
+                        this.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                    }});
+                }}
+            }});
+            
+            // Re-run on Streamlit updates
+            const observer = new MutationObserver(function() {{
+                const newButtons = document.querySelectorAll('button[data-testid="stBaseButton-secondary"]');
+                newButtons.forEach(button => {{
+                    if (button.dataset.styled) return; // Skip already styled buttons
+                    button.dataset.styled = 'true';
+                    
+                    const text = button.textContent.trim();
+                    if (text === 'Use') {{
+                        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        button.style.color = 'white';
+                        button.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                    }} else if (text === 'Delete') {{
+                        button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                        button.style.color = 'white';
+                        button.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+                    }}
+                }});
+            }});
+            
+            observer.observe(document.body, {{
+                childList: true,
+                subtree: true
+            }});
+        }});
+    </script>
 
 
     </style>
@@ -837,7 +984,7 @@ def app_download():
 
 
     final_data = st.session_state.get('final_resume_data')
-    st.json(final_data)
+    # st.json(final_data)
 
     if final_data is None:
         st.error("❌ Resume data not found. Please return to the editor to finalize your resume.")
@@ -1014,6 +1161,7 @@ def app_download():
                             <p style="font-size:0.75em; color:#999;">Sections: {sections_text}</p>
                         </div>
                         """, unsafe_allow_html=True)
+                        
 
                         col1, col2 = st.columns(2)
                         with col1:

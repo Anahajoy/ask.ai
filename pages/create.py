@@ -97,8 +97,6 @@ def apply_custom_css():
     """Applies improved dark theme with gradient accents."""
     st.markdown("""
     <style>
-    [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
-    #MainMenu, footer, header {visibility: hidden;}
     
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
@@ -647,21 +645,21 @@ def main():
         )
 
         st.sidebar.markdown("---")
-        st.sidebar.subheader("📝 Custom Section Management")
-        new_section_key = st.sidebar.text_input("Add a New Section (e.g., 'Languages', 'Licenses')")
-        if st.sidebar.button("➕ Add Custom Section", use_container_width=True):
-            if new_section_key and new_section_key.strip():
-                clean_key = new_section_key.strip()
+        # st.sidebar.subheader("📝 Custom Section Management")
+        # new_section_key = st.sidebar.text_input("Add a New Section (e.g., 'Languages', 'Licenses')")
+        # if st.sidebar.button("➕ Add Custom Section", use_container_width=True):
+        #     if new_section_key and new_section_key.strip():
+        #         clean_key = new_section_key.strip()
                 
-                if clean_key not in data:
-                    data[clean_key] = "Enter your content here..."
-                    st.session_state['enhanced_resume'] = data
-                    st.sidebar.success(f"✅ Added '{clean_key}' section!")
-                    st.rerun()
-                else:
-                    st.sidebar.warning(f"⚠️ Section '{clean_key}' already exists")
-            else:
-                st.sidebar.error("❌ Please enter a section name")
+        #         if clean_key not in data:
+        #             data[clean_key] = "Enter your content here..."
+        #             st.session_state['enhanced_resume'] = data
+        #             st.sidebar.success(f"✅ Added '{clean_key}' section!")
+        #             st.rerun()
+        #         else:
+        #             st.sidebar.warning(f"⚠️ Section '{clean_key}' already exists")
+        #     else:
+        #         st.sidebar.error("❌ Please enter a section name")
 
     st.sidebar.markdown("---")
     if st.sidebar.button("🔄 Regenerate from Source", use_container_width=True):

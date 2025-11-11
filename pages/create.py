@@ -149,7 +149,7 @@ def apply_custom_css():
     
     /* SIDEBAR BUTTONS */
     [data-testid="stSidebar"] .stButton > button {
-        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%) !important;
+        background: #0891b2 !important;
         color: var(--text-white) !important;
         border: none !important;
         border-radius: 12px !important;
@@ -165,7 +165,7 @@ def apply_custom_css():
     }
     
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: linear-gradient(135deg, var(--primary-blue-hover) 0%, var(--accent-blue) 100%) !important;
+        background: #06b6d4 !important;
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
     }
@@ -492,7 +492,7 @@ def main():
     st.sidebar.title("Resume Tools 🛠️")
     loading_placeholder = st.empty()
 
-    if st.sidebar.button("✨ **Save & Auto-Improve**", use_container_width=True):
+    if st.sidebar.button("✨ **Save & Auto-Improve**",type="primary", use_container_width=True):
         loading_placeholder.markdown("""
             <div id="overlay-loader">
                 <div class="loader-spinner"></div>
@@ -614,7 +614,8 @@ def main():
                 "start_date": "2025-01-01",
                 "end_date": "2025-12-31",
                 "description": ["New responsibility 1."]
-            })
+            }),
+            type="primary"
         )
         st.sidebar.button(
             "Add New Education",
@@ -624,7 +625,8 @@ def main():
                 "degree": "New Degree",
                 "start_date": "2025-01-01",
                 "end_date": "2025-12-31"
-            })
+            }),
+            type="primary"
         )
         st.sidebar.button(
             "Add New Certification",
@@ -633,7 +635,8 @@ def main():
                 "name": "New Certification Name",
                 "issuer": "Issuing Body",
                 "completed_date": "2025-01-01"
-            })
+            }),
+            type="primary"
         )
         st.sidebar.button(
             "Add New Project",
@@ -641,7 +644,8 @@ def main():
             args=('projects', {
                 "name": "New Project Title",
                 "description": ["Project detail"]
-            })
+            }),
+            type="primary"
         )
 
         st.sidebar.markdown("---")

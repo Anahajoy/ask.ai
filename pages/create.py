@@ -467,7 +467,7 @@ def generate_and_switch():
             finalized_data[key] = value
     
     st.session_state['final_resume_data'] = finalized_data
-    switch_page("download")
+    st.switch_page("pages/download.py")
 
 def flatten_custom_sections(data):
     """

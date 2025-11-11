@@ -669,7 +669,7 @@ def main():
             del st.session_state['last_resume_hash']
         if 'ats_score_data' in st.session_state:
             del st.session_state['ats_score_data']
-        st.rerun()
+        st.switch_page("pages/main.py")
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 

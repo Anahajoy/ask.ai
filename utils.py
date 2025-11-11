@@ -577,18 +577,16 @@ def extract_text_from_pdf(pdf_file):
         st.error(f"Error reading PDF: {e}")
         return ""
     
-# read the document file
+import docx2txt
+
 def extract_text_from_docx(docx_file):
-    """Extract text from DOCX file"""
     try:
-        doc = Document(docx_file)
-        text = ""
-        for paragraph in doc.paragraphs:
-            text += paragraph.text + "\n"
+        text = docx2txt.process(docx_file)
         return text.strip()
     except Exception as e:
         st.error(f"Error reading DOCX: {e}")
         return ""
+""
     
 
 def extract_details_from_jd(job_description_text: str) -> dict:

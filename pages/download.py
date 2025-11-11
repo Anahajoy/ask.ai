@@ -951,7 +951,6 @@ button[data-testid="stBaseButton-secondary"]:hover {{
             help="Choose a template from our professionally designed collection"
         )
 
-        # ADD THIS CODE HERE:
         if selected_system_template:
             template_config = SYSTEM_TEMPLATES[selected_system_template]
             
@@ -960,27 +959,27 @@ button[data-testid="stBaseButton-secondary"]:hover {{
             st.session_state.selected_template_config = template_config
             st.session_state.template_source = 'system'
             
-    # Rest of your code continues...
+
         
             
             # Color selection in main body
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                color_name = st.selectbox(
+            # col1, col2 = st.columns([3, 1])
+            # with col1:
+            color_name = st.selectbox(
                     'Choose Accent Color:',
                     list(ATS_COLORS.keys()),
                     key='sys_color_select'
                 )
-                primary_color = ATS_COLORS[color_name]
+            primary_color = ATS_COLORS[color_name]
             
-            with col2:
-                custom_color = st.color_picker(
-                    'Custom Color:',
-                    primary_color,
-                    key='sys_custom_color'
-                )
-                if custom_color != primary_color:
-                    primary_color = custom_color
+            # with col2:
+            #     custom_color = st.color_picker(
+            #         'Custom Color:',
+            #         primary_color,
+            #         key='sys_custom_color'
+            #     )
+            #     if custom_color != primary_color:
+            #         primary_color = custom_color
             
             # Store selected color in session state
             st.session_state.selected_color = primary_color
@@ -1002,17 +1001,16 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 
     
     with tab3:
-        # Initialize both HTML and DOC templates
+
         if 'uploaded_templates' not in st.session_state:
             st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
         
         if 'doc_templates' not in st.session_state:
             st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
 
-        # 1️⃣ Display Saved Templates Section
+    
         st.markdown("### 🗂️ Your Saved Templates")
         
-        # Create tabs for HTML and DOC templates
         template_tab1, template_tab2,template_tab3 = st.tabs(["📄 HTML Templates", "📝 Word Templates","📊 PowerPoint Templates"])
         
         # ========== HTML TEMPLATES TAB ==========
@@ -2032,6 +2030,9 @@ button[data-testid="stBaseButton-secondary"]:hover {{
         st.caption("**PDF:** Open HTML → Print → Save as PDF")
         st.caption("**DOC:** Edit in Microsoft Word")
         st.caption("**TXT:** Maximum ATS compatibility")
+
+        if st.sidebar.button("🔄 Edit Content", use_container_width=True):
+          st.switch_page("pages/create.py")
 
 if __name__ == '__main__':
     app_download()

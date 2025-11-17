@@ -199,7 +199,7 @@ st.markdown("""
     }
     
     .card-badge {
-        color: var(--peacock-blue) !important;
+        color: #000000 !important;
         font-weight: 700 !important;
         font-size: 0.85rem !important;
         letter-spacing: 1.5px;
@@ -220,11 +220,11 @@ st.markdown("""
     .stSelectbox > div > div > div,
     .stMultiSelect > div > div,
     .stDateInput > div > div > input {
-        background: rgba(0, 0, 0, 0.4) !important;
+        background: rgba(0, 0, 0, 0.03) !important;
         border: 2px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 12px !important;
         padding: 1rem 1.2rem !important;
-        color: var(--text-white) !important;
+        color: #000000 !important;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
     
@@ -242,7 +242,7 @@ st.markdown("""
     .stTextArea label,
     .stSelectbox label,
     .stMultiSelect label {
-        color: var(--text-white) !important;
+        color:#000000 !important;
         font-weight: 600 !important;
         font-size: 0.95rem !important;
         margin-bottom: 0.5rem !important;

@@ -991,16 +991,68 @@ else:
                 if extracted_text:
                     if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
                         st.error("⚠️ Session expired. Please login again.")
-                        
                         st.switch_page("login.py")
                     
-                    with st.spinner("Analyzing your resume and parsing details..."):
-                        try:
-                            parsed_data = extract_details_from_text(extracted_text)
-                        except Exception as e:
-                            st.error(f"Error during detail extraction: {e}")
-                            parsed_data = None
+                    # Initialize parsed_data variable
+                    parsed_data = None
                     
+                    loading_placeholder = st.empty()
+                    loading_placeholder.markdown("""
+                        <div id="overlay-loader">
+                            <div class="loader-spinner"></div>
+                            <p>Analyzing your resume and parsing details</p>
+                        </div>
+                        <style>
+                            #overlay-loader {
+                                position: fixed;
+                                top: 0;
+                                left: 0;
+                                width: 100vw;
+                                height: 100vh;
+                                background: rgba(15, 23, 42, 0.95);
+                                backdrop-filter: blur(6px);
+                                display: flex;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                z-index: 9999;
+                                color: white;
+                                font-size: 1.2rem;
+                                font-weight: 500;
+                            }
+
+                            .loader-spinner {
+                                border: 5px solid rgba(96, 165, 250, 0.2);
+                                border-top: 5px solid #3b82f6;
+                                border-radius: 50%;
+                                width: 70px;
+                                height: 70px;
+                                animation: spin 1s linear infinite;
+                                margin-bottom: 20px;
+                            }
+
+                            @keyframes spin {
+                                0% { transform: rotate(0deg); }
+                                100% { transform: rotate(360deg); }
+                            }
+
+                            #overlay-loader p {
+                                color: #e0f7ff;
+                                font-size: 1.1rem;
+                                letter-spacing: 0.5px;
+                            }
+                        </style>
+                        """, unsafe_allow_html=True)
+                    
+                    try:
+                        parsed_data = extract_details_from_text(extracted_text)
+                    except Exception as e:
+                        st.error(f"Error during detail extraction: {e}")
+                        parsed_data = None
+                    finally:
+                        loading_placeholder.empty()
+                    
+                    # Now parsed_data is defined in the correct scope
                     if parsed_data:
                         st.session_state.resume_source = parsed_data
                         st.session_state.resume_processed = True

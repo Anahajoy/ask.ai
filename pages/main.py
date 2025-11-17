@@ -58,9 +58,9 @@ st.markdown("""
     
     /* Smooth page transitions */
     .stApp {
-        background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
+        background: #FFFFFF;
         min-height: 100vh;
-        color: var(--text-white);
+        color:#000000;
         animation: fadeIn 0.5s ease-in;
     }
     
@@ -118,7 +118,7 @@ st.markdown("""
     }
     
     h1 {
-        color: var(--text-white) !important;
+        color: #000000 !important;
         font-weight: 800 !important;
         font-size: 2.8rem !important;
         margin-bottom: 0.5rem !important;
@@ -127,7 +127,7 @@ st.markdown("""
     }
     
     h2 {
-        color: var(--text-white) !important;
+        color: #000000 !important;
         font-weight: 700 !important;
         margin-top: 3rem !important;
         margin-bottom: 1.5rem !important;
@@ -164,11 +164,11 @@ st.markdown("""
     
     /* Experience cards with hover effects */
     .experience-card {
-        background: rgba(255, 255, 255, 0.08);
+        background:linear-gradient(135deg, rgba(8, 145, 178, 0.1) 0%, transparent 50%);
         backdrop-filter: blur(16px);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 18px;
-        padding: 2rem;
+        padding: 0.03rem;
         margin-bottom: 1.5rem;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
         transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -182,7 +182,7 @@ st.markdown("""
         top: 0;
         left: 0;
         width: 100%;
-        height: 100%;
+        height: 50%;
         background: linear-gradient(135deg, rgba(8, 145, 178, 0.1) 0%, transparent 50%);
         opacity: 0;
         transition: opacity 0.4s ease;
@@ -497,7 +497,7 @@ if input_method == "Manual Entry":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h2><span class="section-number">1</span>Personal Information</h2>', unsafe_allow_html=True)
     
-    st.markdown('<div class="experience-card">', unsafe_allow_html=True)
+    # st.markdown('<div class="experience-card">', unsafe_allow_html=True)
     st.markdown(f'<p class="card-badge">BASIC DETAILS</p>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
@@ -555,7 +555,7 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">2</span>Professional Experience</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.exp_indices):
-        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
         st.markdown(f'<p class="card-badge">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
         
         saved_exp = st.session_state.saved_experiences.get(i, {})
@@ -641,7 +641,7 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">3</span>Education</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.edu_indices):
-        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
         st.markdown(f'<p class="card-badge">EDUCATION {idx + 1}</p>', unsafe_allow_html=True)
         
         saved_edu = st.session_state.saved_education.get(i, {})
@@ -719,7 +719,7 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">4</span>Certifications</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.cert_indices):
-        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
         st.markdown(f'<p class="card-badge">CERTIFICATION {idx + 1}</p>', unsafe_allow_html=True)
         
         saved_cert = st.session_state.saved_certificates.get(i, {})
@@ -780,7 +780,7 @@ if input_method == "Manual Entry":
     st.markdown('<h2><span class="section-number">5</span>Projects</h2>', unsafe_allow_html=True)
     
     for idx, i in enumerate(st.session_state.project_indices):
-        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
         st.markdown(f'<p class="card-badge">PROJECT {idx + 1}</p>', unsafe_allow_html=True)
         
         saved_proj = st.session_state.saved_projects.get(i, {})
@@ -851,7 +851,7 @@ if input_method == "Manual Entry":
     custom_sections = []
 
     for idx, i in enumerate(st.session_state.custom_indices):
-        st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
+        # st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
         st.markdown(f'<p class="card-badge">CUSTOM SECTION {idx + 1}</p>', unsafe_allow_html=True)
 
         saved_custom = st.session_state.saved_custom_sections.get(i, {})
@@ -979,7 +979,7 @@ else:
             else:
                 extracted_text = extract_text_from_docx(uploaded_file)
         
-        st.markdown('<div class="experience-card" style="padding: 1.5rem;">', unsafe_allow_html=True)
+        # st.markdown('<div class="experience-card" style="padding: 1.5rem;">', unsafe_allow_html=True)
         st.markdown('<h3>Extracted Text Preview</h3>', unsafe_allow_html=True)
         st.text_area("Extracted Content", value=extracted_text, height=300, key="extracted_content_preview", label_visibility="collapsed")
         st.markdown('</div>', unsafe_allow_html=True)

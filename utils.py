@@ -3917,3 +3917,250 @@ def get_user_resume(email):
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
+
+
+
+
+def show_login_modal():
+    import streamlit as st
+    import time 
+    from PIL import Image
+    from streamlit_extras.stylable_container import stylable_container
+    from utils import load_users, save_users, is_valid_email, get_user_resume
+
+    # Clear cache
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    
+    # Session states
+    if 'mode' not in st.session_state:
+        st.session_state.mode = 'login'
+
+    if 'page_transitioning' not in st.session_state:
+        st.session_state.page_transitioning = False
+
+    # -------------------------------------------------------------------------------------------------
+    # CSS STYLES
+    # -------------------------------------------------------------------------------------------------
+    st.markdown("""
+    <style>
+
+
+        .main-heading {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #0a2540;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+        }
+
+        .lead-text {
+            font-size: 1.125rem;
+            color: #5a6c7d;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+        }
+
+        .stTextInput > div > div > input {
+            background: #f8f9fa !important;
+            color: #0a2540 !important;
+            border: 1px solid #e1e8ed !important;
+            border-radius: 8px !important;
+            padding: 0.875rem 1rem !important;
+            font-size: 0.95rem !important;
+            transition: all 0.3s ease !important;
+            font-family: 'Nunito Sans', sans-serif !important;
+        }
+
+        .stTextInput > div > div > input:focus {
+            background: #ffffff !important;
+            border-color: #ff6b35 !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+        }
+
+        .stTextInput > div > div > input::placeholder {color: #8b95a5 !important;}
+
+        .divider-text {
+            text-align: center;
+            color: #8b95a5;
+            margin: 1rem 0;
+            font-size: 0.875rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------------------------------
+    # PAGE LAYOUT
+    # -------------------------------------------------------------------------------------------------
+    col1, col2 = st.columns([1, 1])
+
+    # LEFT PANEL
+    with col1:
+        st.markdown('<h1 class="main-heading">Let’s login before exploring the app</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="lead-text">If you are a new user, click sign up</p>', unsafe_allow_html=True)
+
+    # RIGHT PANEL (FORM)
+    with col2:
+        name = ""
+        if st.session_state.mode == 'register':
+            name = st.text_input("Full Name", placeholder="Your Name", label_visibility="collapsed", key="full_name")
+
+        email = st.text_input("Email", placeholder="Your Email", label_visibility="collapsed", key="lemail")
+        password = st.text_input("Password", placeholder="Your Password", type="password", label_visibility="collapsed", key="password")
+
+        button_text = "Sign Up" if st.session_state.mode == 'register' else "Sign In"
+
+        # ====================== ⭐ MAIN SIGN IN/UP BUTTON (Styled) ⭐ =======================
+        with stylable_container(
+            key="main_action_style",
+            css_styles="""
+            button {
+                background-color: #ffffff !important;
+                color: #e87532 !important;
+                border: 2px solid #e87532 !important;
+                border-radius: 12px !important;
+                padding: 0.875rem 1rem !important;
+                font-size: 1rem !important;
+                width: 100% !important;
+                font-weight: 700 !important;
+                cursor: pointer !important;
+                transition: all 0.3s ease !important;
+                box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2) !important;
+                opacity: 1 !important;
+            }
+            button:hover, button:focus {
+                background-color: #e87532 !important;
+                color: #ffffff !important;
+                border: 2px solid #e87532 !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 6px 18px rgba(255, 107, 53, 0.4) !important;
+                opacity: 1 !important;
+            }
+            """
+        ):
+            if st.button(button_text, key="main_action_btn", use_container_width=True):
+                if email and password:
+                    if not is_valid_email(email):
+                        st.error("Please enter a valid email address")
+                    else:
+                        users = load_users()
+
+                        if st.session_state.mode == 'login':
+                            user_entry = users.get(email)
+                            stored_pw = user_entry.get("password") if isinstance(user_entry, dict) else user_entry
+                            stored_name = user_entry.get("name") if isinstance(user_entry, dict) else None
+
+                            if user_entry is None or stored_pw != password:
+                                st.error("Invalid email or password")
+                            else:
+                                st.session_state.logged_in_user = email
+                                st.query_params["user"] = email
+                                st.session_state.username = stored_name or email.split('@')[0]
+
+                                user_resume = get_user_resume(email)
+                                if user_resume and len(user_resume) > 0:
+                                    st.session_state.resume_source = user_resume
+                                    st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
+                                    st.success(f"Welcome back, {st.session_state.username}!")
+                                    # time.sleep(0.8)
+                                    st.switch_page("app.py")
+                                # else:
+                                #     st.success(f"Welcome, {st.session_state.username}!")
+                                #     # time.sleep(0.8)
+                                    # st.switch_page("pages/main.py")
+                        else:
+                            if email in users:
+                                st.error("Email already registered. Please login.")
+                                st.session_state.mode = 'login'
+                                st.rerun()
+                            elif len(password) < 6:
+                                st.error("Password must be at least 6 characters long")
+                            elif not name or len(name.strip()) == 0:
+                                st.error("Please enter your full name")
+                            else:
+                                users[email] = {"password": password, "name": name.strip()}
+                                save_users(users)
+                                st.session_state.logged_in_user = email
+                                st.query_params["user"] = email
+                                st.session_state.username = name.strip()
+                                st.session_state.mode = 'login'
+                                st.success("Account created successfully!")
+                                # time.sleep(0.8)
+                                st.switch_page("app.py")
+                else:
+                    st.warning("Please enter both email and password")
+
+        # -------------------------------------------------------------------------
+        # ACTION LINKS
+        # -------------------------------------------------------------------------
+        st.markdown('<div class="divider-text">or</div>', unsafe_allow_html=True)
+
+        col_a, col_b = st.columns(2)
+
+        # Create Account / Back to Login Button
+        with col_a:
+            with stylable_container(
+                key="orange_btn1",
+                css_styles="""
+                button {
+                    background-color:#ffffff  !important;
+                    color: #e87532 !important;
+                    border: 2px solid #e87532 !important;
+                    border-radius: 12px !important;
+                    padding: 0.625rem 1.25rem !important;
+                    font-size: 0.875rem !important;
+                    width: 100% !important;
+                    font-weight: 600 !important;
+                    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+                    cursor: pointer !important;
+                    transition: all 0.3s ease !important;
+                    margin-left: 20px !important;
+                }
+                button:hover {
+                    background-color: #e87532 !important;
+                    transform: translateY(-2px) !important;
+                    color: #ffffff !important;
+                    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4) !important;
+                }
+                """
+            ):
+                if st.button("Create Account" if st.session_state.mode == 'login' else "Back to Login", key="create_link"):
+                    st.session_state.mode = 'register' if st.session_state.mode == 'login' else 'login'
+                    st.rerun()
+
+        # Help Button
+        with col_b:
+            with stylable_container(
+                key="orange_btn2",
+                css_styles="""
+                button {
+                    background-color: #e87532 !important;
+                    color: #ffffff !important;
+                    border: 2px solid #e87532 !important;
+                    border-radius: 12px !important;
+                    padding: 0.625rem 1.25rem !important;
+                    font-size: 0.875rem !important;
+                    width: 100% !important;
+                    font-weight: 600 !important;
+                    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
+                    cursor: pointer !important;
+                    transition: all 0.3s ease !important;
+                    margin-left: 70px !important;
+                    opacity: 1 !important;
+                }
+                button:hover {
+                    background-color: #e87532 !important;
+                    color: #ffffff !important;
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4) !important;
+                    opacity: 1 !important;
+                }
+                """
+            ):
+                if st.button("Need Help?", key="help_link"):
+                    st.info("Contact support at support@resumecreator.ai")
+
+
+
+
+    

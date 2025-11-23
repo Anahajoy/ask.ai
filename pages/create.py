@@ -97,11 +97,11 @@ def apply_custom_css():
     """Applies improved dark theme with gradient accents."""
     st.markdown("""
     <style>
-    
+     
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
     :root {
-        --primary-blue: #2563eb;
+        --primary-blue:  #e87532;
         --primary-blue-hover: #1d4ed8;
         --secondary-blue: #3b82f6;
         --light-blue: #60a5fa;
@@ -125,16 +125,16 @@ def apply_custom_css():
     }
     
     .stApp {
-        background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
+        background: #ffffff;
         min-height: 100vh;
-        color: var(--text-white);
+       
     }
     [data-testid="stSidebarNav"] {
             display: none !important;
         }
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, var(--bg-card) 0%, #15202e 100%) !important;
+        background: #ffffff !important;
         border-right: 1px solid var(--border-gray);
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     }
@@ -144,13 +144,13 @@ def apply_custom_css():
     [data-testid="stSidebar"] h3,
     [data-testid="stSidebar"] p,
     [data-testid="stSidebar"] label {
-        color: var(--text-white) !important;
+        color: #000000 !important;
     }
     
     /* SIDEBAR BUTTONS */
     [data-testid="stSidebar"] .stButton > button {
-        background: #0891b2 !important;
-        color: var(--text-white) !important;
+        background:  #e87532 !important;
+        color: #ffffff !important;
         border: none !important;
         border-radius: 12px !important;
         padding: 0.85rem 1.3rem !important;
@@ -165,9 +165,10 @@ def apply_custom_css():
     }
     
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: #06b6d4 !important;
+        background: #ffffff !important;
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+        color: #e87532 !important;
     }
     
     [data-testid="stSidebar"] .stButton > button:active {
@@ -225,7 +226,7 @@ def apply_custom_css():
     }
     
     .resume-section h3 {
-        color: var(--text-blue) !important;
+        color:  #e87532 !important;
         font-size: 1.4rem !important;
         font-weight: 600 !important;
         margin-bottom: 1rem !important;
@@ -420,8 +421,86 @@ def apply_custom_css():
         border-color: var(--danger-red) !important;
     }
     
+    .nav-wrapper {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1200px;
+    z-index: 99999 !important;
+    background-color: white !important;
+    padding: 0.8rem 2rem;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 50px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 400;
+    color: #2c3e50;
+    font-family: 'Nunito Sans', sans-serif !important;
+    letter-spacing: -0.5px;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.nav-item { position: relative; }
+
+.nav-link {
+    color: #000000 !important;
+    text-decoration: none !important;
+    font-size: 1rem;
+    font-family: 'Nunito Sans', sans-serif;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.nav-link:visited {
+    color: #000000 !important;
+}
+
+.nav-link:hover {
+    background-color: #f8fafc;
+    color:  #e87532;
+}
     </style>
     """, unsafe_allow_html=True)
+
+st.markdown(f"""
+<div class="nav-wrapper">
+    <div class="logo">Resume Creator</div>
+    <div class="nav-menu">
+        <div class="nav-item">
+            <a class="nav-link" href="?home=true" target="_self">Home</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" data-section="About" href="#About">About</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" data-section="Resume" href="#Resume">Resume</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" data-section="Portfolio" href="#Portfolio">Portfolio</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" data-section="Login" href="#Login">Login</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 def get_standard_keys():
     """Return set of standard resume keys that should not be treated as custom sections."""
@@ -505,7 +584,7 @@ def main():
                     left: 0;
                     width: 100vw;
                     height: 100vh;
-                    background: rgba(15, 23, 42, 0.95);
+                    background: #ffffff;
                     backdrop-filter: blur(6px);
                     display: flex;
                     flex-direction: column;

@@ -611,12 +611,12 @@ def app_download():
         🌟 Dark Blue-Green Theme
         ============================ */
         :root {{
-            --primary-color: #00BFFF; /* Deep sky blue */
-            --secondary-color: #000000; /* Black background */
+            --primary-color:  #e87532; /* Deep sky blue */
+            --secondary-color: #ffffff; /* Black background */
             --accent-color: #00FF7F; /* Spring green */
             --accent-light: #66FFB2; /* Lighter green-blue */
             --accent-ice: #0a0a0a; /* Dark icy color for borders */
-            --text-dark: #FFFFFF; /* Text on dark background */
+            --text-dark: #000000; /* Text on dark background */
             --text-light: #FFFFFF;
             --card-bg: rgba(20, 20, 20, 0.9); /* Dark card background */
             --card-border: rgba(0, 255, 127, 0.5); /* Soft green border */
@@ -769,8 +769,8 @@ def app_download():
         ============================ */
         /* Sidebar background */
         [data-testid="stSidebar"] {{
-            background-color: #000000 !important; /* Black background */
-            color: #FFFFFF; /* White text by default */
+            background-color: #ffffff !important; /* Black background */
+            color:  #e87532; /* White text by default */
             padding: 1rem;
         }}
 
@@ -779,7 +779,7 @@ def app_download():
         [data-testid="stSidebar"] h3,
         [data-testid="stSidebar"] h4,
         [data-testid="stSidebar"] .css-1d391kg p {{
-            color: #FFFFFF !important;
+            color:  #e87532 !important;
         }}
 
         /* Sidebar selectbox and color picker */

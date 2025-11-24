@@ -594,7 +594,7 @@ div[data-testid="stButton"] button:hover {
 
 /* Scroll to Top Button */
 .scroll-to-top {
-    position: fixed;
+   
     bottom: 30px;
     right: 30px;
     width: 50px;
@@ -689,12 +689,8 @@ st.markdown(f"""
         <div class="nav-item">
             <a class="nav-link" data-section="Portfolio" href="#Portfolio">Portfolio</a>
         </div>
-        <div class="dropdown">
-            <button class="dropdown-toggle" type="button">Templates ▾</button>
-            <div class="dropdown-content">
-                <a class="dropdown-item" data-section="CustomTemplates" href="#CustomTemplates">Custom Templates</a>
-                <a class="dropdown-item" data-section="SystemTemplates" href="#SystemTemplates">System Templates</a>
-            </div>
+        <div class="nav-item">
+            <a class="nav-link" data-section="Templates" href="#Templates">Templates</a>
         </div>
         {auth_button}
     </div>
@@ -1272,8 +1268,8 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ----------------------------------
 # CUSTOM TEMPLATES SECTION
 # ----------------------------------
-st.markdown('<div id="CustomTemplates"></div>', unsafe_allow_html=True)
-st.markdown('<div class="template-section">', unsafe_allow_html=True)
+st.markdown('<div id="Templates"></div>', unsafe_allow_html=True)
+
 
 st.markdown("""
 <div class="template-header">
@@ -1293,7 +1289,7 @@ with col2:
                 color: """ + ("white !important" if st.session_state.template_view_mode == "custom" else "#64748b !important") + """;
                 border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "#e2e8f0 !important") + """;
                 border-radius: 50px !important;
-                padding: 12px 40px !important;
+                padding: 2px 50px !important;
                 font-weight: 600 !important;
                 transition: all 0.3s ease !important;
             }
@@ -1314,7 +1310,7 @@ with col2:
                 color: """ + ("white !important" if st.session_state.template_view_mode == "system" else "#64748b !important") + """;
                 border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "#e2e8f0 !important") + """;
                 border-radius: 50px !important;
-                padding: 12px 40px !important;
+                padding: 2px 40px !important;
                 font-weight: 600 !important;
                 transition: all 0.3s ease !important;
             }
@@ -1456,18 +1452,14 @@ if st.session_state.template_view_mode == "custom":
                             if 'temp_upload_config' in st.session_state:
                                 del st.session_state.temp_upload_config
                             
-                            st.session_state.selected_template_preview = f"""
-                                <style>{template_data['css']}</style>
-                                <div class="ats-page">{generate_generic_html(user_resume)}</div>
-                            """
                             st.session_state.selected_template = template_data['name']
                             st.session_state.selected_template_config = template_data
                             st.session_state.template_source = 'saved'
                             st.session_state.current_upload_id = template_id
                             
-                            # PRESERVE USER PARAM
+                            # PRESERVE USER PARAM and navigate to preview page
                             st.query_params["user"] = st.session_state.logged_in_user
-                            st.success(f"Using: {template_data['name']}")
+                            st.switch_page("pages/template_preview.py")
                     
                     with stylable_container(
                         f"delete_html_{template_id}",
@@ -1558,11 +1550,13 @@ if st.session_state.template_view_mode == "custom":
                                 st.session_state.generated_doc = output.getvalue()
                                 st.session_state.selected_doc_template_id = template_id
                                 st.session_state.selected_doc_template = template_data
-                                st.session_state.doc_template_source = 'saved'
+                                st.session_state.template_source = 'doc_saved'
+                                st.session_state.selected_template = template_data['name']
+                                st.session_state.selected_template_config = template_data
                                 
-                                # PRESERVE USER PARAM
+                                # PRESERVE USER PARAM and navigate to preview page
                                 st.query_params["user"] = st.session_state.logged_in_user
-                                st.success(f"Using: {template_data['name']}")
+                                st.switch_page("pages/template_preview.py")
                             except Exception as e:
                                 st.error(f"Error: {str(e)}")
 
@@ -1703,11 +1697,13 @@ if st.session_state.template_view_mode == "custom":
                                 st.session_state.generated_ppt = output.getvalue()
                                 st.session_state.selected_ppt_template_id = template_id
                                 st.session_state.selected_ppt_template = template_data
-                                st.session_state.ppt_template_source = 'saved'
+                                st.session_state.template_source = 'ppt_saved'
+                                st.session_state.selected_template = template_data['name']
+                                st.session_state.selected_template_config = template_data
                                 
-                                # PRESERVE USER PARAM
+                                # PRESERVE USER PARAM and navigate to preview page
                                 st.query_params["user"] = st.session_state.logged_in_user
-                                st.success(f"Using: {template_data['name']}")
+                                st.switch_page("pages/template_preview.py")
                             except Exception as e:
                                 st.error(f"Error: {str(e)}")
 
@@ -1797,9 +1793,9 @@ elif st.session_state.template_view_mode == "system":
                     st.session_state.selected_template_config = SYSTEM_TEMPLATES[template_name]
                     st.session_state.template_source = 'system'
                     
-                    # PRESERVE USER PARAM
+                    # PRESERVE USER PARAM and navigate to preview page
                     st.query_params["user"] = st.session_state.logged_in_user
-                    st.success(f"Selected: {template_name}")
+                    st.switch_page("pages/template_preview.py")
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1809,11 +1805,19 @@ st.markdown('</div>', unsafe_allow_html=True)
 # HANDLE TEMPLATE MODAL
 # ----------------------------------
 if template_clicked:
-    st.session_state.show_template_modal = True
-
-if st.session_state.show_template_modal:
-    st.write("🎉 Show Template modal here...")
-    
+    if st.session_state.logged_in_user is None:
+        st.warning("🔒 Please login first to view templates.")
+        st.session_state.show_login_modal = True
+    else:
+        # Use HTML/JS to force immediate scroll
+        st.components.v1.html("""
+        <script>
+            window.parent.document.getElementById('Templates').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        </script>
+        """, height=0)
 # ----------------------------------
 # FOOTER - Preserve user param in all navigation + Handle browser refresh + Scroll to Top Button
 # ----------------------------------

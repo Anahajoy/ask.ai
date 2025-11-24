@@ -954,8 +954,14 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 }}
     </style>
 """, unsafe_allow_html=True)
-    current_user = st.session_state.get('logged_in_user', '')
+  
+    # Preserve logged in user from query params or session state
+    if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+        query_user = st.query_params.get('user', '')
+        if query_user:
+            st.session_state.logged_in_user = query_user
 
+    current_user = st.session_state.get('logged_in_user', '')
     # Use f-string to properly interpolate the user variable
     st.markdown(f"""
     <div class="nav-wrapper">
@@ -980,27 +986,28 @@ button[data-testid="stBaseButton-secondary"]:hover {{
     # Handle navigation - PRESERVE USER IN SESSION STATE
     if st.query_params.get("addjd") == "true":
         st.query_params.clear()
-        st.query_params["user"] = current_user
+        if current_user:
+            st.query_params["user"] = current_user
         st.switch_page("pages/job.py")
 
     if st.query_params.get("create") == "true":
         st.query_params.clear()
-        st.query_params["user"] = current_user
+        if current_user:
+            st.query_params["user"] = current_user
         st.switch_page("pages/main.py")
 
     if st.query_params.get("home") == "true":
         st.query_params.clear()
-        st.query_params["user"] = current_user
+        if current_user:
+            st.query_params["user"] = current_user
         st.switch_page("app.py")
 
     if st.query_params.get("logout") == "true":
-        # Only clear session state on logout
-        st.session_state.logged_in_user = None
+        # Clear session state AND user info on logout
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.query_params.clear()
         st.switch_page("app.py")
-
 
 
     final_data = st.session_state.get('final_resume_data')

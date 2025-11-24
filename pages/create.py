@@ -4,92 +4,12 @@ from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
-if should_regenerate_resume():
-    # loading_placeholder = st.empty()
-    
-    # loading_placeholder.markdown("""
-    #     <div class="fullscreen-loader">
-    #         <div class="loader-content">
-    #             <div class="loader-spinner"></div>
-    #             <h2>Generating Optimized Resume</h2>
-    #             <p>Please wait while we optimize your content...</p>
-    #         </div>
-    #     </div>
-        
-    #     <style>
-    #         /* Full-screen overlay covering everything including sidebar */
-    #         .fullscreen-loader {
-    #             position: fixed;
-    #             top: 0;
-    #             left: 0;
-    #             width: 100vw;
-    #             height: 100vh;
-    #             background: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
-    #             display: flex;
-    #             justify-content: center;
-    #             align-items: center;
-    #             z-index: 999999 !important;
-    #             animation: fadeIn 0.3s ease-in;
-    #         }
-            
-    #         @keyframes fadeIn {
-    #             from { opacity: 0; }
-    #             to { opacity: 1; }
-    #         }
-            
-    #         .loader-content {
-    #             text-align: center;
-    #             animation: slideUp 0.5s ease-out;
-    #         }
-            
-    #         @keyframes slideUp {
-    #             from {
-    #                 opacity: 0;
-    #                 transform: translateY(30px);
-    #             }
-    #             to {
-    #                 opacity: 1;
-    #                 transform: translateY(0);
-    #             }
-    #         }
-            
-    #         /* Spinner */
-    #         .loader-spinner {
-    #             width: 80px;
-    #             height: 80px;
-    #             margin: 0 auto 30px;
-    #             border: 6px solid rgba(96, 165, 250, 0.2);
-    #             border-top: 6px solid #3b82f6;
-    #             border-radius: 50%;
-    #             animation: spin 1s linear infinite;
-    #         }
-            
-    #         @keyframes spin {
-    #             0% { transform: rotate(0deg); }
-    #             100% { transform: rotate(360deg); }
-    #         }
-            
-    #         /* Text styling */
-    #         .fullscreen-loader h2 {
-    #             color: #ffffff;
-    #             font-size: 2rem;
-    #             font-weight: 700;
-    #             margin: 0 0 15px 0;
-    #             font-family: 'Inter', sans-serif;
-    #             letter-spacing: -0.5px;
-    #         }
-            
-    #         .fullscreen-loader p {
-    #             color: #94a3b8;
-    #             font-size: 1.1rem;
-    #             font-weight: 400;
-    #             margin: 0;
-    #             font-family: 'Inter', sans-serif;
-    #         }
-    #     </style>
-    # """, unsafe_allow_html=True)
-    generate_enhanced_resume()
-    # loading_placeholder.empty()
+# PRESERVE USER SESSION - Get user from query params if not in session state
+if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+    user_from_query = st.query_params.get('user', '')
+    if user_from_query:
+        st.session_state.logged_in_user = user_from_query
+
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 
@@ -127,11 +47,10 @@ def apply_custom_css():
     .stApp {
         background: #ffffff;
         min-height: 100vh;
-       
     }
     [data-testid="stSidebarNav"] {
-            display: none !important;
-        }
+        display: none !important;
+    }
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
         background: #ffffff !important;
@@ -176,43 +95,11 @@ def apply_custom_css():
         box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
     }
     
-    [data-testid="stSidebar"] .stCheckbox {
-        color: var(--text-white) !important;
-        margin: 0.8rem 0 !important;
-    }
-    
-    [data-testid="stSidebar"] .stCheckbox label {
-        color: var(--text-white) !important;
-        font-weight: 500 !important;
-    }
-    
-    [data-testid="stSidebar"] hr {
-        border-color: var(--border-gray) !important;
-        opacity: 0.4;
-        margin: 1.5rem 0 !important;
-    }
-    
-    /* Sidebar Subheaders */
-    [data-testid="stSidebar"] .stMarkdown h3 {
-        font-size: 1rem !important;
-        font-weight: 600 !important;
-        color: var(--text-blue) !important;
-        margin-bottom: 1rem !important;
-        margin-top: 0.5rem !important;
-    }
-    
     /* Main Content Area */
     .main-content {
         max-width: 950px;
         margin: 0 auto;
         padding: 2.5rem 2rem;
-    }
-    
-    
-    
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
     }
     
     .resume-section h2 {
@@ -331,30 +218,6 @@ def apply_custom_css():
         line-height: 1.8 !important;
         white-space: pre-line !important;
     }
-
-    /* Higher specificity for Streamlit containers */
-    [data-testid="stHorizontalBlock"] .item-subtitle,
-    div.element-container .item-subtitle,
-    .stMarkdown .item-subtitle {
-        font-size: 1.15rem !important;
-        color: var(--secondary-blue) !important;
-        margin-bottom: 0.4rem !important;
-        font-weight: 500 !important;
-    }
-
-    [data-testid="stHorizontalBlock"] .bullet-list,
-    div.element-container .bullet-list,
-    .stMarkdown .bullet-list {
-        list-style-type: disc !important;
-        padding-left: 1.8rem !important;
-    }
-
-    [data-testid="stHorizontalBlock"] .bullet-list li,
-    div.element-container .bullet-list li,
-    .stMarkdown .bullet-list li {
-        color: var(--text-light-gray) !important;
-        line-height: 1.7 !important;
-    }
     
     /* Input Fields */
     .stTextInput > div > div > input,
@@ -383,32 +246,6 @@ def apply_custom_css():
         margin-bottom: 0.5rem !important;
     }
     
-    /* Info/Warning/Error Messages */
-    .stAlert {
-        border-radius: 12px !important;
-        border-left: 4px solid var(--primary-blue) !important;
-        background: rgba(37, 99, 235, 0.1) !important;
-    }
-    
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: var(--bg-dark);
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: var(--border-gray);
-        border-radius: 5px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--border-light);
-    }
-    
     /* Delete button styling */
     .stButton > button[kind="secondary"] {
         background: rgba(239, 68, 68, 0.1) !important;
@@ -422,78 +259,78 @@ def apply_custom_css():
     }
     
     .nav-wrapper {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
-    z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 50px;
-}
+        position: fixed;
+        top: 20px;
+        left: 55%;
+        transform: translateX(-50%);
+        width: 70%;
+        max-width: 800px;
+        z-index: 999999 !important;
+        background-color: white !important;
+        padding: 0.6rem 1.5rem;
+        box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 50px;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
 
-.logo {
+    .nav-menu {
+        display: flex;
+        gap: 1.2rem;
+        align-items: center;
+    }
+
+    .nav-item { position: relative; }
+
+    .nav-link {
+        color: #000000 !important;
+        text-decoration: none !important;
+        font-size: 0.95rem;
+        font-family: 'Inter', sans-serif;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:visited {
+        color: #000000 !important;
+    }
+
+    .nav-link:hover {
+        background-color: #f8fafc;
+        color: #e87532;
+    }
+
+    .logo {
     font-size: 24px;
     font-weight: 400;
     color: #2c3e50;
     font-family: 'Nunito Sans', sans-serif !important;
     letter-spacing: -0.5px;
 }
-
-.nav-menu {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
-}
-
-.nav-item { position: relative; }
-
-.nav-link {
-    color: #000000 !important;
-    text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.nav-link:visited {
-    color: #000000 !important;
-}
-
-.nav-link:hover {
-    background-color: #f8fafc;
-    color:  #e87532;
-}
     </style>
     """, unsafe_allow_html=True)
 
+# Get current user and ensure it's preserved in session state
+current_user = st.session_state.get('logged_in_user', '')
+
+# Use f-string to properly interpolate the user variable
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="logo">Resume Creator</div>
     <div class="nav-menu">
         <div class="nav-item">
-            <a class="nav-link" href="?home=true" target="_self">Home</a>
+            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="About" href="#About">About</a>
+             <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="Resume" href="#Resume">Resume</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="Portfolio" href="#Portfolio">Portfolio</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="Login" href="#Login">Login</a>
+             <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
         </div>
         <div class="nav-item">
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>
@@ -501,6 +338,34 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# Handle navigation - PRESERVE USER IN SESSION STATE
+if st.query_params.get("addjd") == "true":
+    st.query_params.clear()
+    st.query_params["user"] = current_user
+    st.switch_page("pages/job.py")
+
+if st.query_params.get("create") == "true":
+    st.query_params.clear()
+    st.query_params["user"] = current_user
+    st.switch_page("pages/main.py")
+
+if st.query_params.get("home") == "true":
+    st.query_params.clear()
+    st.query_params["user"] = current_user
+    st.switch_page("app.py")
+
+if st.query_params.get("logout") == "true":
+    # Only clear session state on logout
+    st.session_state.logged_in_user = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.query_params.clear()
+    st.switch_page("app.py")
+
+if should_regenerate_resume():
+    generate_enhanced_resume()
+
 
 def get_standard_keys():
     """Return set of standard resume keys that should not be treated as custom sections."""
@@ -619,7 +484,6 @@ def main():
             </style>
             """, unsafe_allow_html=True)
 
-        # Save custom sections before auto-improve
         save_custom_sections()
         save_and_improve()
         loading_placeholder.empty()
@@ -727,32 +591,15 @@ def main():
             type="primary"
         )
 
-        st.sidebar.markdown("---")
-        # st.sidebar.subheader("📝 Custom Section Management")
-        # new_section_key = st.sidebar.text_input("Add a New Section (e.g., 'Languages', 'Licenses')")
-        # if st.sidebar.button("➕ Add Custom Section", use_container_width=True):
-        #     if new_section_key and new_section_key.strip():
-        #         clean_key = new_section_key.strip()
-                
-        #         if clean_key not in data:
-        #             data[clean_key] = "Enter your content here..."
-        #             st.session_state['enhanced_resume'] = data
-        #             st.sidebar.success(f"✅ Added '{clean_key}' section!")
-        #             st.rerun()
-        #         else:
-        #             st.sidebar.warning(f"⚠️ Section '{clean_key}' already exists")
-        #     else:
-        #         st.sidebar.error("❌ Please enter a section name")
-
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🔄 Regenerate from Source", use_container_width=True):
-        if 'enhanced_resume' in st.session_state:
-            del st.session_state['enhanced_resume']
-        if 'last_resume_hash' in st.session_state:
-            del st.session_state['last_resume_hash']
-        if 'ats_score_data' in st.session_state:
-            del st.session_state['ats_score_data']
-        st.switch_page("pages/main.py")
+    # st.sidebar.markdown("---")
+    # if st.sidebar.button("🔄 Regenerate from Source", use_container_width=True):
+    #     if 'enhanced_resume' in st.session_state:
+    #         del st.session_state['enhanced_resume']
+    #     if 'last_resume_hash' in st.session_state:
+    #         del st.session_state['last_resume_hash']
+    #     if 'ats_score_data' in st.session_state:
+    #         del st.session_state['ats_score_data']
+    #     st.switch_page("pages/main.py")
 
     st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
@@ -819,6 +666,6 @@ if __name__ == '__main__':
     if 'job_description' not in st.session_state or 'resume_source' not in st.session_state:
         st.error("Missing job description or resume source. Please go back to the main page.")
         if st.button("Go to Home"):
-            switch_page("main")
+            switch_page("pages/main.py")
     else:
         main()

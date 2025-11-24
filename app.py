@@ -687,9 +687,6 @@ st.markdown(f"""
             <a class="nav-link" data-section="Resume" href="#Resume">Resume</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="Portfolio" href="#Portfolio">Portfolio</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" data-section="Templates" href="#Templates">Templates</a>
         </div>
         {auth_button}

@@ -898,10 +898,108 @@ button[data-testid="stBaseButton-secondary"]:hover {{
             transform: translateY(-2px) scale(1.02) !important;
             box-shadow: 0 4px 12px rgba(0, 119, 182, 0.5) !important;
         }}
-        
+            .nav-wrapper {{
+        position: fixed;
+        top: 20px;
+        left: 55%;
+        transform: translateX(-50%);
+        width: 70%;
+        max-width: 800px;
+        z-index: 999999 !important;
+        background-color: white !important;
+        padding: 0.6rem 1.5rem;
+        box-shadow: 0 4px 30px rgba(0,0,0,0.15);
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        border-radius: 50px;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }}
+
+    .nav-menu {{
+        display: flex;
+        gap: 1.2rem;
+        align-items: center;
+    }}
+
+    .nav-item {{ position: relative; }}
+
+    .nav-link {{
+        color: #000000 !important;
+        text-decoration: none !important;
+        font-size: 0.95rem;
+        font-family: 'Inter', sans-serif;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }}
+
+    .nav-link:visited {{
+        color: #000000 !important;
+    }}
+
+    .nav-link:hover {{
+        background-color: #f8fafc;
+        color: #e87532;
+    }}
+
+    .logo {{
+    font-size: 24px;
+    font-weight: 400;
+    color: #2c3e50;
+    font-family: 'Nunito Sans', sans-serif !important;
+    letter-spacing: -0.5px;
+}}
     </style>
 """, unsafe_allow_html=True)
+    current_user = st.session_state.get('logged_in_user', '')
 
+    # Use f-string to properly interpolate the user variable
+    st.markdown(f"""
+    <div class="nav-wrapper">
+        <div class="logo">Resume Creator</div>
+        <div class="nav-menu">
+            <div class="nav-item">
+                <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Handle navigation - PRESERVE USER IN SESSION STATE
+    if st.query_params.get("addjd") == "true":
+        st.query_params.clear()
+        st.query_params["user"] = current_user
+        st.switch_page("pages/job.py")
+
+    if st.query_params.get("create") == "true":
+        st.query_params.clear()
+        st.query_params["user"] = current_user
+        st.switch_page("pages/main.py")
+
+    if st.query_params.get("home") == "true":
+        st.query_params.clear()
+        st.query_params["user"] = current_user
+        st.switch_page("app.py")
+
+    if st.query_params.get("logout") == "true":
+        # Only clear session state on logout
+        st.session_state.logged_in_user = None
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.query_params.clear()
+        st.switch_page("app.py")
 
 
 

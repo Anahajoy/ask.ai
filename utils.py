@@ -4030,46 +4030,133 @@ def show_login_modal():
     # -------------------------------------------------------------------------------------------------
     st.markdown("""
     <style>
+        /* Overall page background - WHITE */
+        [data-testid="stAppViewContainer"] {
+            background: #ffffff !important;
+        }
 
+        /* Hide default Streamlit elements */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
 
-        .main-heading {
-            font-size: 3rem;
+        /* Main container styling */
+        .block-container {
+            padding: 2rem !important;
+            max-width: 1200px !important;
+        }
+
+        /* Left panel - Orange gradient section */
+        .welcome-panel {
+            background: linear-gradient(135deg, #f2994a 0%, #f2784b 50%, #e87532 100%);
+            padding: 4rem 3rem;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Geometric pattern overlay */
+        .welcome-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.1) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.1) 75%);
+            background-size: 100px 100px;
+            opacity: 0.3;
+        }
+
+        .welcome-heading {
+            font-size: 3.5rem;
             font-weight: 800;
-            color: #0a2540;
+            color: #ffffff;
             line-height: 1.2;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
-        .lead-text {
-            font-size: 1.125rem;
-            color: #5a6c7d;
-            margin-bottom: 2.5rem;
-            line-height: 1.6;
+        .welcome-subtext {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.95);
+            position: relative;
+            z-index: 1;
+            font-weight: 400;
         }
 
+        /* Right panel - Form section */
+        .main-heading {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4a4a4a;
+            margin-bottom: 2rem;
+            text-align: center;
+                
+        }
+
+        /* Input fields styling */
         .stTextInput > div > div > input {
-            background: #f8f9fa !important;
-            color: #0a2540 !important;
-            border: 1px solid #e1e8ed !important;
-            border-radius: 8px !important;
-            padding: 0.875rem 1rem !important;
-            font-size: 0.95rem !important;
+            background: #ffffff !important;
+            color: #333333 !important;
+            border: 2px solid #e87532 !important;
+            border-radius: 12px !important;
+            padding: 1rem 1.25rem !important;
+            font-size: 1rem !important;
             transition: all 0.3s ease !important;
-            font-family: 'Nunito Sans', sans-serif !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
         }
 
         .stTextInput > div > div > input:focus {
             background: #ffffff !important;
-            border-color: #ff6b35 !important;
-            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+            border-color: #e87532 !important;
+            box-shadow: 0 0 0 4px rgba(232, 117, 50, 0.1) !important;
+            outline: none !important;
         }
 
-        .stTextInput > div > div > input::placeholder {color: #8b95a5 !important;}
+        .stTextInput > div > div > input::placeholder {
+            color: #999999 !important;
+            font-weight: 400;
+        }
 
+        /* Checkbox styling */
+        .stCheckbox {
+            margin: 1rem 0;
+        }
+
+        .stCheckbox > label {
+            color: #666666;
+            font-size: 0.9rem;
+        }
+
+        .forgot-password {
+            color: #e87532;
+            font-size: 0.9rem;
+            text-decoration: underline;
+            transition: color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .forgot-password:hover {
+            color: #d66428;
+        }
+
+        /* Divider */
         .divider-text {
             text-align: center;
             color: #8b95a5;
-            margin: 1rem 0;
+            margin: 1.5rem 0;
             font-size: 0.875rem;
         }
     </style>
@@ -4080,173 +4167,186 @@ def show_login_modal():
     # -------------------------------------------------------------------------------------------------
     col1, col2 = st.columns([1, 1])
 
-    # LEFT PANEL
+    # LEFT PANEL - Welcome section
     with col1:
-        st.markdown('<h1 class="main-heading">Let’s login before exploring the app</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="lead-text">If you are a new user, click sign up</p>', unsafe_allow_html=True)
+        from PIL import Image
+        profile_img = Image.open(r"C:\ask.ai\image\f2.png")
+        st.markdown('<div>', unsafe_allow_html=True)
+        st.image(profile_img, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # RIGHT PANEL (FORM)
+    # RIGHT PANEL - Form section
     with col2:
+        if st.session_state.mode == 'login':
+            st.markdown('<h2 class="main-heading">Let\'s log in</h2>', unsafe_allow_html=True)
+        else:
+            st.markdown('<h2 class="main-heading">Create Account</h2>', unsafe_allow_html=True)
+        
+        # Name field for registration
         name = ""
         if st.session_state.mode == 'register':
-            name = st.text_input("Full Name", placeholder="Your Name", label_visibility="collapsed", key="full_name")
-
-        email = st.text_input("Email", placeholder="Your Email", label_visibility="collapsed", key="lemail")
-        password = st.text_input("Password", placeholder="Your Password", type="password", label_visibility="collapsed", key="password")
-
-        button_text = "Sign Up" if st.session_state.mode == 'register' else "Sign In"
-
-        # ====================== ⭐ MAIN SIGN IN/UP BUTTON (Styled) ⭐ =======================
-        with stylable_container(
-            key="main_action_style",
-            css_styles="""
-            button {
-                background-color: #ffffff !important;
-                color: #e87532 !important;
-                border: 2px solid #e87532 !important;
-                border-radius: 12px !important;
-                padding: 0.875rem 1rem !important;
-                font-size: 1rem !important;
-                width: 100% !important;
-                font-weight: 700 !important;
-                cursor: pointer !important;
-                transition: all 0.3s ease !important;
-                box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2) !important;
-                opacity: 1 !important;
-            }
-            button:hover, button:focus {
-                background-color: #e87532 !important;
-                color: #ffffff !important;
-                border: 2px solid #e87532 !important;
-                transform: translateY(-2px) !important;
-                box-shadow: 0 6px 18px rgba(255, 107, 53, 0.4) !important;
-                opacity: 1 !important;
-            }
-            """
-        ):
-            if st.button(button_text, key="main_action_btn", use_container_width=True):
-                if email and password:
-                    if not is_valid_email(email):
-                        st.error("Please enter a valid email address")
-                    else:
-                        users = load_users()
-
-                        if st.session_state.mode == 'login':
-                            user_entry = users.get(email)
-                            stored_pw = user_entry.get("password") if isinstance(user_entry, dict) else user_entry
-                            stored_name = user_entry.get("name") if isinstance(user_entry, dict) else None
-
-                            if user_entry is None or stored_pw != password:
-                                st.error("Invalid email or password")
-                            else:
-                                st.session_state.logged_in_user = email
-                                st.query_params["user"] = email
-                                st.session_state.username = stored_name or email.split('@')[0]
-
-                                user_resume = get_user_resume(email)
-                                if user_resume and len(user_resume) > 0:
-                                    st.session_state.resume_source = user_resume
-                                    st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
-                                    st.success(f"Welcome back, {st.session_state.username}!")
-                                    # time.sleep(0.8)
-                                    st.switch_page("app.py")
-                                # else:
-                                #     st.success(f"Welcome, {st.session_state.username}!")
-                                #     # time.sleep(0.8)
-                                    # st.switch_page("pages/main.py")
+            name = st.text_input("", placeholder="Full Name", label_visibility="collapsed", key="full_name")
+        
+        # Email field
+        email = st.text_input("", placeholder="Email Address", label_visibility="collapsed", key="lemail")
+        
+        # Password field
+        password = st.text_input("", placeholder="Password", type="password", label_visibility="collapsed", key="password")
+        
+        # Remember me and Forgot password row (only for login)
+        if st.session_state.mode == 'login':
+            col_remember, col_forgot = st.columns([1, 1])
+            with col_remember:
+                st.checkbox("Remember me", key="remember_me")
+            with col_forgot:
+                st.markdown('<p style="text-align: right;"><a href="#" class="forgot-password">Forgot Password?</a></p>', unsafe_allow_html=True)
+        
+        # Main action button (Login/Sign Up) - CENTERED
+        button_text = "SIGN UP" if st.session_state.mode == 'register' else "LOGIN"
+        
+        # Center the button using columns
+        col_left, col_btn, col_right = st.columns([3, 2, 3])
+        with col_btn:
+            with stylable_container(
+                key="main_login_btn",
+                css_styles="""
+                button {
+                    background: linear-gradient(135deg, #f2994a 0%, #e87532 100%) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    border-radius: 12px !important;
+                    padding: 1rem 2rem !important;
+                    font-size: 1.1rem !important;
+                    width: 100% !important;
+                    font-weight: 700 !important;
+                    cursor: pointer !important;
+                    transition: all 0.3s ease !important;
+                    box-shadow: 0 8px 20px rgba(232, 117, 50, 0.3) !important;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-top: 1rem !important;
+                }
+                button:hover {
+                    transform: translateY(-3px) !important;
+                    box-shadow: 0 12px 28px rgba(232, 117, 50, 0.4) !important;
+                    background: linear-gradient(135deg, #e87532 0%, #d66428 100%) !important;
+                }
+                """
+            ):
+                if st.button(button_text, key="main_action_btn"):
+                    if email and password:
+                        if not is_valid_email(email):
+                            st.error("Please enter a valid email address")
                         else:
-                            if email in users:
-                                st.error("Email already registered. Please login.")
-                                st.session_state.mode = 'login'
-                                st.rerun()
-                            elif len(password) < 6:
-                                st.error("Password must be at least 6 characters long")
-                            elif not name or len(name.strip()) == 0:
-                                st.error("Please enter your full name")
+                            users = load_users()
+
+                            if st.session_state.mode == 'login':
+                                # LOGIN LOGIC
+                                user_entry = users.get(email)
+                                stored_pw = user_entry.get("password") if isinstance(user_entry, dict) else user_entry
+                                stored_name = user_entry.get("name") if isinstance(user_entry, dict) else None
+
+                                if user_entry is None or stored_pw != password:
+                                    st.error("Invalid email or password")
+                                else:
+                                    st.session_state.logged_in_user = email
+                                    st.query_params["user"] = email
+                                    st.session_state.username = stored_name or email.split('@')[0]
+
+                                    user_resume = get_user_resume(email)
+                                    if user_resume and len(user_resume) > 0:
+                                        st.session_state.resume_source = user_resume
+                                        st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
+                                        st.success(f"Welcome back, {st.session_state.username}!")
+                                        time.sleep(0.8)
+                                        st.switch_page("app.py")
+                                    else:
+                                        st.success(f"Welcome, {st.session_state.username}!")
+                                        time.sleep(0.8)
+                                        st.switch_page("app.py")
                             else:
-                                users[email] = {"password": password, "name": name.strip()}
-                                save_users(users)
-                                st.session_state.logged_in_user = email
-                                st.query_params["user"] = email
-                                st.session_state.username = name.strip()
-                                st.session_state.mode = 'login'
-                                st.success("Account created successfully!")
-                                # time.sleep(0.8)
-                                st.switch_page("app.py")
-                else:
-                    st.warning("Please enter both email and password")
+                                # REGISTRATION LOGIC
+                                if email in users:
+                                    st.error("Email already registered. Please login.")
+                                    st.session_state.mode = 'login'
+                                    st.rerun()
+                                elif len(password) < 6:
+                                    st.error("Password must be at least 6 characters long")
+                                elif not name or len(name.strip()) == 0:
+                                    st.error("Please enter your full name")
+                                else:
+                                    users[email] = {"password": password, "name": name.strip()}
+                                    save_users(users)
+                                    st.session_state.logged_in_user = email
+                                    st.query_params["user"] = email
+                                    st.session_state.username = name.strip()
+                                    st.session_state.mode = 'login'
+                                    st.success("Account created successfully!")
+                                    time.sleep(0.8)
+                                    st.switch_page("app.py")
+                    else:
+                        st.warning("Please enter both email and password")
 
-        # -------------------------------------------------------------------------
-        # ACTION LINKS
-        # -------------------------------------------------------------------------
+        # Sign up / Login toggle - CENTERED
         st.markdown('<div class="divider-text">or</div>', unsafe_allow_html=True)
-
-        col_a, col_b = st.columns(2)
-
-        # Create Account / Back to Login Button
-        with col_a:
-            with stylable_container(
-                key="orange_btn1",
-                css_styles="""
-                button {
-                    background-color:#ffffff  !important;
-                    color: #e87532 !important;
-                    border: 2px solid #e87532 !important;
-                    border-radius: 12px !important;
-                    padding: 0.625rem 1.25rem !important;
-                    font-size: 0.875rem !important;
-                    width: 100% !important;
-                    font-weight: 600 !important;
-                    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
-                    cursor: pointer !important;
-                    transition: all 0.3s ease !important;
-                    margin-left: 20px !important;
-                }
-                button:hover {
-                    background-color: #e87532 !important;
-                    transform: translateY(-2px) !important;
-                    color: #ffffff !important;
-                    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4) !important;
-                }
-                """
-            ):
-                if st.button("Create Account" if st.session_state.mode == 'login' else "Back to Login", key="create_link"):
-                    st.session_state.mode = 'register' if st.session_state.mode == 'login' else 'login'
-                    st.rerun()
-
-        # Help Button
-        with col_b:
-            with stylable_container(
-                key="orange_btn2",
-                css_styles="""
-                button {
-                    background-color: #e87532 !important;
-                    color: #ffffff !important;
-                    border: 2px solid #e87532 !important;
-                    border-radius: 12px !important;
-                    padding: 0.625rem 1.25rem !important;
-                    font-size: 0.875rem !important;
-                    width: 100% !important;
-                    font-weight: 600 !important;
-                    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3) !important;
-                    cursor: pointer !important;
-                    transition: all 0.3s ease !important;
-                    margin-left: 70px !important;
-                    opacity: 1 !important;
-                }
-                button:hover {
-                    background-color: #e87532 !important;
-                    color: #ffffff !important;
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.4) !important;
-                    opacity: 1 !important;
-                }
-                """
-            ):
-                if st.button("Need Help?", key="help_link"):
-                    st.info("Contact support at support@resumecreator.ai")
-
-
-
-
-    
+        
+        # Center the toggle button
+        col_left2, col_toggle, col_right2 = st.columns([3, 3, 3])
+        with col_toggle:
+            if st.session_state.mode == 'login':
+                # Show "Create Account" button
+                with stylable_container(
+                    key="signup_toggle_btn",
+                    css_styles="""
+                    button {
+                        background-color: #ffffff !important;
+                        color: #e87532 !important;
+                        border: 2px solid #e87532 !important;
+                        border-radius: 12px !important;
+                        padding: 0.75rem 1.5rem !important;
+                        font-size: 0.95rem !important;
+                        width: 100% !important;
+                        font-weight: 600 !important;
+                        cursor: pointer !important;
+                        transition: all 0.3s ease !important;
+                    }
+                    button:hover {
+                        background-color: #e87532 !important;
+                        color: #ffffff !important;
+                        transform: translateY(-2px) !important;
+                        box-shadow: 0 6px 16px rgba(232, 117, 50, 0.3) !important;
+                    }
+                    """
+                ):
+                    if st.button("Create Account", key="toggle_signup"):
+                        st.session_state.mode = 'register'
+                        st.rerun()
+            else:
+                # Show "Back to Login" button
+                with stylable_container(
+                    key="login_toggle_btn",
+                    css_styles="""
+                    button {
+                        background-color: #ffffff !important;
+                        color: #e87532 !important;
+                        border: 2px solid #e87532 !important;
+                        border-radius: 12px !important;
+                        padding: 0.5rem 1.5rem !important;
+                        font-size: 0.95rem !important;
+                        width: 100% !important;
+                        font-weight: 600 !important;
+                        cursor: pointer !important;
+                        transition: all 0.3s ease !important;
+                        
+                    }
+                    button:hover {
+                        background-color: #e87532 !important;
+                        color: #ffffff !important;
+                        transform: translateY(-2px) !important;
+                        box-shadow: 0 6px 16px rgba(232, 117, 50, 0.3) !important;
+                    }
+                    """
+                ):
+                    if st.button("Back to Login", key="toggle_login"):
+                        st.session_state.mode = 'login'
+                        st.rerun()

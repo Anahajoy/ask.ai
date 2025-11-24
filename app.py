@@ -278,16 +278,22 @@ st.markdown("""
     text-align: center;
     color: #8b6f47;
     font-size: 2.5rem;
-    font-weight: 400;
+    font-weight: 500;
     margin-bottom: 0.5rem;
-    font-family: 'Nunito Sans', sans-serif;
+    font-family: 'Playfair Display', serif !important;
+    letter-spacing: 0.5px;
 }
 
-.section-divider {
-    width: 100px;
-    height: 2px;
-    background: linear-gradient(to right, transparent, #ff7043, transparent);
-    margin: 1rem auto 2rem;
+
+/* Alternative wavy divider if you want the wave effect shown in the image */
+.section-divider-wave {
+    width: 200px;
+    height: 20px;
+    margin: 0.5rem auto 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10 T150,10 T200,10' stroke='%23c89665' stroke-width='3' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
 
 .section-subtitle {
@@ -820,11 +826,15 @@ has_resume = user_resume and len(user_resume) > 0
 # ABOUT SECTION (ENHANCED WITH DOCUMENT 1 LOGIC)
 # ----------------------------------
 st.markdown('<div id="About"></div>', unsafe_allow_html=True)
+
 st.markdown('<div style="padding: 10px 0; min-height: 50px;">', unsafe_allow_html=True)
 
 if has_resume:
     st.markdown('<div class="about-section-container">', unsafe_allow_html=True)
-    
+    st.markdown("""
+    <div class="section-header">About</div>
+    <div class="section-divider-wave"></div>
+    """, unsafe_allow_html=True)
     col_img, col_content = st.columns([1, 2])
     
     with col_img:
@@ -921,7 +931,7 @@ if has_resume:
     st.markdown("""
     <div class="resume-container">
         <div class="section-header">Resume</div>
-        <div class="section-divider"></div>
+        <div class="section-divider-wave"></div>
     """, unsafe_allow_html=True)
     
     # Check if it's manual entry or uploaded
@@ -1270,7 +1280,8 @@ st.markdown('<div id="Templates"></div>', unsafe_allow_html=True)
 
 st.markdown("""
 <div class="template-header">
-    <div class="template-title">Templates</div>
+    <div class="section-header">Templates</div>
+    <div class="section-divider-wave"></div>
     <div class="template-subtitle">Choose from our collection of professional templates</div>
 </div>
 """, unsafe_allow_html=True)

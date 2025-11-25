@@ -1,16 +1,16 @@
 import streamlit as st
 import json
-from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
+from utils import get_user_resume, extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 from streamlit_extras.stylable_container import stylable_container
 
 
-if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
-    logged_user = st.query_params.get("user")
-    if logged_user:
-        st.session_state.logged_in_user = logged_user
-    else:
-        st.warning("Please login first!")
-        st.switch_page("app.py")
+# if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+#     logged_user = st.query_params.get("user")
+#     if logged_user:
+#         st.session_state.logged_in_user = logged_user
+#     else:
+#         st.warning("Please login first!")
+#         st.switch_page("app.py")
         
 st.markdown("""
     <style>
@@ -22,7 +22,7 @@ st.markdown("""
 
     :root {
         --primary-orange: #e87532;
-        --primary-orange-hover: #d66428;
+        --primary-orange-hover: #e87532;
         --secondary-orange: #ff8c50;
         --danger-red: #ef4444;
         --bg-light: #ffffff;
@@ -100,6 +100,15 @@ st.markdown("""
         color: var(--text-dark) !important;
         font-weight: 700 !important;
         font-size: 2rem !important;
+        text-align: center;
+        margin: 1rem 0;
+        animation: fadeInUp 0.8s ease-out;
+    }
+    
+    h3 {
+        color: #8b6f47 !important;
+        font-weight: 300 !important;
+        font-size: 1rem !important;
         text-align: center;
         margin: 1rem 0;
         animation: fadeInUp 0.8s ease-out;
@@ -352,11 +361,32 @@ st.markdown("""
 # ----------------------------------
 
 
+if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+    else:
+        st.warning("Please login first!")
+        st.switch_page("app.py")
 
 
-# Get current user for navigation
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
+
 current_user = st.session_state.get('logged_in_user', '')
 
+
+if current_user and 'resume_source' not in st.session_state:
+    try:
+        stored_resume = get_user_resume(current_user)
+        if stored_resume:
+            st.session_state.resume_source = stored_resume
+    except Exception as e:
+        pass  # Continue without stored data
+
+
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
 # Navigation bar with user param
 st.markdown(f"""
 <div class="nav-wrapper">
@@ -412,13 +442,33 @@ st.markdown('<h2>Target Job Description</h2>', unsafe_allow_html=True)
 resume_source = st.session_state.get("resume_source", None)
 
 if resume_source:
-        st.markdown(f'<p>Your last resume was created. You can proceed with it, or click the navigation bar create new resume to start a new resume from scratch.</p>', unsafe_allow_html=True)
+        st.markdown(f'<h3>Resume found! You can use it or start a new one.</h3>', unsafe_allow_html=True)
 
 if resume_source is None:
         st.error("No resume data found. Please go back to the main page to upload or enter your data first .")
         # if st.button("Go to Resume Builder", key="go-to-main-btn"):
         #     st.switch_page("pages/main.py")
 else:
+        st.markdown("""
+    <style>
+        /* Radio button styling */
+        .stRadio > label {
+            color: #000000 !important;
+            font-weight: 600 !important;
+        }
+        .stRadio > div {
+            gap: 2rem !important;
+        }
+        .stRadio > div > label > div:first-child {
+            background-color: white !important;
+            border: 2px solid #e87532 !important;
+        }
+        .stRadio > div > label > div:first-child > div {
+            background-color: #e87532 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
         jd_method = st.radio(
             "Choose how to provide the job description:",
             ["Type or Paste", "Upload File"],
@@ -495,27 +545,27 @@ else:
                             <p>Analyzing job description...</p>
                         </div>
                         <style>
-                            #overlay-loader {
+                             #overlay-loader {
                                 position: fixed;
                                 top: 0;
                                 left: 0;
                                 width: 100vw;
                                 height: 100vh;
-                                background: rgba(15, 23, 42, 0.95);
+                                background: rgba(255, 255, 255, 0.98);
                                 backdrop-filter: blur(6px);
                                 display: flex;
                                 flex-direction: column;
                                 justify-content: center;
                                 align-items: center;
                                 z-index: 9999;
-                                color: white;
+                                color: #1e293b;
                                 font-size: 1.2rem;
                                 font-weight: 500;
                             }
 
                             .loader-spinner {
                                 border: 5px solid rgba(96, 165, 250, 0.2);
-                                border-top: 5px solid #3b82f6;
+                                border-top: 5px solid #e87532;
                                 border-radius: 50%;
                                 width: 70px;
                                 height: 70px;

@@ -25,6 +25,12 @@ if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user i
         st.switch_page("app.py")
 
 
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
+
+current_user = st.session_state.get('logged_in_user', '')
+
+
 if "exp_indices" not in st.session_state:
     st.session_state.exp_indices = [0]
 if "edu_indices" not in st.session_state:
@@ -68,19 +74,47 @@ BUTTON_STYLE = """
     }
 """
 
-SMALL_BUTTON_STYLE = """
+SAVE_STYLE = """
     button {
-        background-color: #ffffff !important;
-        color: #e87532 !important;
-        padding: 10px 22px !important;
+        background-color: #93C47D !important;
+        color: #FFFFFF !important;
+        padding: 12px 2px !important;
         border-radius: 50px !important;
         font-weight: 600 !important;
-        border: 2px solid #e87532 !important;
-        font-size: 0.9rem !important;
+        border: 2px solid #93C47D !important;
     }
     button:hover {
-        background-color:#e87532 !important;
-        color: #ffffff !important;
+        background-color:#FFFFFF !important;
+        color: #93C47D !important;
+    }
+"""
+REMOVE_STYLE = """
+    button {
+        background-color: #FF6A4C !important;
+        color: #FFFFFF !important;
+        padding: 12px 28px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #FF6A4C !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #FF6A4C !important;
+    }
+"""
+
+ADD_STYLE = """
+    button {
+        background-color: #9FC0DE !important;
+        color: #FFFFFF !important;
+        padding: 12px 28px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #9FC0DE !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #9FC0DE !important;
     }
 """
 
@@ -311,30 +345,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-current_user = st.session_state.get('logged_in_user', '') or st.query_params.get('user', '')
 
-st.write(current_user)
-st.markdown("""
-<div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
-            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
-        </div>
-        <div class="nav-item">
-             <a class="nav-link" href="?add_jd=true&user={current_user}" target="_self">Add JD</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
-# Get current user for navigation
-current_user = st.session_state.get('logged_in_user', '')
-
-# Navigation bar with user param
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="logo">Resume Creator</div>
@@ -354,20 +366,19 @@ st.markdown(f"""
 
 # Handle navigation
 if st.query_params.get("add_jd") == "true":
-    if "add_jd" in st.query_params:
-        del st.query_params["add_jd"]
+    st.query_params.clear()
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
     st.switch_page("pages/job.py")
 
 if st.query_params.get("home") == "true":
-    if "home" in st.query_params:
-        del st.query_params["home"]
+    st.query_params.clear()
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
     st.switch_page("app.py")
 
 if st.query_params.get("logout") == "true":
+    # ONLY clear session on explicit logout
     st.session_state.logged_in_user = None
     for key in list(st.session_state.keys()):
         del st.session_state[key]
@@ -375,7 +386,7 @@ if st.query_params.get("logout") == "true":
     st.switch_page("app.py")
 
 
-st.markdown('<div id="create"></div>', unsafe_allow_html=True)
+
 
 if  st.session_state.logged_in_user :
     col1, col2 = st.columns([5, 1])
@@ -474,7 +485,7 @@ if  st.session_state.logged_in_user :
 
         col_save = st.columns([1, 2, 1])
         with col_save[1]:
-            with stylable_container("template-btn-save-personal", css_styles=BUTTON_STYLE):
+            with stylable_container("template-btn-save-personal", css_styles=SAVE_STYLE):
                 if st.button("Save Personal Information", key="save_personal", use_container_width=True):
                     if name and skills and experience and phone and email:
                         if not is_valid_email(email):
@@ -554,12 +565,12 @@ if  st.session_state.logged_in_user :
 
             col_save, col_remove = st.columns(2)
             with col_remove:
-                with stylable_container(f"remove-exp-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"remove-exp-{i}", css_styles=REMOVE_STYLE):
                     if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", use_container_width=True):
                         remove_index = i
 
             with col_save:
-                with stylable_container(f"save-exp-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"save-exp-{i}", css_styles=SAVE_STYLE):
                     if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", use_container_width=True):
                         if company_name and position_name:
                             st.session_state.saved_experiences[i] = {
@@ -589,7 +600,7 @@ if  st.session_state.logged_in_user :
         with col_add_exp[1]:
             st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-            with stylable_container("add-exp-btn", css_styles=BUTTON_STYLE):
+            with stylable_container("add-exp-btn", css_styles=ADD_STYLE):
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
                 if st.button("+ Add More Experience", key="add_exp", use_container_width=True):
@@ -646,12 +657,12 @@ if  st.session_state.logged_in_user :
 
             col_save, col_remove = st.columns(2)
             with col_remove:
-                with stylable_container(f"remove-edu-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"remove-edu-{i}", css_styles=REMOVE_STYLE):
                     if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", use_container_width=True):
                         remove_index_edu = i
 
             with col_save:
-                with stylable_container(f"save-edu-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"save-edu-{i}", css_styles=SAVE_STYLE):
                     if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", use_container_width=True):
                         if course and university:
                             st.session_state.saved_education[i] = {
@@ -677,7 +688,7 @@ if  st.session_state.logged_in_user :
 
         col_add_edu = st.columns([1, 2, 1])
         with col_add_edu[1]:
-            with stylable_container("add-edu-btn", css_styles=BUTTON_STYLE):
+            with stylable_container("add-edu-btn", css_styles=ADD_STYLE):
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
                 if st.button("+ Add More Education", key="add_edu", use_container_width=True):
@@ -718,12 +729,12 @@ if  st.session_state.logged_in_user :
 
             col_save, col_remove = st.columns(2)
             with col_remove:
-                with stylable_container(f"remove-cert-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"remove-cert-{i}", css_styles=REMOVE_STYLE):
                     if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", use_container_width=True):
                         remove_index_cert = i
 
             with col_save:
-                with stylable_container(f"save-cert-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"save-cert-{i}", css_styles=SAVE_STYLE):
                     if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", use_container_width=True):
                         if certificate_name and provider:
                             st.session_state.saved_certificates[i] = {
@@ -747,7 +758,7 @@ if  st.session_state.logged_in_user :
 
         col_add_cert = st.columns([1, 2, 1])
         with col_add_cert[1]:
-            with stylable_container("add-cert-btn", css_styles=BUTTON_STYLE):
+            with stylable_container("add-cert-btn", css_styles=ADD_STYLE):
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
                 if st.button("+ Add More Certification", key="add_cert", use_container_width=True):
@@ -789,12 +800,12 @@ if  st.session_state.logged_in_user :
 
             col_save, col_remove = st.columns(2)
             with col_remove:
-                with stylable_container(f"remove-proj-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"remove-proj-{i}", css_styles=REMOVE_STYLE):
                     if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", use_container_width=True):
                         remove_index_project = i
 
             with col_save:
-                with stylable_container(f"save-proj-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"save-proj-{i}", css_styles=SAVE_STYLE):
                     if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", use_container_width=True):
                         if projectname:
                             st.session_state.saved_projects[i] = {
@@ -818,7 +829,7 @@ if  st.session_state.logged_in_user :
 
         col_add_proj = st.columns([1, 2, 1])
         with col_add_proj[1]:
-            with stylable_container("add-proj-btn", css_styles=BUTTON_STYLE):
+            with stylable_container("add-proj-btn", css_styles=ADD_STYLE):
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
                 if st.button("+ Add More Projects", key="add_project", use_container_width=True):
@@ -858,12 +869,12 @@ if  st.session_state.logged_in_user :
 
             col_save, col_remove = st.columns(2)
             with col_remove:
-                with stylable_container(f"remove-custom-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"remove-custom-{i}", css_styles=REMOVE_STYLE):
                     if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", use_container_width=True):
                         remove_index_custom = i
 
             with col_save:
-                with stylable_container(f"save-custom-{i}", css_styles=SMALL_BUTTON_STYLE):
+                with stylable_container(f"save-custom-{i}", css_styles=SAVE_STYLE):
                     if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", use_container_width=True):
                         if section_title and section_description:
                             st.session_state.saved_custom_sections[i] = {
@@ -885,7 +896,7 @@ if  st.session_state.logged_in_user :
 
         col_add_custom = st.columns([1, 2, 1])
         with col_add_custom[1]:
-            with stylable_container("add-custom-btn", css_styles=BUTTON_STYLE):
+            with stylable_container("add-custom-btn", css_styles=ADD_STYLE):
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
                 if st.button("+ Add Custom Section", key="add_custom", use_container_width=True):
@@ -1006,14 +1017,14 @@ if  st.session_state.logged_in_user :
                                         left: 0;
                                         width: 100vw;
                                         height: 100vh;
-                                        background: rgba(15, 23, 42, 0.95);
-                                        backdrop-filter: blur(6px);
+                                        background: rgba(255, 255, 255, 0.40);
+                                        backdrop-filter: blur(10px);
                                         display: flex;
                                         flex-direction: column;
                                         justify-content: center;
                                         align-items: center;
                                         z-index: 9999;
-                                        color: white;
+                                        color: #e87532 !important;
                                         font-size: 1.2rem;
                                         font-weight: 500;
                                     }

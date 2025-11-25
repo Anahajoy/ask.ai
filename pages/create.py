@@ -1,15 +1,43 @@
 import streamlit as st
+import os,json
 from utils import analyze_and_improve_resume, should_regenerate_resume, generate_enhanced_resume, save_and_improve, add_new_item, render_basic_details, render_skills_section, render_generic_section
 from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(layout="centered", page_title="Dynamic ATS Resume Editor")
 
 # PRESERVE USER SESSION - Get user from query params if not in session state
-if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
-    user_from_query = st.query_params.get('user', '')
-    if user_from_query:
-        st.session_state.logged_in_user = user_from_query
+if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+    else:
+        st.warning("Please login first!")
+        st.switch_page("app.py")
 
+
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
+
+current_user = st.session_state.get('logged_in_user', '')
+
+
+if os.path.exists("persist.json"):
+    with open("persist.json", "r") as f:
+        stored = json.load(f)
+else:
+    stored = {}
+
+# ---------- Restore logged user ----------
+if 'logged_in_user' not in st.session_state:
+    st.session_state.logged_in_user = stored.get("logged_in_user", None)
+
+# ---------- Restore resume data ----------
+if 'resume_source' not in st.session_state:
+    st.session_state.resume_source = stored.get("resume_source", None)
+
+# ---------- Restore job description ----------
+if 'job_description' not in st.session_state:
+    st.session_state.job_description = stored.get("job_description", None)
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 

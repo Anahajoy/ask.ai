@@ -27,7 +27,7 @@ from copy import deepcopy
 import time
 import base64
 from io import BytesIO
-
+from datetime import datetime
 
 
 
@@ -3630,9 +3630,9 @@ def generate_enhanced_resume():
         st.stop()
     
     # If jd_data is still None, you might want to handle it
-    if jd_data is None:
-        st.warning("No job description found. Using default optimization.")
-        jd_data = {}  # or fetch default JD if you have one
+    # if jd_data is None:
+    #     st.warning("No job description found. Using default optimization.")
+    #     jd_data = {}  # or fetch default JD if you have one
     
     # Safely get input_method with fallback
     input_method = st.session_state.get(
@@ -4869,3 +4869,540 @@ def chatbot(user_resume):
             })
 
             st.rerun()
+
+
+
+def format_section_title(key):
+    """Converts keys like 'certifications' to 'Certifications'."""
+    title = key.replace('_', ' ').replace('Skills', ' Skills').replace('summary', 'Summary')
+    return ' '.join(word.capitalize() for word in title.split())
+
+def get_standard_keys():
+    """Return set of standard resume keys that should not be treated as custom sections."""
+    return {
+        "name", "email", "phone", "location", "url", "summary", "job_title",
+        "education", "experience", "skills", "projects", "certifications", 
+        "achievements", "total_experience_count"
+    }
+
+def format_year_only(date_str):
+    """Return only the year from a date string. If already a year, return as-is."""
+    if not date_str:
+        return ""
+    date_str = str(date_str).strip()
+    if len(date_str) == 4 and date_str.isdigit(): 
+        return date_str
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        return dt.strftime("%Y")
+    except:
+        return date_str  
+
+
+RESUME_ORDER = ["summary", "experience", "education", "skills", "projects", "certifications", "achievements", "publications", "awards"]
+
+# ATS-friendly color palette
+ATS_COLORS = {
+    "Professional Blue (Default)": "#1F497D",
+    "Corporate Gray": "#4D4D4D",
+    "Deep Burgundy": "#800020",
+    "Navy Blue": "#000080",
+    "Black":"#000000"
+}
+
+
+def generate_generic_html(data, date_placement='right'):
+    """Generates clean HTML content based on resume data, showing only years for all dates."""
+    if not data: 
+        return ""
+
+    job_title_for_header = data.get('job_title', '')
+    contacts = [data.get('phone'), data.get('email'), data.get('location')]
+    contacts_html = " | ".join([c for c in contacts if c])
+
+    html = f'<div class="ats-header">'
+    html += f'<h1>{data.get("name", "NAME MISSING")}</h1>'
+    if job_title_for_header:
+        html += f'<div class="ats-job-title-header">{job_title_for_header}</div>'
+    if contacts_html:
+        html += f'<div class="ats-contact">{contacts_html}</div>'
+    html += '</div>'
+
+    # Standard sections first
+    for key in RESUME_ORDER:
+        section_data = data.get(key)
+        if not section_data or (isinstance(section_data, list) and not section_data):
+            continue
+
+        title = format_section_title(key)
+        html += f'<div class="ats-section-title">{title}</div>'
+
+        # Summary
+        if key == 'summary' and isinstance(section_data, str) and section_data.strip():
+            html += f'<p style="margin-top:0;margin-bottom:5px;">{section_data}</p>'
+
+        # Skills
+        elif key == 'skills' and isinstance(section_data, dict):
+            for skill_type, skill_list in section_data.items():
+                if skill_list:
+                    html += f'<div class="ats-skills-group"><strong>{format_section_title(skill_type)}:</strong> {", ".join(skill_list)}</div>'
+
+        elif isinstance(section_data, list):
+            for item in section_data:
+                # Normalize string items to dict
+                if isinstance(item, str) and item.strip():
+                    item = {"title": item}
+                
+                if not isinstance(item, dict):
+                    continue
+
+                # Define comprehensive field keys for dynamic handling
+                title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course']
+                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
+                duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
+                description_keys = ['description', 'achievement', 'details', 'overview']
+
+                # Get main title (first available)
+                main_title = None
+                for k in title_keys:
+                    if k in item and item[k]:
+                        main_title = item[k]
+                        break
+                
+                # Get subtitle (first available that's not the same as title)
+                subtitle = None
+                for k in subtitle_keys:
+                    if k in item and item[k] and item[k] != main_title:
+                        subtitle = item[k]
+                        break
+
+                # Get duration with proper date formatting
+                start = format_year_only(item.get('start_date', ''))
+                end = format_year_only(item.get('end_date', ''))
+
+                if start or end:
+                    duration = f"{start} - {end}" if start and end else start or end
+                else:
+                    # Try other duration fields
+                    duration = None
+                    for k in duration_keys:
+                        if k in item and item[k]:
+                            duration = format_year_only(item[k])
+                            break
+                    duration = duration or ''
+
+                # Skip completely empty items
+                if not main_title and not subtitle and not duration:
+                    # Check if there's any description content
+                    has_description = False
+                    for desc_key in description_keys:
+                        if desc_key in item and item[desc_key]:
+                            has_description = True
+                            break
+                    if not has_description:
+                        continue
+
+                # Build item HTML
+                html += '<div class="ats-item-header">'
+                if main_title or subtitle:
+                    html += '<div class="ats-item-title-group">'
+                    if main_title:
+                        html += f'<span class="ats-item-title">{main_title}'
+                        if subtitle:
+                            html += f' <span class="ats-item-subtitle">{subtitle}</span>'
+                        html += '</span>'
+                    html += '</div>'
+                if duration:
+                    html += f'<div class="ats-item-duration">{duration}</div>'
+                html += '</div>'
+
+                # Description / Achievements - check all possible description fields
+                description_list = None
+                for desc_key in description_keys:
+                    if desc_key in item and item[desc_key]:
+                        description_list_raw = item[desc_key]
+                        if isinstance(description_list_raw, str):
+                            description_list = [description_list_raw]
+                        elif isinstance(description_list_raw, list):
+                            description_list = description_list_raw
+                        break
+
+                if description_list:
+                    bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
+                    if bullet_html:
+                        html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key)
+            html += f'<div class="ats-section-title">{title}</div>'
+   
+            formatted_value = value.strip().replace('\n', '<br>')
+            html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
+
+    return html
+
+
+SYSTEM_TEMPLATES = {
+    "Minimalist (ATS Best)": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_minimalist,
+    },
+    "Horizontal Line": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_horizontal,
+    },
+    "Bold Title Accent": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_bold_title,
+    },
+    "Date Below": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='below'),
+        "css_generator": get_css_date_below,
+    },
+    "Section Box Header": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_section_box,
+    },
+    "Times New Roman Classic": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_classic,
+    },
+    "Sohisticated_minimal": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_sophisticated_minimal,
+    },
+        "Clean look": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_clean_contemporary,
+    },
+            "Elegant": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_elegant_professional,
+    },
+            "Mordern Minimal": {
+        "html_generator": lambda data: generate_generic_html(data, date_placement='right'),
+        "css_generator": get_css_modern_minimal,
+    },
+    
+}
+
+
+def extract_template_from_html(html_content):
+    """Extract CSS and structure from uploaded HTML."""
+
+    css_match = re.search(r'<style[^>]*>(.*?)</style>', html_content, re.DOTALL)
+    css = css_match.group(1) if css_match else ""
+    
+    template_id = hashlib.md5(html_content.encode()).hexdigest()[:8]
+    
+    return {
+        'id': template_id,
+        'name': f'Uploaded Template {template_id}',
+        'css': css,
+        'html': html_content,
+        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+
+def generate_html_content(data, color, template_generator, css_generator):
+    """Generates the full HTML document and returns base64-encoded string."""
+    css = css_generator(color)
+    html_content = template_generator(data)
+    
+    title = f"{data.get('name', 'Resume')}"
+    full_document_html = f"<html><head><meta charset='UTF-8'>{css}<title>{title}</title></head><body><div class='ats-page'>{html_content}</div></body></html>" 
+    return base64.b64encode(full_document_html.encode('utf-8')).decode()
+
+def get_html_download_link(data, color, template_config, filename_suffix=""):
+    """Generates a download link for the styled HTML file."""
+    if 'html_generator' in template_config and 'css_generator' in template_config:
+        b64_data = generate_html_content(
+            data, 
+            color, 
+            template_config['html_generator'], 
+            template_config['css_generator']
+        )
+    else:
+        # For uploaded templates
+        css = template_config.get('css', '')
+        html_body = generate_generic_html(data)
+        full_html = f"<html><head><meta charset='UTF-8'><style>{css}</style></head><body><div class='ats-page'>{html_body}</div></body></html>"
+        b64_data = base64.b64encode(full_html.encode('utf-8')).decode()
+    
+    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}{filename_suffix}.html"
+    href = f'<a href="data:text/html;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #0077B6; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> HTML (.html)</strong></a>'
+    return href
+
+
+
+# UPDATED generate_doc_html function
+def generate_doc_html(data):
+    """Generate a simple HTML that can be saved as .doc."""
+    html = f"""
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+        <meta charset='utf-8'>
+        <title>Resume</title>
+        <style>
+            @page {{
+                size: 8.5in 11in;
+                margin: 0.5in;
+            }}
+            body {{ 
+                font-family: Calibri, Arial, sans-serif; 
+                font-size: 10pt; 
+                line-height: 1.1; 
+                margin: 0;
+                padding: 0;
+            }}
+            h1 {{ font-size: 16pt; margin: 0 0 3pt 0; text-align: center; }}
+            h2 {{ 
+                font-size: 11pt; 
+                margin-top: 8pt; 
+                margin-bottom: 3pt; 
+                border-bottom: 1px solid black; 
+                padding-bottom: 1pt;
+            }}
+            p {{ margin: 3pt 0; }}
+            ul {{ margin: 3pt 0; padding-left: 18pt; }}
+            li {{ margin: 1pt 0; }}
+            .header {{ text-align: center; margin-bottom: 8pt; }}
+            .contact {{ font-size: 9pt; }}
+            .job-title {{ font-size: 11pt; margin: 2pt 0; color: #555; }}
+            .item-header {{ margin: 2pt 0; }}
+            .item-title {{ font-weight: bold; }}
+            .item-subtitle {{ font-style: italic; color: #555; }}
+            .skills-group {{ margin: 3pt 0; }}
+            .custom-section {{ margin: 8pt 0; line-height: 1.4; }}
+        </style>
+    </head>
+    <body>
+        <div class='header'>
+            <h1>{data.get('name', 'NAME MISSING')}</h1>
+            <p class='job-title'>{data.get('job_title', '')}</p>
+            <p class='contact'>{data.get('phone', '')} | {data.get('email', '')} | {data.get('location', '')}</p>
+        </div>
+    """
+    
+    # Standard sections
+    for key in RESUME_ORDER:
+        section_data = data.get(key)
+        
+        if not section_data or (isinstance(section_data, list) and not section_data) or (key == 'summary' and not section_data):
+            continue
+            
+        title = format_section_title(key)
+        html += f'<h2>{title}</h2>'
+        
+        if key == 'summary' and isinstance(section_data, str):
+            html += f'<p>{section_data}</p>'
+        
+        elif key == 'skills' and isinstance(section_data, dict):
+            for skill_type, skill_list in section_data.items():
+                if skill_list:
+                    html += f'<p class="skills-group"><strong>{format_section_title(skill_type)}:</strong> '
+                    html += ", ".join(skill_list)
+                    html += '</p>'
+        
+        elif isinstance(section_data, list):
+            for item in section_data:
+                if isinstance(item, str):
+                    html += f'<ul><li>{item}</li></ul>'
+                    continue
+                
+                if not isinstance(item, dict):
+                    continue
+                
+                title_keys = ['title', 'name', 'degree', 'position', 'course']
+                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'university']
+                duration_keys = ['duration', 'date', 'period']
+                
+                main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
+                subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
+                duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
+
+                html += f'<p class="item-header"><span class="item-title">{main_title}</span>'
+                if subtitle:
+                    html += f' <span class="item-subtitle">({subtitle})</span>'
+                if duration:
+                    html += f' | {duration}'
+                html += '</p>'
+                
+                description_list_raw = item.get('description') or item.get('achievement') or item.get('details') 
+
+                if description_list_raw:
+                    if isinstance(description_list_raw, str):
+                        description_list = [description_list_raw]
+                    elif isinstance(description_list_raw, list):
+                        description_list = description_list_raw
+                    else:
+                        description_list = None
+                        
+                    if description_list:
+                        html += '<ul>'
+                        for line in description_list:
+                            html += f'<li>{line}</li>'
+                        html += '</ul>'
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key)
+            html += f'<h2>{title}</h2>'
+            # Replace newlines with <br> for proper rendering
+            formatted_value = value.strip().replace('\n', '<br>')
+            html += f'<p class="custom-section">{formatted_value}</p>'
+
+    html += '</body></html>'
+    return html
+
+
+def get_doc_download_link(data, color, template_config, filename_suffix=""):
+    """
+    Generates a DOC download link using the selected template's HTML/CSS.
+
+    Note: The 'DOC' file generated is an HTML file with a .doc extension and 
+    Microsoft Word-specific XML/CSS (like @page rules) added to the beginning, 
+    allowing it to open and be formatted correctly in Word.
+    """
+
+    if 'html_generator' in template_config and 'css_generator' in template_config:
+        css = template_config['css_generator'](color)
+        html_body = template_config['html_generator'](data)
+    else:
+       
+        css = template_config.get('css', '')
+        html_body = generate_generic_html(data) #
+    word_doc_header = f"""
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+xmlns:w='urn:schemas-microsoft-com:office:word'
+xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{data.get('name', 'Resume')}</title>
+    <style>
+        @page {{ 
+            size: 8.5in 11in; 
+            margin: 0.5in; 
+        }}
+        {css}
+    </style>
+</head>
+<body>
+    <div class='ats-page'>
+        {html_body}
+    </div>
+</body>
+</html>
+"""
+
+   
+    try:
+        b64_data = base64.b64encode(word_doc_header.encode('utf-8')).decode()
+    except NameError:
+        print("Error: 'base64' module not found. Please import it.")
+        return ""
+
+    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_Template_DOC{filename_suffix}.doc"
+
+    doc_html = f"""
+    <a href="data:application/msword;base64,{b64_data}" download="{filename}"
+       style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; 
+              background-color: #00B4D8; color: white; border-radius: 5px; 
+              display: inline-block; margin-top: 10px; width: 100%; text-align: center;">
+        <strong> Word Document(.doc)</strong>
+    </a>
+    """
+    return doc_html
+
+
+
+
+
+# UPDATED generate_markdown_text function
+def generate_markdown_text(data):
+    """Generates a plain markdown/text version of the resume."""
+    text = ""
+    
+    text += f"{data.get('name', 'NAME MISSING').upper()}\n"
+    if data.get('job_title'):
+        text += f"{data.get('job_title')}\n"
+    contact_parts = [data.get('phone', ''), data.get('email', ''), data.get('location', '')]
+    text += " | ".join(filter(None, contact_parts)) + "\n"
+    text += "=" * 50 + "\n\n"
+    
+    # Standard sections
+    for key in RESUME_ORDER:
+        section_data = data.get(key)
+        
+        if not section_data or (isinstance(section_data, list) and not section_data) or (key == 'summary' and not section_data):
+            continue
+            
+        title = format_section_title(key).upper()
+        text += f"{title}\n"
+        text += "-" * len(title) + "\n"
+        
+        if key == 'summary' and isinstance(section_data, str):
+            text += section_data + "\n\n"
+
+        elif key == 'skills' and isinstance(section_data, dict):
+            for skill_type, skill_list in section_data.items():
+                if skill_list:
+                    text += f"{format_section_title(skill_type)}: "
+                    text += ", ".join(skill_list) + "\n"
+            text += "\n"
+        
+        elif isinstance(section_data, list):
+            for item in section_data:
+                if not isinstance(item, dict):
+                    text += f" - {item}\n"
+                    continue
+                
+                title_keys = ['title', 'name', 'degree', 'position', 'course']
+                subtitle_keys = ['company', 'institution', 'issuer', 'university']
+                duration_keys = ['duration', 'date']
+                
+                main_title = next((item[k] for k in title_keys if k in item and item[k]), '')
+                subtitle = next((item[k] for k in subtitle_keys if k in item and item[k] != main_title and item[k]), '')
+                duration = next((item[k] for k in duration_keys if k in item and item[k]), '')
+
+                line = f"{main_title}"
+                if subtitle:
+                    line += f" ({subtitle})"
+                if duration:
+                    line += f" | {duration}"
+                text += line + "\n"
+                
+                description_list = item.get('description') or item.get('achievement') or item.get('details')
+                if description_list and isinstance(description_list, list):
+                    for line in description_list:
+                        text += f" - {line}\n"
+            text += "\n"
+
+    # ========== ADD CUSTOM SECTIONS HERE ==========
+    standard_keys = get_standard_keys()
+    
+    for key, value in data.items():
+        if key not in standard_keys and isinstance(value, str) and value.strip():
+            title = format_section_title(key).upper()
+            text += f"{title}\n"
+            text += "-" * len(title) + "\n"
+            text += value.strip() + "\n\n"
+
+    return text
+
+def get_text_download_link(data, filename_suffix=""):
+    """Generates a download link for a plain text file."""
+    text_content = generate_markdown_text(data)
+    b64_data = base64.b64encode(text_content.encode('utf-8')).decode()
+    
+    filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_ATS_Plain_Text{filename_suffix}.txt"
+    href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> Plain Text (.txt)</strong></a>'
+    return href

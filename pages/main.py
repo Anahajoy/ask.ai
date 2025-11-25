@@ -82,6 +82,24 @@ SAVE_STYLE = """
         border-radius: 50px !important;
         font-weight: 600 !important;
         border: 2px solid #93C47D !important;
+        width: 300px !important;
+        margin-left:200px !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #93C47D !important;
+    }
+"""
+SAVEPER_STYLE = """
+    button {
+        background-color: #93C47D !important;
+        color: #FFFFFF !important;
+        padding: 12px 2px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #93C47D !important;
+        width: 300px !important;
+        margin-left:50px !important;
     }
     button:hover {
         background-color:#FFFFFF !important;
@@ -96,6 +114,9 @@ REMOVE_STYLE = """
         border-radius: 50px !important;
         font-weight: 600 !important;
         border: 2px solid #FF6A4C !important;
+        width: 300px !important; 
+        margin-left:00px !important;
+        
     }
     button:hover {
         background-color:#FFFFFF !important;
@@ -111,6 +132,8 @@ ADD_STYLE = """
         border-radius: 50px !important;
         font-weight: 600 !important;
         border: 2px solid #9FC0DE !important;
+        width: 300px !important; 
+        margin-left:100px !important;
     }
     button:hover {
         background-color:#FFFFFF !important;
@@ -167,13 +190,15 @@ st.markdown("""
     }
 
     h2 {
-        color: #000000 !important;
-        font-weight: 700 !important;
+        color: #e87532 !important;
+        font-weight: 400 !important;
         margin-top: 2.5rem !important;
         margin-bottom: 1.2rem !important;
-        font-size: 1.7rem !important;
+        font-size: 2rem !important;
         display: flex;
         align-items: center;
+        margin-left: 350px !important;
+        font-family: 'Montserrat', sans-serif;
     }
 
     .section-number {
@@ -195,8 +220,9 @@ st.markdown("""
         font-weight: 700 !important;
         font-size: 0.85rem !important;
         letter-spacing: 1.5px;
-        margin-bottom: 0.8rem !important;
+        margin-bottom: 2rem !important;
         text-transform: uppercase;
+        margin-left: 480px !important;
     }
 
     .welcome-text {
@@ -342,9 +368,180 @@ st.markdown("""
     font-family: 'Nunito Sans', sans-serif !important;
     letter-spacing: -0.5px;
 }
+.section-header {
+    text-align: center;
+    color: #8b6f47;
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-family: 'Nunito Sans', sans-serif !important;
+    letter-spacing: 0.5px;
+}
+
+
+/* Alternative wavy divider if you want the wave effect shown in the image */
+.section-divider-wave {
+    width: 200px;
+    height: 20px;
+    margin: 0.5rem auto 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10 T150,10 T200,10' stroke='%23c89665' stroke-width='3' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+ /* Tab Container Styles */
+    .tab-container {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .tabs-wrapper {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 2rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-item {
+        padding: 1rem 2rem;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #6b7280;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        border-bottom: 3px solid transparent;
+        white-space: nowrap;
+        position: relative;
+    }
+    
+    .tab-item:hover {
+        color: #e87532;
+        background: rgba(232, 117, 50, 0.05);
+    }
+    
+    .tab-item.active {
+        color: #e87532;
+        border-bottom-color: #e87532;
+        background: rgba(232, 117, 50, 0.05);
+    }
+    
+    .tab-item .tab-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #e5e7eb;
+        color: #6b7280;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-weight: 700;
+        margin-right: 10px;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+    }
+    
+# In the CSS section where tab styles are defined:
+
+.tab-item.active {
+    color: #e87532 !important;
+    border-bottom-color: #e87532 !important;
+    background: rgba(232, 117, 50, 0.05) !important;
+}
+
+
+    
+    .tab-content {
+        animation: fadeIn 0.4s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Section Card Styles */
+    .section-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+    }
+    
+ 
+    
+    .section-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
+        color: white;
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        font-weight: 700;
+        margin-right: 15px;
+        font-size: 1.2rem;
+        box-shadow: 0 4px 12px rgba(232, 117, 50, 0.3);
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+    }
+    
+    /* Progress Indicator */
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #e87532 0%, #ff8c42 100%);
+        transition: width 0.3s ease;
+        border-radius: 10px;
+    }
+    
+    /* Navigation Buttons */
+    .tab-nav-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+        gap: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .tabs-wrapper {
+            flex-wrap: nowrap;
+            overflow-x: scroll;
+        }
+        
+        .tab-item {
+            padding: 0.8rem 1.5rem;
+            font-size: 0.85rem;
+        }
+            
+    }    
 </style>
 """, unsafe_allow_html=True)
-
 
 
 st.markdown(f"""
@@ -355,9 +552,6 @@ st.markdown(f"""
             <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" href="?add_jd=true&user={current_user}" target="_self">Add JD</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>
         </div>
     </div>
@@ -365,11 +559,11 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Handle navigation
-if st.query_params.get("add_jd") == "true":
-    st.query_params.clear()
-    if st.session_state.logged_in_user:
-        st.query_params["user"] = st.session_state.logged_in_user
-    st.switch_page("pages/job.py")
+# if st.query_params.get("add_jd") == "true":
+#     st.query_params.clear()
+#     if st.session_state.logged_in_user:
+#         st.query_params["user"] = st.session_state.logged_in_user
+#     st.switch_page("pages/job.py")
 
 if st.query_params.get("home") == "true":
     st.query_params.clear()
@@ -389,29 +583,35 @@ if st.query_params.get("logout") == "true":
 
 
 if  st.session_state.logged_in_user :
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        st.markdown(
-            f"""
-            <div style="text-align: center; margin-top: 3rem; margin-left: 15rem; padding-right: 100px;">
-                <h1> Add Basic Information</h1>
-                <p class="welcome-text">Welcome back, <strong>{st.session_state.get("username", "User")}</strong>! Let's add your basic information.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
 
-
+    st.markdown('<h2 >Please provide your basic information</h2>', unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        /* Radio button styling */
+        .stRadio > label {
+            color: #000000 !important;
+            font-weight: 600 !important;
+        }
+        .stRadio > div {
+            gap: 2rem !important;
+        }
+        .stRadio > div > label > div:first-child {
+            background-color: white !important;
+            border: 2px solid #e87532 !important;
+        }
+        .stRadio > div > label > div:first-child > div {
+            background-color: #e87532 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
-
-    st.markdown('<h2>Choose Input Method</h2>', unsafe_allow_html=True)
     input_method = st.radio(
         "How would you like to provide your information?",
         ["Manual Entry", "Upload Resume"],
         horizontal=True,
         key="input_method_radio"
     )
-
+   
     user_data = {}
     professional_experience = []
     education = []
@@ -428,547 +628,740 @@ if  st.session_state.logged_in_user :
     # ====================================================================================
     if input_method == "Manual Entry":
         st.session_state["input_method"] = input_method
+        # Initialize active tab in session state
+        if "active_tab" not in st.session_state:
+            st.session_state.active_tab = "personal"
 
-        # ---------------- PERSONAL INFO ----------------
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<h2><span class="section-number">1</span>Personal Information</h2>', unsafe_allow_html=True)
-        st.markdown(f'<p class="card-badge">BASIC DETAILS</p>', unsafe_allow_html=True)
+        # Tab data structure
+        tabs_config = [
+            {"id": "personal", "label": "Personal Info", "icon": "1"},
+            {"id": "experience", "label": "Experience", "icon": "2"},
+            {"id": "education", "label": "Education", "icon": "3"},
+            {"id": "certifications", "label": "Certifications", "icon": "4"},
+            {"id": "projects", "label": "Projects", "icon": "5"},
+            {"id": "custom", "label": "Custom Sections", "icon": "6"},
+        ]
 
-        col1, col2 = st.columns(2)
-        with col1:
-            name = st.text_input(
-                "Full Name *",
-                placeholder="e.g., John Smith",
-                key="name_input",
-                value=st.session_state.saved_personal_info.get("name", "")
-            )
-            experience = st.text_input(
-                "Years of Experience *",
-                placeholder="e.g., 5",
-                key="experience_input",
-                value=st.session_state.saved_personal_info.get("experience", "")
-            )
-            phone = st.text_input(
-                "Phone number *",
-                placeholder="e.g., +91 ",
-                key="phone",
-                value=st.session_state.saved_personal_info.get("phone", "")
-            )
-            email = st.text_input(
-                "email *",
-                placeholder="e.g., google@gmail.com",
-                key="email",
-                value=st.session_state.saved_personal_info.get("email", "")
-            )
-            url = st.text_input(
-                "linkedin/github",
-                placeholder="e.g., user/linkedin.com",
-                key="url",
-                value=st.session_state.saved_personal_info.get("url", "")
-            )
+        # Function to change tabs
+        def change_tab(tab_id):
+            st.session_state.active_tab = tab_id
 
-        with col2:
-            all_skills_list = load_skills_from_json()
-            skills = st.multiselect(
-                "Your Core Skills *",
-                options=all_skills_list,
-                help="Select all relevant skills",
-                key="general_skills",
-                default=st.session_state.saved_personal_info.get("skills", [])
-            )
-            location = st.text_input(
-                "location *",
-                placeholder="e.g., New York",
-                key="location",
-                value=st.session_state.saved_personal_info.get("location", "")
-            )
+        # Calculate progress
+        def calculate_progress():
+            completed_sections = 0
+            total_sections = 6
+            
+            if st.session_state.saved_personal_info:
+                completed_sections += 1
+            if st.session_state.saved_experiences:
+                completed_sections += 1
+            if st.session_state.saved_education:
+                completed_sections += 1
+            if st.session_state.saved_certificates:
+                completed_sections += 1
+            if st.session_state.saved_projects:
+                completed_sections += 1
+            if st.session_state.saved_custom_sections:
+                completed_sections += 1
+            
+            return (completed_sections / total_sections) * 100
+            # Render tabs
+        st.markdown('<div class="tab-container">', unsafe_allow_html=True)
 
-        col_save = st.columns([1, 2, 1])
-        with col_save[1]:
-            with stylable_container("template-btn-save-personal", css_styles=SAVE_STYLE):
-                if st.button("Save Personal Information", key="save_personal", use_container_width=True):
-                    if name and skills and experience and phone and email:
-                        if not is_valid_email(email):
-                            st.error("Please enter a valid email address")
-                        elif not is_valid_phone(phone):
-                            st.error("Please enter a valid phone number")
-                        else:
-                            st.session_state.saved_personal_info = {
-                                "name": name,
-                                "skills": skills,
-                                "experience": experience,
-                                "phone": phone,
-                                "email": email,
-                                "url": url,
-                                "location": location
-                            }
-                            st.success("✅ Personal information saved!")
-                    else:
-                        st.error("Please fill in all required fields marked with *")
+        # Progress bar
+        progress = calculate_progress()
+        st.markdown(f"""
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {progress}%"></div>
+        </div>
+        <p style="text-align: center; color: #6b7280; font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Progress: {int(progress)}% Complete
+        </p>
+        """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        # Render tab buttons
+        st.markdown('<div class="tabs-wrapper">', unsafe_allow_html=True)
 
-        # ---------------- PROFESSIONAL EXPERIENCE ----------------
-        st.markdown('<h2><span class="section-number">2</span>Professional Experience</h2>', unsafe_allow_html=True)
-        for idx, i in enumerate(st.session_state.exp_indices):
-            st.markdown(f'<p class="card-badge">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
-
-            saved_exp = st.session_state.saved_experiences.get(i, {})
-
-            col1, col2 = st.columns([3, 3])
-            with col1:
-                company_name = st.text_input(
-                    "Company Name",
-                    key=f"company_{i}",
-                    placeholder="e.g., Google Inc.",
-                    value=saved_exp.get("company", "")
-                )
-                position_name = st.text_input(
-                    "Position",
-                    key=f"position_{i}",
-                    placeholder="e.g., Senior Developer",
-                    value=saved_exp.get("position", "")
-                )
-
-                exp_skills_list = load_skills_from_json()
-                exp_skills = st.multiselect(
-                    "Skills Used (Experience)",
-                    options=exp_skills_list,
-                    help="Select skills relevant to this role",
-                    key=f"exp_skills_{i}",
-                    default=saved_exp.get("exp_skills", [])
-                )
-
-            with col2:
-                comp_startdate = st.text_input(
-                    "Start Date (MM/YYYY)",
-                    key=f"comp_startdate_{i}",
-                    placeholder="e.g., 01/2020",
-                    value=saved_exp.get("start_date", "")
-                )
-                comp_enddate = st.text_input(
-                    "End Date (MM/YYYY) or 'Present'",
-                    key=f"comp_enddate_{i}",
-                    placeholder="e.g., 12/2023 or Present",
-                    value=saved_exp.get("end_date", "")
-                )
-
-                if comp_startdate and comp_enddate and comp_enddate.lower() != "present":
-                    try:
-                        from datetime import datetime
-                        start = datetime.strptime(comp_startdate, "%m/%Y")
-                        end = datetime.strptime(comp_enddate, "%m/%Y")
-                        if start > end:
-                            st.warning("⚠️ Start date must be before end date")
-                    except:
-                        st.warning("⚠️ Use MM/YYYY format")
-
-            col_save, col_remove = st.columns(2)
-            with col_remove:
-                with stylable_container(f"remove-exp-{i}", css_styles=REMOVE_STYLE):
-                    if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", use_container_width=True):
-                        remove_index = i
-
-            with col_save:
-                with stylable_container(f"save-exp-{i}", css_styles=SAVE_STYLE):
-                    if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", use_container_width=True):
-                        if company_name and position_name:
-                            st.session_state.saved_experiences[i] = {
-                                "company": company_name,
-                                "position": position_name,
-                                "exp_skills": exp_skills,
-                                "start_date": comp_startdate,
-                                "end_date": comp_enddate
-                            }
-                            st.success(f"✅ Experience {idx + 1} saved!")
-                        else:
-                            st.error("Please fill in company name and position")
-
-            professional_experience.append({
-                "company": company_name,
-                "position": position_name,
-                'exp_skills': exp_skills,
-                "start_date": comp_startdate,
-                "end_date": comp_enddate
-            })
-
-        if remove_index is not None:
-            st.session_state.exp_indices.remove(remove_index)
-            st.rerun()
-
-        col_add_exp = st.columns([1, 2, 1])
-        with col_add_exp[1]:
-            st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-
-            with stylable_container("add-exp-btn", css_styles=ADD_STYLE):
-                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-
-                if st.button("+ Add More Experience", key="add_exp", use_container_width=True):
-                    new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
-                    st.session_state.exp_indices.append(new_idx)
+        col_tabs = st.columns(len(tabs_config))
+        for idx, tab in enumerate(tabs_config):
+            with col_tabs[idx]:
+                active_class = "active" if st.session_state.active_tab == tab["id"] else ""
+                if st.button(
+                    f"{tab['icon']}  {tab['label']}", 
+                    key=f"tab_{tab['id']}",
+                    use_container_width=True,
+                    type="secondary" if active_class == "" else "primary"
+                ):
+                    change_tab(tab["id"])
                     st.rerun()
 
-        st.markdown("---")
+        st.markdown('</div></div>', unsafe_allow_html=True)
 
-        # ---------------- EDUCATION ----------------
-        st.markdown('<h2><span class="section-number">3</span>Education</h2>', unsafe_allow_html=True)
+        # Tab content rendering
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
 
-        for idx, i in enumerate(st.session_state.edu_indices):
-            st.markdown(f'<p class="card-badge">EDUCATION {idx + 1}</p>', unsafe_allow_html=True)
-
-            saved_edu = st.session_state.saved_education.get(i, {})
+        # PERSONAL INFO TAB
+        if st.session_state.active_tab == "personal":
+            st.markdown("""
+    <div class="section-header">Personal information</div>
+    <div class="section-divider-wave"></div>
+    """, unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             with col1:
-                course = st.text_input(
-                    "Course/Degree",
-                    placeholder="e.g., Master of Computer Application",
-                    key=f"course_{i}",
-                    value=saved_edu.get("course", "")
+                name = st.text_input(
+                    "Full Name *",
+                    placeholder="e.g., John Smith",
+                    key="name_input",
+                    value=st.session_state.saved_personal_info.get("name", "")
                 )
-                university = st.text_input(
-                    "Institution",
-                    placeholder="e.g., Texas University",
-                    key=f"university_{i}",
-                    value=saved_edu.get("university", "")
+                experience = st.text_input(
+                    "Years of Experience *",
+                    placeholder="e.g., 5",
+                    key="experience_input",
+                    value=st.session_state.saved_personal_info.get("experience", "")
                 )
+                phone = st.text_input(
+                    "Phone number *",
+                    placeholder="e.g., +91 ",
+                    key="phone",
+                    value=st.session_state.saved_personal_info.get("phone", "")
+                )
+                email = st.text_input(
+                    "Email *",
+                    placeholder="e.g., google@gmail.com",
+                    key="email",
+                    value=st.session_state.saved_personal_info.get("email", "")
+                )
+
             with col2:
-                edu_startdate = st.text_input(
-                    "Start Date (MM/YYYY)",
-                    key=f"edu_start_{i}",
-                    placeholder="e.g., 08/2018",
-                    value=saved_edu.get("start_date", "")
+                all_skills_list = load_skills_from_json()
+                skills = st.multiselect(
+                    "Your Core Skills *",
+                    options=all_skills_list,
+                    help="Select all relevant skills",
+                    key="general_skills",
+                    default=st.session_state.saved_personal_info.get("skills", [])
                 )
-                edu_enddate = st.text_input(
-                    "End Date (MM/YYYY) or 'Present'",
-                    key=f"edu_end_{i}",
-                    placeholder="e.g., 05/2022 or Present",
-                    value=saved_edu.get("end_date", "")
+                location = st.text_input(
+                    "Location *",
+                    placeholder="e.g., New York",
+                    key="location",
+                    value=st.session_state.saved_personal_info.get("location", "")
                 )
-
-                if edu_startdate and edu_enddate and edu_enddate.lower() != "present":
-                    try:
-                        from datetime import datetime
-                        start = datetime.strptime(edu_startdate, "%m/%Y")
-                        end = datetime.strptime(edu_enddate, "%m/%Y")
-                        if start > end:
-                            st.warning("⚠️ Start date must be before end date")
-                    except:
-                        st.warning("⚠️ Use MM/YYYY format")
-
-            col_save, col_remove = st.columns(2)
-            with col_remove:
-                with stylable_container(f"remove-edu-{i}", css_styles=REMOVE_STYLE):
-                    if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", use_container_width=True):
-                        remove_index_edu = i
-
-            with col_save:
-                with stylable_container(f"save-edu-{i}", css_styles=SAVE_STYLE):
-                    if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", use_container_width=True):
-                        if course and university:
-                            st.session_state.saved_education[i] = {
-                                "course": course,
-                                "university": university,
-                                "start_date": edu_startdate,
-                                "end_date": edu_enddate
-                            }
-                            st.success(f"✅ Education {idx + 1} saved!")
+                url = st.text_input(
+                    "LinkedIn/GitHub",
+                    placeholder="e.g., user/linkedin.com",
+                    key="url",
+                    value=st.session_state.saved_personal_info.get("url", "")
+                )
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col2:
+                with stylable_container("save-personal-btn", css_styles=SAVEPER_STYLE):
+                    if st.button("Save & Continue", key="save_personal_tab", use_container_width=True):
+                        if name and skills and experience and phone and email and location:
+                            if not is_valid_email(email):
+                                st.error("Please enter a valid email address")
+                            elif not is_valid_phone(phone):
+                                st.error("Please enter a valid phone number")
+                            else:
+                                st.session_state.saved_personal_info = {
+                                    "name": name,
+                                    "skills": skills,
+                                    "experience": experience,
+                                    "phone": phone,
+                                    "email": email,
+                                    "url": url,
+                                    "location": location
+                                }
+                                st.success("✅ Personal information saved!")
+                                change_tab("experience")
+                                st.rerun()
                         else:
-                            st.error("Please fill in course and institution")
+                            st.error("Please fill in all required fields marked with *")
 
-            education.append({
-                "course": course,
-                "university": university,
-                "start_date": edu_startdate,
-                "end_date": edu_enddate
-            })
+        # EXPERIENCE TAB
+        elif st.session_state.active_tab == "experience":
+            
+            # Experience section code here (keep your existing experience code)
+            for idx, i in enumerate(st.session_state.exp_indices):
+                # st.markdown(f'<p class="section-header">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="section-header">Experience {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
 
-        if remove_index_edu is not None:
-            st.session_state.edu_indices.remove(remove_index_edu)
-            st.rerun()
+                saved_exp = st.session_state.saved_experiences.get(i, {})
+                
+                col1, col2 = st.columns([3, 3])
+                with col1:
+                    company_name = st.text_input(
+                        "Company Name",
+                        key=f"company_{i}",
+                        placeholder="e.g., Google Inc.",
+                        value=saved_exp.get("company", "")
+                    )
+                    position_name = st.text_input(
+                        "Position",
+                        key=f"position_{i}",
+                        placeholder="e.g., Senior Developer",
+                        value=saved_exp.get("position", "")
+                    )
+                    exp_skills_list = load_skills_from_json()
+                    exp_skills = st.multiselect(
+                        "Skills Used",
+                        options=exp_skills_list,
+                        key=f"exp_skills_{i}",
+                        default=saved_exp.get("exp_skills", [])
+                    )
+                with col2:
+                    comp_startdate = st.text_input(
+                        "Start Date (MM/YYYY)",
+                        key=f"comp_startdate_{i}",
+                        placeholder="e.g., 01/2020",
+                        value=saved_exp.get("start_date", "")
+                    )
+                    comp_enddate = st.text_input(
+                        "End Date (MM/YYYY) or 'Present'",
+                        key=f"comp_enddate_{i}",
+                        placeholder="e.g., 12/2023 or Present",
+                        value=saved_exp.get("end_date", "")
+                    )
+                
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-exp-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", use_container_width=True):
+                            remove_index = i
 
-        col_add_edu = st.columns([1, 2, 1])
-        with col_add_edu[1]:
-            with stylable_container("add-edu-btn", css_styles=ADD_STYLE):
+                with col_save:
+                    with stylable_container(f"save-exp-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", use_container_width=True):
+                            if company_name and position_name:
+                                st.session_state.saved_experiences[i] = {
+                                    "company": company_name,
+                                    "position": position_name,
+                                    "exp_skills": exp_skills,
+                                    "start_date": comp_startdate,
+                                    "end_date": comp_enddate
+                                }
+                                st.success(f"✅ Experience {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in company name and position")
+
+                professional_experience.append({
+                    "company": company_name,
+                    "position": position_name,
+                    'exp_skills': exp_skills,
+                    "start_date": comp_startdate,
+                    "end_date": comp_enddate
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index is not None:
+                st.session_state.exp_indices.remove(remove_index)
+                st.rerun()
+
+            col_add_exp = st.columns([1, 2, 1])
+            with col_add_exp[1]:
                 st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                if st.button("+ Add More Education", key="add_edu", use_container_width=True):
-                    new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
-                    st.session_state.edu_indices.append(new_idx)
-                    st.rerun()
+                with stylable_container("add-exp-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-        st.markdown("---")
-
-        # ---------------- CERTIFICATIONS ----------------
-        st.markdown('<h2><span class="section-number">4</span>Certifications</h2>', unsafe_allow_html=True)
-
-        for idx, i in enumerate(st.session_state.cert_indices):
-            st.markdown(f'<p class="card-badge">CERTIFICATION {idx + 1}</p>', unsafe_allow_html=True)
-
-            saved_cert = st.session_state.saved_certificates.get(i, {})
+                    if st.button("+ Add More Experience", key="add_exp", use_container_width=True):
+                        new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
+                        st.session_state.exp_indices.append(new_idx)
+                        st.rerun()
+            
+            st.markdown("<br>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             with col1:
-                certificate_name = st.text_input(
-                    "Certificate Name",
-                    placeholder="e.g., AWS Solutions Architect",
-                    key=f"certificate_{i}",
-                    value=saved_cert.get("certificate_name", "")
-                )
-                provider = st.text_input(
-                    "Provider",
-                    placeholder="e.g., Amazon Web Services",
-                    key=f"Provider_{i}",
-                    value=saved_cert.get("provider_name", "")
-                )
-            with col2:
-                comp_date = st.text_input(
-                    "Completion Date (MM/YYYY)",
-                    key=f"comp_date_{i}",
-                    placeholder="e.g., 06/2023",
-                    value=saved_cert.get("completed_date", "")
-                )
-
-            col_save, col_remove = st.columns(2)
-            with col_remove:
-                with stylable_container(f"remove-cert-{i}", css_styles=REMOVE_STYLE):
-                    if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", use_container_width=True):
-                        remove_index_cert = i
-
-            with col_save:
-                with stylable_container(f"save-cert-{i}", css_styles=SAVE_STYLE):
-                    if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", use_container_width=True):
-                        if certificate_name and provider:
-                            st.session_state.saved_certificates[i] = {
-                                "certificate_name": certificate_name,
-                                "provider_name": provider,
-                                "completed_date": comp_date
-                            }
-                            st.success(f"✅ Certification {idx + 1} saved!")
-                        else:
-                            st.error("Please fill in certificate name and provider")
-
-            certificate.append({
-                "certificate_name": certificate_name,
-                "provider_name": provider,
-                "completed_date": comp_date
-            })
-
-        if remove_index_cert is not None:
-            st.session_state.cert_indices.remove(remove_index_cert)
-            st.rerun()
-
-        col_add_cert = st.columns([1, 2, 1])
-        with col_add_cert[1]:
-            with stylable_container("add-cert-btn", css_styles=ADD_STYLE):
-                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-
-                if st.button("+ Add More Certification", key="add_cert", use_container_width=True):
-                    new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
-                    st.session_state.cert_indices.append(new_idx)
+                if st.button("← Previous", key="exp_prev", use_container_width=True):
+                    change_tab("personal")
                     st.rerun()
+            with col2:
+                if st.button("Next →", key="exp_next", use_container_width=True):
+                    change_tab("education")
+                    st.rerun()
+        
+        # EDUCATION TAB
+        elif st.session_state.active_tab == "education":
+            
+            for idx, i in enumerate(st.session_state.edu_indices):
+                st.markdown(f"""
+                <div class="section-header">Education {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
 
-        st.markdown("---")
 
-        # ---------------- PROJECTS ----------------
-        st.markdown('<h2><span class="section-number">5</span>Projects</h2>', unsafe_allow_html=True)
+                saved_edu = st.session_state.saved_education.get(i, {})
+                col1, col2 = st.columns(2)
+                with col1:
+                    course = st.text_input(
+                        "Course/Degree",
+                        placeholder="e.g., Master of Computer Application",
+                        key=f"course_{i}",
+                        value=saved_edu.get("course", "")
+                    )
+                    university = st.text_input(
+                        "Institution",
+                        placeholder="e.g., Texas University",
+                        key=f"university_{i}",
+                        value=saved_edu.get("university", "")
+                    )
+                with col2:
+                    edu_startdate = st.text_input(
+                        "Start Date (MM/YYYY)",
+                        key=f"edu_start_{i}",
+                        placeholder="e.g., 08/2018",
+                        value=saved_edu.get("start_date", "")
+                    )
+                    edu_enddate = st.text_input(
+                        "End Date (MM/YYYY) or 'Present'",
+                        key=f"edu_end_{i}",
+                        placeholder="e.g., 05/2022 or Present",
+                        value=saved_edu.get("end_date", "")
+                    )
 
-        for idx, i in enumerate(st.session_state.project_indices):
-            st.markdown(f'<p class="card-badge">PROJECT {idx + 1}</p>', unsafe_allow_html=True)
+                    if edu_startdate and edu_enddate and edu_enddate.lower() != "present":
+                        try:
+                            from datetime import datetime
+                            start = datetime.strptime(edu_startdate, "%m/%Y")
+                            end = datetime.strptime(edu_enddate, "%m/%Y")
+                            if start > end:
+                                st.warning("⚠️ Start date must be before end date")
+                        except:
+                            st.warning("⚠️ Use MM/YYYY format")
 
-            saved_proj = st.session_state.saved_projects.get(i, {})
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-edu-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", use_container_width=True):
+                            remove_index_edu = i
 
+                with col_save:
+                    with stylable_container(f"save-edu-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", use_container_width=True):
+                            if course and university:
+                                st.session_state.saved_education[i] = {
+                                    "course": course,
+                                    "university": university,
+                                    "start_date": edu_startdate,
+                                    "end_date": edu_enddate
+                                }
+                                st.success(f"✅ Education {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in course and institution")
+
+                education.append({
+                    "course": course,
+                    "university": university,
+                    "start_date": edu_startdate,
+                    "end_date": edu_enddate
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_edu is not None:
+                st.session_state.edu_indices.remove(remove_index_edu)
+                st.rerun()
+
+            col_add_edu = st.columns([1, 2, 1])
+            with col_add_edu[1]:
+                with stylable_container("add-edu-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Education", key="add_edu", use_container_width=True):
+                        new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
+                        st.session_state.edu_indices.append(new_idx)
+                        st.rerun()
             col1, col2 = st.columns(2)
             with col1:
-                projectname = st.text_input(
-                    "Project Name",
-                    placeholder="e.g., Created An Integration Tool",
-                    key=f"projectname_{i}",
-                    value=saved_proj.get("projectname", "")
-                )
-                tools = st.text_input(
-                    "Tools/Languages",
-                    placeholder="e.g., PowerBI, SQL, Python",
-                    key=f"tools_{i}",
-                    value=saved_proj.get("tools", "")
-                )
-            with col2:
-                decription = st.text_area(
-                    "Description (Key achievements)",
-                    key=f"decription_{i}",
-                    height=150,
-                    value=saved_proj.get("decription", "")
-                )
-
-            col_save, col_remove = st.columns(2)
-            with col_remove:
-                with stylable_container(f"remove-proj-{i}", css_styles=REMOVE_STYLE):
-                    if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", use_container_width=True):
-                        remove_index_project = i
-
-            with col_save:
-                with stylable_container(f"save-proj-{i}", css_styles=SAVE_STYLE):
-                    if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", use_container_width=True):
-                        if projectname:
-                            st.session_state.saved_projects[i] = {
-                                "projectname": projectname,
-                                "tools": tools,
-                                "decription": decription
-                            }
-                            st.success(f"✅ Project {idx + 1} saved!")
-                        else:
-                            st.error("Please fill in project name")
-
-            project.append({
-                "projectname": projectname,
-                "tools": tools,
-                "decription": decription
-            })
-
-        if remove_index_project is not None:
-            st.session_state.project_indices.remove(remove_index_project)
-            st.rerun()
-
-        col_add_proj = st.columns([1, 2, 1])
-        with col_add_proj[1]:
-            with stylable_container("add-proj-btn", css_styles=ADD_STYLE):
-                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-
-                if st.button("+ Add More Projects", key="add_project", use_container_width=True):
-                    new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
-                    st.session_state.project_indices.append(new_idx)
+                if st.button("← Previous", key="eud_prev", use_container_width=True):
+                    change_tab("experience")
                     st.rerun()
+            with col2:
+                if st.button("Next →", key="eud_next", use_container_width=True):
+                    change_tab("certifications")
+                    st.rerun()
+            st.markdown("---")
+            
+        # CERTIFICATIONS TAB
+        elif st.session_state.active_tab == "certifications":
+            for idx, i in enumerate(st.session_state.cert_indices):
+                st.markdown(f"""
+                <div class="section-header">Certification {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
 
-        st.markdown("---")
 
-        # ---------------- CUSTOM SECTIONS ----------------
-        st.markdown('<h2><span class="section-number">6</span>Custom Sections</h2>', unsafe_allow_html=True)
+                saved_cert = st.session_state.saved_certificates.get(i, {})
+                col1, col2 = st.columns(2)
+                with col1:
+                    certificate_name = st.text_input(
+                        "Certificate Name",
+                        placeholder="e.g., AWS Solutions Architect",
+                        key=f"certificate_{i}",
+                        value=saved_cert.get("certificate_name", "")
+                    )
+                    provider = st.text_input(
+                        "Provider",
+                        placeholder="e.g., Amazon Web Services",
+                        key=f"Provider_{i}",
+                        value=saved_cert.get("provider_name", "")
+                    )
+                with col2:
+                    comp_date = st.text_input(
+                        "Completion Date (MM/YYYY)",
+                        key=f"comp_date_{i}",
+                        placeholder="e.g., 06/2023",
+                        value=saved_cert.get("completed_date", "")
+                    )
 
-        remove_index_custom = None
-        custom_sections = []
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-cert-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", use_container_width=True):
+                            remove_index_cert = i
 
-        for idx, i in enumerate(st.session_state.custom_indices):
-            st.markdown(f'<p class="card-badge">CUSTOM SECTION {idx + 1}</p>', unsafe_allow_html=True)
+                with col_save:
+                    with stylable_container(f"save-cert-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", use_container_width=True):
+                            if certificate_name and provider:
+                                st.session_state.saved_certificates[i] = {
+                                    "certificate_name": certificate_name,
+                                    "provider_name": provider,
+                                    "completed_date": comp_date
+                                }
+                                st.success(f"✅ Certification {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in certificate name and provider")
 
-            saved_custom = st.session_state.saved_custom_sections.get(i, {})
+                certificate.append({
+                    "certificate_name": certificate_name,
+                    "provider_name": provider,
+                    "completed_date": comp_date
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_cert is not None:
+                st.session_state.cert_indices.remove(remove_index_cert)
+                st.rerun()
 
-            col1, col2 = st.columns([1, 1])
+            col_add_cert = st.columns([1, 2, 1])
+            with col_add_cert[1]:
+                with stylable_container("add-cert-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Certification", key="add_cert", use_container_width=True):
+                        new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
+                        st.session_state.cert_indices.append(new_idx)
+                        st.rerun()
+            col1, col2 = st.columns(2)
             with col1:
-                section_title = st.text_input(
-                    "Section Heading *",
-                    placeholder="e.g., Languages, Achievements, Interests",
-                    key=f"custom_title_{i}",
-                    value=saved_custom.get("title", "")
-                )
-            with col2:
-                section_description = st.text_area(
-                    "Description / Details *",
-                    placeholder="Add details for this section...",
-                    key=f"custom_desc_{i}",
-                    height=120,
-                    value=saved_custom.get("description", "")
-                )
-
-            col_save, col_remove = st.columns(2)
-            with col_remove:
-                with stylable_container(f"remove-custom-{i}", css_styles=REMOVE_STYLE):
-                    if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", use_container_width=True):
-                        remove_index_custom = i
-
-            with col_save:
-                with stylable_container(f"save-custom-{i}", css_styles=SAVE_STYLE):
-                    if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", use_container_width=True):
-                        if section_title and section_description:
-                            st.session_state.saved_custom_sections[i] = {
-                                "title": section_title,
-                                "description": section_description
-                            }
-                            st.success(f"✅ Custom Section {idx + 1} saved!")
-                        else:
-                            st.error("Please fill in both the heading and description fields.")
-
-            custom_sections.append({
-                "title": section_title,
-                "description": section_description
-            })
-
-        if remove_index_custom is not None:
-            st.session_state.custom_indices.remove(remove_index_custom)
-            st.rerun()
-
-        col_add_custom = st.columns([1, 2, 1])
-        with col_add_custom[1]:
-            with stylable_container("add-custom-btn", css_styles=ADD_STYLE):
-                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
-
-                if st.button("+ Add Custom Section", key="add_custom", use_container_width=True):
-                    new_idx = max(st.session_state.custom_indices) + 1 if st.session_state.custom_indices else 0
-                    st.session_state.custom_indices.append(new_idx)
+                if st.button("← Previous", key="cert_prev", use_container_width=True):
+                    change_tab("education")
                     st.rerun()
+            with col2:
+                if st.button("Next →", key="cert_next", use_container_width=True):
+                    change_tab("projects")
+                    st.rerun()
+            st.markdown("---")
 
-        st.markdown("---")
+        # PROJECTS TAB
+        elif st.session_state.active_tab == "projects":
+            for idx, i in enumerate(st.session_state.project_indices):
+                st.markdown(f"""
+                <div class="section-header">Project {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_proj = st.session_state.saved_projects.get(i, {})
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    projectname = st.text_input(
+                        "Project Name",
+                        placeholder="e.g., Created An Integration Tool",
+                        key=f"projectname_{i}",
+                        value=saved_proj.get("projectname", "")
+                    )
+                    tools = st.text_input(
+                        "Tools/Languages",
+                        placeholder="e.g., PowerBI, SQL, Python",
+                        key=f"tools_{i}",
+                        value=saved_proj.get("tools", "")
+                    )
+                with col2:
+                    decription = st.text_area(
+                        "Description (Key achievements)",
+                        key=f"decription_{i}",
+                        height=150,
+                        value=saved_proj.get("decription", "")
+                    )
+
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-proj-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", use_container_width=True):
+                            remove_index_project = i
+
+                with col_save:
+                    with stylable_container(f"save-proj-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", use_container_width=True):
+                            if projectname:
+                                st.session_state.saved_projects[i] = {
+                                    "projectname": projectname,
+                                    "tools": tools,
+                                    "decription": decription
+                                }
+                                st.success(f"✅ Project {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in project name")
+
+                project.append({
+                    "projectname": projectname,
+                    "tools": tools,
+                    "decription": decription
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_project is not None:
+                st.session_state.project_indices.remove(remove_index_project)
+                st.rerun()
+
+            col_add_proj = st.columns([1, 2, 1])
+            with col_add_proj[1]:
+                with stylable_container("add-proj-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Projects", key="add_project", use_container_width=True):
+                        new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
+                        st.session_state.project_indices.append(new_idx)
+                        st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("← Previous", key="pro_prev", use_container_width=True):
+                    change_tab("certifications")
+                    st.rerun()
+            with col2:
+                if st.button("Next →", key="pro_next", use_container_width=True):
+                    change_tab("custom")
+                    st.rerun()
+            st.markdown("---")
+
+
+        # CUSTOM SECTIONS TAB
+        elif st.session_state.active_tab == "custom":
+            remove_index_custom = None
+            custom_sections = []
+
+            for idx, i in enumerate(st.session_state.custom_indices):
+                st.markdown(f"""
+                <div class="section-header">Custom section {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_custom = st.session_state.saved_custom_sections.get(i, {})
+
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    section_title = st.text_input(
+                        "Section Heading *",
+                        placeholder="e.g., Languages, Achievements, Interests",
+                        key=f"custom_title_{i}",
+                        value=saved_custom.get("title", "")
+                    )
+                with col2:
+                    section_description = st.text_area(
+                        "Description / Details *",
+                        placeholder="Add details for this section...",
+                        key=f"custom_desc_{i}",
+                        height=120,
+                        value=saved_custom.get("description", "")
+                    )
+                
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-custom-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", use_container_width=True):
+                            remove_index_custom = i
+
+                with col_save:
+                    with stylable_container(f"save-custom-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", use_container_width=True):
+                            if section_title and section_description:
+                                st.session_state.saved_custom_sections[i] = {
+                                    "title": section_title,
+                                    "description": section_description
+                                }
+                                st.success(f"✅ Custom Section {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in both the heading and description fields.")
+
+                custom_sections.append({
+                    "title": section_title,
+                    "description": section_description
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_custom is not None:
+                st.session_state.custom_indices.remove(remove_index_custom)
+                st.rerun()
+
+            col_add_custom = st.columns([1, 2, 1])
+            with col_add_custom[1]:
+                with stylable_container("add-custom-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add Custom Section", key="add_custom", use_container_width=True):
+                        new_idx = max(st.session_state.custom_indices) + 1 if st.session_state.custom_indices else 0
+                        st.session_state.custom_indices.append(new_idx)
+                        st.rerun()
+            if st.button("← Previous", key="cust_prev", use_container_width=True):
+                    change_tab("projects")
+                    st.rerun()
+           
+            st.markdown("---")
+        
+
+
+        # st.markdown('</div>', unsafe_allow_html=True)
+
+        # Final submit button (show on last tab)
+        # if st.session_state.active_tab == "custom":
+        #     st.markdown("<br>", unsafe_allow_html=True)
+        #     col1, col2, col3 = st.columns([1, 2, 1])
+        #     with col2:
+        #         with stylable_container("final-submit-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
+        #             if st.button("Complete & Generate Resume", key="final_submit", use_container_width=True):
+        #                 # Your existing submit logic here
+        #                 st.balloons()
+        #                 st.switch_page("pages/job.py")
 
         # ---------------- CONTINUE BUTTON (SUBMIT) ----------------
         st.markdown("<br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with stylable_container("continue-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
-                if st.button("Continue", key="man-btn", use_container_width=True):
-                    st.balloons()
-                    if not is_valid_email(email):
-                        st.error("Please enter a valid email address")
-                    elif not is_valid_phone(phone):
-                        st.error("Please enter a valid phone number")
-                    else:
-                        if name and skills and experience:
-                            with st.spinner("Processing your resume..."):
-                                filtered_experience = [p for p in professional_experience if p["company"] and p["position"]]
-                                filtered_education = [e for e in education if e["course"] and e["university"]]
-                                filtered_certificate = [c for c in certificate if c["certificate_name"]]
-                                filtered_project = [p for p in project if p["projectname"]]
+                if st.button("Complete & Generate Resume", key="final_submit", use_container_width=True):
+                    # Get values from saved session state
+                    name = st.session_state.saved_personal_info.get("name", "")
+                    skills = st.session_state.saved_personal_info.get("skills", [])
+                    experience = st.session_state.saved_personal_info.get("experience", "")
+                    phone = st.session_state.saved_personal_info.get("phone", "")
+                    email = st.session_state.saved_personal_info.get("email", "")
+                    url = st.session_state.saved_personal_info.get("url", "")
+                    location = st.session_state.saved_personal_info.get("location", "")
+                    
+                    if name and skills and experience:  # ✅ Now it works
+                        with st.spinner("Processing your resume..."):
+                            # Build experience list from saved data
+                            professional_experience = [
+                                st.session_state.saved_experiences[i]
+                                for i in st.session_state.exp_indices
+                                if i in st.session_state.saved_experiences
+                            ]
+                            
+                            # Build education list from saved data
+                            education = [
+                                st.session_state.saved_education[i]
+                                for i in st.session_state.edu_indices
+                                if i in st.session_state.saved_education
+                            ]
+                            
+                            # Build certificate list
+                            certificate = [
+                                st.session_state.saved_certificates[i]
+                                for i in st.session_state.cert_indices
+                                if i in st.session_state.saved_certificates
+                            ]
+                            
+                            # Build project list
+                            project = [
+                                st.session_state.saved_projects[i]
+                                for i in st.session_state.project_indices
+                                if i in st.session_state.saved_projects
+                            ]
+                            
+                            # Build custom sections
+                            custom_sections = [
+                                st.session_state.saved_custom_sections[i]
+                                for i in st.session_state.custom_indices
+                                if i in st.session_state.saved_custom_sections
+                            ]
 
-                                user_data = {
-                                    'name': name,
-                                    'skills': skills,
-                                    'experience': experience,
-                                    'phone': phone,
-                                    'email': email,
-                                    'url': url,
-                                    'location': location,
-                                    'professional_experience': filtered_experience,
-                                    'education': filtered_education,
-                                    'certificate': filtered_certificate,
-                                    'project': filtered_project,
-                                    'custom_sections': {
-                                        c["title"]: c["description"]
-                                        for c in custom_sections
-                                        if c["title"] and c["description"]
-                                    }
+                            user_data = {
+                                'name': name,
+                                'skills': skills,
+                                'experience': experience,
+                                'phone': phone,
+                                'email': email,
+                                'url': url,
+                                'location': location,
+                                'professional_experience': professional_experience,
+                                'education': education,
+                                'certificate': certificate,
+                                'project': project,
+                                'custom_sections': {
+                                    c["title"]: c["description"]
+                                    for c in custom_sections
+                                    if c.get("title") and c.get("description")
                                 }
+                            }
 
-                            st.session_state.resume_source = user_data
-                            st.write(user_data)  # optional debug
+                        st.session_state.resume_source = user_data
 
-                            if 'logged_in_user' in st.session_state:
-                                st.session_state.input_method = "Manual Entry"
-                                save_success = save_user_resume(
-                                    st.session_state.logged_in_user,
-                                    user_data,
-                                    input_method="Manual Entry"
-                                )
-                                if save_success:
-                                    st.success("Resume processed and saved to profile!")
-                                else:
-                                    st.warning("Resume processed but couldn't save to profile")
+                        if 'logged_in_user' in st.session_state:
+                            st.session_state.input_method = "Manual Entry"
+                            save_success = save_user_resume(
+                                st.session_state.logged_in_user,
+                                user_data,
+                                input_method="Manual Entry"
+                            )
+                            if save_success:
+                                st.success("Resume processed and saved to profile!")
+                            else:
+                                st.warning("Resume processed but couldn't save to profile")
 
-                            st.switch_page("pages/job.py")
-                        else:
-                            st.error("Please fill in all required fields marked with *")
+                        st.switch_page("pages/job.py")
+                    else:
+                        st.error("Please complete the Personal Info section first (Name, Skills, and Experience are required)")
 
     # ====================================================================================
     # UPLOAD RESUME
     # ====================================================================================
     else:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<h2>Upload Your Resume</h2>', unsafe_allow_html=True)
+        
+        st.markdown("""
+    <style>
+        /* File uploader border */
+        [data-testid="stFileUploader"] > section {
+            border: 2px dashed #8b6f47 !important;
+            border-radius: 12px !important;
+            background: rgba(232, 117, 50, 0.05) !important;
+            padding: 2rem !important;
+        }
+        
+        /* Browse files button */
+        [data-testid="stFileUploader"] button {
+            background-color: #e87532 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 1.5rem !important;
+            font-weight: 600 !important;
+        }
+        
+        [data-testid="stFileUploader"] button:hover {
+            background-color: #d66429 !important;
+            color: white !important;
+        }
+        
+        /* Upload icon */
+        [data-testid="stFileUploader"] svg {
+            fill: #e87532 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
         uploaded_file = st.file_uploader(
             "Drop your PDF or DOCX resume here or click to browse",
@@ -976,6 +1369,7 @@ if  st.session_state.logged_in_user :
             help="Supported formats: PDF, DOCX",
             key="uploader_widget"
         )
+
 
         if uploaded_file:
             with st.spinner("File processing..."):

@@ -4026,13 +4026,16 @@ def show_login_modal():
         st.session_state.page_transitioning = False
 
     # -------------------------------------------------------------------------------------------------
-    # CSS STYLES
+    # CSS STYLES - Enhanced with Animation
     # -------------------------------------------------------------------------------------------------
     st.markdown("""
     <style>
-        /* Overall page background - WHITE */
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+        
+        /* Overall page background */
         [data-testid="stAppViewContainer"] {
             background: #ffffff !important;
+            font-family: 'Montserrat', sans-serif !important;
         }
 
         /* Hide default Streamlit elements */
@@ -4042,122 +4045,159 @@ def show_login_modal():
 
         /* Main container styling */
         .block-container {
-            padding: 2rem !important;
+            padding: 1.5rem !important;
             max-width: 1200px !important;
         }
 
-        /* Left panel - Orange gradient section */
-        .welcome-panel {
-            background: linear-gradient(135deg, #f2994a 0%, #f2784b 50%, #e87532 100%);
-            padding: 4rem 3rem;
-            border-radius: 20px;
-            position: relative;
-            overflow: hidden;
-            min-height: 500px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        /* Geometric pattern overlay */
-        .welcome-panel::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: 
-                linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%),
-                linear-gradient(-45deg, rgba(255,255,255,0.1) 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.1) 75%),
-                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.1) 75%);
-            background-size: 100px 100px;
-            opacity: 0.3;
-        }
-
-        .welcome-heading {
-            font-size: 3.5rem;
-            font-weight: 800;
-            color: #ffffff;
-            line-height: 1.2;
-            margin-bottom: 1rem;
-            position: relative;
-            z-index: 1;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .welcome-subtext {
-            font-size: 1.25rem;
-            color: rgba(255, 255, 255, 0.95);
-            position: relative;
-            z-index: 1;
-            font-weight: 400;
-        }
-
-        /* Right panel - Form section */
+        /* Main heading */
         .main-heading {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 700;
-            color: #4a4a4a;
-            margin-bottom: 2rem;
+            color: #333;
+            margin-bottom: 1.2rem;
             text-align: center;
-                
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* Subtext */
+        .form-subtext {
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            margin-bottom: 1rem;
+            letter-spacing: 0.3px;
         }
 
         /* Input fields styling */
         .stTextInput > div > div > input {
-            background: #ffffff !important;
-            color: #333333 !important;
-            border: 2px solid #e87532 !important;
-            border-radius: 12px !important;
-            padding: 1rem 1.25rem !important;
-            font-size: 1rem !important;
+            background-color: #eee !important;
+            color: #333 !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 10px 13px !important;
+            font-size: 13px !important;
             transition: all 0.3s ease !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+            font-family: 'Montserrat', sans-serif !important;
+            width: 100% !important;
+            margin: 6px 0 !important;
         }
 
         .stTextInput > div > div > input:focus {
-            background: #ffffff !important;
-            border-color: #e87532 !important;
-            box-shadow: 0 0 0 4px rgba(232, 117, 50, 0.1) !important;
+            background-color: #e8e8e8 !important;
             outline: none !important;
+            box-shadow: 0 0 0 2px rgba(241, 39, 17, 0.1) !important;
         }
 
         .stTextInput > div > div > input::placeholder {
-            color: #999999 !important;
+            color: #999 !important;
             font-weight: 400;
         }
 
-        /* Checkbox styling */
-        .stCheckbox {
-            margin: 1rem 0;
+        /* Social icons styling */
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
         }
 
-        .stCheckbox > label {
-            color: #666666;
-            font-size: 0.9rem;
+        .social-icon {
+            border: 1px solid #ccc;
+            border-radius: 20%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 36px;
+            height: 36px;
+            color: #333;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            background: #fff;
         }
 
-        .forgot-password {
+        .social-icon:hover {
+            border-color: #f12711;
+            color: #f12711;
+            transform: translateY(-3px);
+        }
+
+        /* Sign up text link */
+        .signup-text {
+            text-align: center;
+            color: #333;
+            font-size: 13px;
+            margin: 12px 0 8px;
+        }
+
+        .signup-link {
             color: #e87532;
-            font-size: 0.9rem;
-            text-decoration: underline;
-            transition: color 0.3s ease;
+            text-decoration: none;
+            font-weight: 600;
             cursor: pointer;
+            transition: color 0.3s ease;
         }
 
-        .forgot-password:hover {
-            color: #d66428;
+        .signup-link:hover {
+            color: #d61f06;
+            text-decoration: underline;
         }
 
         /* Divider */
         .divider-text {
             text-align: center;
-            color: #8b95a5;
-            margin: 1.5rem 0;
+            color: #666;
+            margin: 1rem 0;
             font-size: 0.875rem;
+        }
+
+        /* Welcome panel (right side toggle) */
+        .welcome-panel {
+            background: linear-gradient(to right, #e87532, #f5af19);
+            color: #fff;
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            min-height: 420px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .welcome-heading {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .welcome-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+            opacity: 0.95;
+        }
+            button:hover {
+        background-color: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+    }
+    
+    /* Specific override for text link buttons */
+    [data-testid="stButton"] button[kind="secondary"]:hover {
+        background-color: transparent !important;
+        background-image: none !important;
+        background: transparent !important;
+    }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .welcome-panel {
+                display: none;
+            }
+            
+            .main-heading {
+                font-size: 1.8rem;
+            }
         }
     </style>
     """, unsafe_allow_html=True)
@@ -4165,71 +4205,166 @@ def show_login_modal():
     # -------------------------------------------------------------------------------------------------
     # PAGE LAYOUT
     # -------------------------------------------------------------------------------------------------
-    col1, col2 = st.columns([1, 1])
+    
+    # Create container columns
+    col_form, col_welcome = st.columns([1, 1])
 
-    # LEFT PANEL - Welcome section
-    with col1:
-        from PIL import Image
-        profile_img = Image.open(r"C:\ask.ai\image\f2.png")
-        st.markdown('<div>', unsafe_allow_html=True)
-        st.image(profile_img, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # RIGHT PANEL - Form section
-    with col2:
+    # FORM SECTION (Left side)
+    with col_form:
+        # Mode-specific heading
         if st.session_state.mode == 'login':
-            st.markdown('<h2 class="main-heading">Let\'s log in</h2>', unsafe_allow_html=True)
+            st.markdown('<h1 class="main-heading">Sign In</h1>', unsafe_allow_html=True)
         else:
-            st.markdown('<h2 class="main-heading">Create Account</h2>', unsafe_allow_html=True)
+            st.markdown('<h1 class="main-heading">Create Account</h1>', unsafe_allow_html=True)
+        
+        # Social icons
+        st.markdown('''
+        <div class="social-icons">
+            <a href="#" class="social-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+            </a>
+            <a href="#" class="social-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+            </a>
+            <a href="#" class="social-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                </svg>
+            </a>
+            <a href="#" class="social-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+            </a>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+        # Subtext
+        if st.session_state.mode == 'login':
+            st.markdown('<p class="form-subtext">or use your email and password</p>', unsafe_allow_html=True)
+        else:
+            st.markdown('<p class="form-subtext">or use your email for registration</p>', unsafe_allow_html=True)
         
         # Name field for registration
         name = ""
         if st.session_state.mode == 'register':
-            name = st.text_input("", placeholder="Full Name", label_visibility="collapsed", key="full_name")
+            name = st.text_input("", placeholder="Name", label_visibility="collapsed", key="full_name")
         
         # Email field
-        email = st.text_input("", placeholder="Email Address", label_visibility="collapsed", key="lemail")
+        email = st.text_input("", placeholder="Email", label_visibility="collapsed", key="lemail")
         
         # Password field
         password = st.text_input("", placeholder="Password", type="password", label_visibility="collapsed", key="password")
         
-        # Remember me and Forgot password row (only for login)
-        if st.session_state.mode == 'login':
-            col_remember, col_forgot = st.columns([1, 1])
-            with col_remember:
-                st.checkbox("Remember me", key="remember_me")
-            with col_forgot:
-                st.markdown('<p style="text-align: right;"><a href="#" class="forgot-password">Forgot Password?</a></p>', unsafe_allow_html=True)
+        # Sign up / Login text link - moved BEFORE main button
+        col_spacer1, col_toggle_text, col_spacer2 = st.columns([2, 8, 2])
+        with col_toggle_text:
+            if st.session_state.mode == 'login':
+                # Show Sign up link
+                with stylable_container(
+                    key="signup_text_btn",
+                    css_styles="""
+                    button {
+                        background: transparent !important;
+                        border: none !important;
+                        color: #333 !important;
+                        font-size: 13px !important;
+                        padding: 8px 0 !important;
+                        font-weight: 400 !important;
+                        cursor: pointer !important;
+                        font-family: 'Montserrat', sans-serif !important;
+                        box-shadow: none !important;
+                        width: 100% !important;
+                    }
+                    button:hover {
+                        background: transparent !important;
+                        box-shadow: none !important;
+                        transform: none !important;
+                        border: none !important;
+                    }
+                    button:hover p {
+                        background: transparent !important;
+                    }
+                    button p {
+                        margin: 0 !important;
+                        text-align: center !important;
+                    }
+                    """
+                ):
+                    if st.button("Don't have an account? **Sign up**", key="signup_text_link"):
+                        st.session_state.mode = 'register'
+                        st.rerun()
+            else:
+                # Show Back to Login link
+                with stylable_container(
+                    key="login_text_btn",
+                    css_styles="""
+                    button {
+                        background: transparent !important;
+                        border: none !important;
+                        color: #333 !important;
+                        font-size: 13px !important;
+                        padding: 8px 0 !important;
+                        font-weight: 400 !important;
+                        cursor: pointer !important;
+                        font-family: 'Montserrat', sans-serif !important;
+                        box-shadow: none !important;
+                        width: 100% !important;
+                    }
+                    button:hover {
+                        background: transparent !important;
+                        box-shadow: none !important;
+                        transform: none !important;
+                        border: none !important;
+                    }
+                    button:hover p {
+                        background: transparent !important;
+                    }
+                    button p {
+                        margin: 0 !important;
+                        text-align: center !important;
+                    }
+                    """
+                ):
+                    if st.button("Already have an account? **Back to Login**", key="login_text_link"):
+                        st.session_state.mode = 'login'
+                        st.rerun()
         
-        # Main action button (Login/Sign Up) - CENTERED
-        button_text = "SIGN UP" if st.session_state.mode == 'register' else "LOGIN"
+        # Main action button (Login/Sign Up) - Centered
+        button_text = "Sign Up" if st.session_state.mode == 'register' else "Sign In"
         
-        # Center the button using columns
-        col_left, col_btn, col_right = st.columns([3, 2, 3])
-        with col_btn:
+        col_btn1, col_main_btn, col_btn2 = st.columns([2, 8, 2])
+        with col_main_btn:
             with stylable_container(
                 key="main_login_btn",
                 css_styles="""
                 button {
-                    background: linear-gradient(135deg, #f2994a 0%, #e87532 100%) !important;
-                    color: #ffffff !important;
-                    border: none !important;
-                    border-radius: 12px !important;
-                    padding: 1rem 2rem !important;
-                    font-size: 1.1rem !important;
-                    width: 100% !important;
-                    font-weight: 700 !important;
+                    background-color: #e87532 !important;
+                    color: #fff !important;
+                    font-size: 12px !important;
+                    padding: 10px 45px !important;
+                    border: 1px solid transparent !important;
+                    border-radius: 8px !important;
+                    font-weight: 600 !important;
+                    letter-spacing: 0.5px !important;
+                    text-transform: uppercase !important;
+                    margin-top: 10px !important;
                     cursor: pointer !important;
+                    width: 100% !important;
                     transition: all 0.3s ease !important;
-                    box-shadow: 0 8px 20px rgba(232, 117, 50, 0.3) !important;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-top: 1rem !important;
+                    font-family: 'Montserrat', sans-serif !important;
                 }
                 button:hover {
-                    transform: translateY(-3px) !important;
-                    box-shadow: 0 12px 28px rgba(232, 117, 50, 0.4) !important;
-                    background: linear-gradient(135deg, #e87532 0%, #d66428 100%) !important;
+                    background: linear-gradient(to right, #d61f06, #d4941a) !important;
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 5px 15px rgba(241, 39, 17, 0.3) !important;
                 }
                 """
             ):
@@ -4287,71 +4422,86 @@ def show_login_modal():
                     else:
                         st.warning("Please enter both email and password")
 
-        # Sign up / Login toggle - CENTERED
-        st.markdown('<div class="divider-text">or</div>', unsafe_allow_html=True)
-        
-        # Center the toggle button
-        col_left2, col_toggle, col_right2 = st.columns([3, 3, 3])
-        with col_toggle:
-            if st.session_state.mode == 'login':
-                # Show "Create Account" button
-                with stylable_container(
-                    key="signup_toggle_btn",
-                    css_styles="""
-                    button {
-                        background-color: #ffffff !important;
-                        color: #e87532 !important;
-                        border: 2px solid #e87532 !important;
-                        border-radius: 12px !important;
-                        padding: 0.75rem 1.5rem !important;
-                        font-size: 0.95rem !important;
-                        width: 100% !important;
-                        font-weight: 600 !important;
-                        cursor: pointer !important;
-                        transition: all 0.3s ease !important;
-                    }
-                    button:hover {
-                        background-color: #e87532 !important;
-                        color: #ffffff !important;
-                        transform: translateY(-2px) !important;
-                        box-shadow: 0 6px 16px rgba(232, 117, 50, 0.3) !important;
-                    }
-                    """
-                ):
-                    if st.button("Create Account", key="toggle_signup"):
-                        st.session_state.mode = 'register'
-                        st.rerun()
-            else:
-                # Show "Back to Login" button
-                with stylable_container(
-                    key="login_toggle_btn",
-                    css_styles="""
-                    button {
-                        background-color: #ffffff !important;
-                        color: #e87532 !important;
-                        border: 2px solid #e87532 !important;
-                        border-radius: 12px !important;
-                        padding: 0.5rem 1.5rem !important;
-                        font-size: 0.95rem !important;
-                        width: 100% !important;
-                        font-weight: 600 !important;
-                        cursor: pointer !important;
-                        transition: all 0.3s ease !important;
-                        
-                    }
-                    button:hover {
-                        background-color: #e87532 !important;
-                        color: #ffffff !important;
-                        transform: translateY(-2px) !important;
-                        box-shadow: 0 6px 16px rgba(232, 117, 50, 0.3) !important;
-                    }
-                    """
-                ):
-                    if st.button("Back to Login", key="toggle_login"):
-                        st.session_state.mode = 'login'
-                        st.rerun()
-
-
+    # WELCOME PANEL (Right side)
+    with col_welcome:
+        if st.session_state.mode == 'login':
+            st.markdown('''
+            <div class="welcome-panel">
+                <h1 class="welcome-heading">Hello, User!</h1>
+                <p class="welcome-text">Register with your personal details to use all of site features</p>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Toggle button
+            with stylable_container(
+                key="signup_toggle_btn",
+                css_styles="""
+                button {
+                    background-color: transparent !important;
+                    color: #fff !important;
+                    border: 1px solid #fff !important;
+                    border-radius: 8px !important;
+                    padding: 10px 45px !important;
+                    font-size: 12px !important;
+                    font-weight: 600 !important;
+                    letter-spacing: 0.5px !important;
+                    text-transform: uppercase !important;
+                    cursor: pointer !important;
+                    width: 60% !important;
+                    transition: all 0.3s ease !important;
+                    font-family: 'Montserrat', sans-serif !important;
+                    margin: 0 auto !important;
+                    display: block !important;
+                }
+                button:hover {
+                    background-color: #fff !important;
+                    color: #f12711 !important;
+                    transform: translateY(-2px) !important;
+                }
+                """
+            ):
+                if st.button("Sign Up", key="toggle_signup"):
+                    st.session_state.mode = 'register'
+                    st.rerun()
+        else:
+            st.markdown('''
+            <div class="welcome-panel">
+                <h1 class="welcome-heading">Welcome Back!</h1>
+                <p class="welcome-text">Enter your personal details to use all of site features</p>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Toggle button
+            with stylable_container(
+                key="login_toggle_btn",
+                css_styles="""
+                button {
+                    background-color: transparent !important;
+                    color: #fff !important;
+                    border: 1px solid #fff !important;
+                    border-radius: 8px !important;
+                    padding: 10px 45px !important;
+                    font-size: 12px !important;
+                    font-weight: 600 !important;
+                    letter-spacing: 0.5px !important;
+                    text-transform: uppercase !important;
+                    cursor: pointer !important;
+                    width: 60% !important;
+                    transition: all 0.3s ease !important;
+                    font-family: 'Montserrat', sans-serif !important;
+                    margin: 0 auto !important;
+                    display: block !important;
+                }
+                button:hover {
+                    background-color: #fff !important;
+                    color: #f12711 !important;
+                    transform: translateY(-2px) !important;
+                }
+                """
+            ):
+                if st.button("Sign In", key="toggle_login"):
+                    st.session_state.mode = 'login'
+                    st.rerun()
 
 
 

@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from utils import show_login_modal, get_user_resume, load_users, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
+from utils import chatbot,show_login_modal, get_user_resume, load_users, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
 from streamlit_extras.stylable_container import stylable_container
 from pages.download import SYSTEM_TEMPLATES, generate_generic_html
 
@@ -821,7 +821,7 @@ if not st.query_params.get("user"):
 # Get user resume data
 user_resume = get_user_resume(email)
 has_resume = user_resume and len(user_resume) > 0
-
+chatbot(user_resume)
 # ----------------------------------
 # ABOUT SECTION (ENHANCED WITH DOCUMENT 1 LOGIC)
 # ----------------------------------

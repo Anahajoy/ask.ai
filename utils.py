@@ -4350,3 +4350,372 @@ def show_login_modal():
                     if st.button("Back to Login", key="toggle_login"):
                         st.session_state.mode = 'login'
                         st.rerun()
+
+
+
+
+
+# =====================================
+# 🤖 CHATBOT BEHAVIOR & AI RESPONSE LOGIC
+# =====================================
+
+# Enhanced ask_llama function
+RESUME_ASSISTANT_PROMPT = """
+You are ResumeBot, a professional resume and career assistant. Your role is to provide concise, actionable advice for resume improvement and career guidance.
+
+CORE RESPONSIBILITIES:
+- Analyze resume content and provide specific improvement suggestions
+- Guide users on relevant content inclusion based on their industry/role
+- Offer formatting and structuring advice
+- Suggest better ways to phrase accomplishments
+- Help tailor resumes for specific job applications
+- Provide career development guidance
+- Assist with template selection and customization
+- Give interview preparation tips
+
+RESPONSE GUIDELINES:
+- Be professional, polite, and encouraging
+- Keep responses concise but helpful (3-5 sentences or bullet points)
+- Use bullet points for actionable advice when appropriate
+- Focus on quantifiable achievements and specific examples
+- Ask clarifying questions when needed to provide better guidance
+- Never request personal sensitive information
+- Tailor advice to the user's mentioned industry/experience level
+
+FORMAT PREFERENCE:
+- Use bullet points (•) for lists when helpful
+- Use emojis sparingly to make responses engaging
+- Keep paragraphs short and scannable
+- End with a relevant question to continue conversation when appropriate
+
+Example response style:
+• **Quantify achievements**: Instead of "managed team" try "Led 5-person team to achieve 15% productivity increase"
+• **Add relevant keywords**: Include "project management" and "stakeholder communication" from job description
+• **Improve formatting**: Use consistent bullet points and clear section headers
+
+Always be helpful and specific in your advice!"""
+
+import requests
+import json
+
+
+# Recommended models:
+FAST_MODEL = "meta/llama3-8b-instruct"
+HEAVY_MODEL = "meta/llama3-70b-instruct"
+
+def ask_llama(message, resume_data=None):
+    """
+    Stream tokens live + fallback model + optional resume context
+    """
+    context = f"\nHere is the user's resume:\n{resume_data}\n" if resume_data else ""
+    prompt = f"{RESUME_ASSISTANT_PROMPT}{context}\nUser: {message}\nAI:"
+
+    payload = {
+        "model": HEAVY_MODEL,  # try high-quality model first
+        "messages": [
+            {"role": "system", "content": RESUME_ASSISTANT_PROMPT},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.3,     # faster + less hallucinations
+        "max_tokens": 200,      # limit output for speed
+        "stream": True
+    }
+
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+    except Exception:
+        # Fallback to fast 8B model automatically 👍
+        payload["model"] = FAST_MODEL
+        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+
+    # Streaming the reply token by token
+    for line in response.iter_lines():
+        if line:
+            try:
+                data = json.loads(line.decode("utf-8").replace("data:", ""))
+                token = data["choices"][0]["delta"].get("content", "")
+                if token:
+                    yield token
+            except:
+                pass
+
+    
+def chatbot(user_resume):
+    import streamlit as st
+
+    # Page config
+  
+    # Initialize session state for messages
+    if 'messages' not in st.session_state:
+        st.session_state.messages = [
+            {"role": "bot", "content": "Hello! How can I help you today?", "time": "10:30 AM"},
+            {"role": "user", "content": "I need help with my order", "time": "10:31 AM"},
+            {"role": "bot", "content": "I'd be happy to help! Could you provide your order number?", "time": "10:31 AM"},
+            {"role": "user", "content": "Sure, it's #12345", "time": "10:32 AM"},
+            {"role": "bot", "content": "Thank you! Let me check that for you... Your order is currently being processed and will ship within 24 hours.", "time": "10:32 AM"}
+        ]
+
+    # Custom CSS for the popover and chat styling
+    st.html("""
+    <style>
+        /* Force popover to bottom right with higher specificity */
+        [data-testid="stPopover"],
+        div[data-testid="stPopover"],
+        section[data-testid="stPopover"] {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            left: unset !important;
+            top: unset !important;
+            z-index: 999999 !important;
+            margin: 0 !important;
+        }
+        
+        /* Target the parent container */
+        [data-testid="stPopover"] > div {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            left: unset !important;
+        }
+        
+        /* Style the popover button */
+        [data-testid="stPopover"] button,
+        [data-testid="stPopover"] > button {
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #ff6b00 0%, #ff8c42 100%) !important;
+            border: none !important;
+            box-shadow: 0 5px 20px rgba(255, 107, 0, 0.4) !important;
+            font-size: 28px !important;
+            padding: 0 !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        [data-testid="stPopover"] button:hover {
+            transform: scale(1.1) !important;
+            box-shadow: 0 7px 25px rgba(255, 107, 0, 0.5) !important;
+        }
+        
+        /* Style the popover content */
+        [data-testid="stPopover"] > div > div,
+        [data-testid="stPopoverBody"] {
+            background: linear-gradient(135deg, #fff5f0 0%, #ffe8db 100%) !important;
+            border: 2px solid #ff8c42 !important;
+            border-radius: 20px !important;
+            box-shadow: 0 10px 40px rgba(255, 107, 0, 0.25) !important;
+            padding: 0 !important;
+            width: 380px !important;
+            max-width: 380px !important;
+            position: fixed !important;
+            bottom: 90px !important;
+            right: 20px !important;
+        }
+        
+        /* Hide Streamlit branding */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Chat header styling */
+        .chat-header {
+            background: linear-gradient(135deg, #ff6b00 0%, #ff8c42 100%);
+            padding: 18px 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 18px 18px 0 0;
+            margin: -1rem -1rem 1rem -1rem;
+        }
+        
+        .chat-icon {
+            width: 30px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        /* Message styling */
+        .chat-message {
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            max-width: 75%;
+        }
+        
+        .chat-message.bot {
+            background: white;
+            color: #333;
+            border: 1px solid #ffd4b8;
+            box-shadow: 0 2px 5px rgba(255, 107, 0, 0.1);
+            margin-right: auto;
+        }
+        
+        .chat-message.user {
+            background: linear-gradient(135deg, #ff6b00 0%, #ff8c42 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
+            margin-left: auto;
+        }
+        
+        .timestamp {
+            font-size: 11px;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+        
+        .chat-message.bot .timestamp {
+            color: #999;
+        }
+        
+        .chat-message.user .timestamp {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        /* Chat messages container */
+        .chat-messages-container {
+            max-height: 350px;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Scrollbar styling */
+        .chat-messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chat-messages-container::-webkit-scrollbar-track {
+            background: #fff5f0;
+        }
+        
+        .chat-messages-container::-webkit-scrollbar-thumb {
+            background: #ff8c42;
+            border-radius: 10px;
+        }
+        
+        .chat-messages-container::-webkit-scrollbar-thumb:hover {
+            background: #ff6b00;
+        }
+        
+        /* Chat input styling */
+        [data-testid="stPopover"] .stChatInput {
+            margin-top: 10px;
+        }
+        
+        [data-testid="stPopover"] .stChatInput input {
+            border: 2px solid #ff8c42 !important;
+            border-radius: 25px !important;
+            background: #fff9f5 !important;
+        }
+        
+        [data-testid="stPopover"] .stChatInput input:focus {
+            border-color: #ff6b00 !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1) !important;
+        }
+    </style>
+
+    <script>
+        // Force position with JavaScript as backup
+        function positionPopover() {
+            const popover = document.querySelector('[data-testid="stPopover"]');
+            if (popover) {
+                popover.style.position = 'fixed';
+                popover.style.bottom = '20px';
+                popover.style.right = '20px';
+                popover.style.left = 'auto';
+                popover.style.top = 'auto';
+            }
+        }
+        
+        // Run on load and with observer
+        window.addEventListener('load', positionPopover);
+        setTimeout(positionPopover, 100);
+        setTimeout(positionPopover, 500);
+        setTimeout(positionPopover, 1000);
+        
+        // Watch for DOM changes
+        const observer = new MutationObserver(positionPopover);
+        observer.observe(document.body, { childList: true, subtree: true });
+    </script>
+    """)
+
+
+    # Chat popover in bottom right
+    with st.popover("💬"):
+        # Chat header
+        st.markdown("""
+        <div class="chat-header">
+            <div class="chat-icon">💬</div>
+            <span>Chat Assistant</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Messages container
+        st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
+        
+        # Display messages
+        for msg in st.session_state.messages:
+            if msg["role"] == "bot":
+                st.markdown(f"""
+                <div class="chat-message bot">
+                    {msg["content"]}
+                    <div class="timestamp">{msg["time"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="chat-message user">
+                    {msg["content"]}
+                    <div class="timestamp">{msg["time"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Chat input
+        # Chat input
+        prompt = st.chat_input("Type your message here...")
+        if prompt:
+            from datetime import datetime
+            
+
+            # Add user message
+            current_time = datetime.now().strftime("%I:%M %p")
+            st.session_state.messages.append({
+                "role": "user",
+                "content": prompt,
+                "time": current_time
+            })
+
+            # Call ResumeBot (LLaMA)
+            with st.chat_message("assistant"):
+                placeholder = st.empty()
+                reply = ""
+                for token in ask_llama(prompt, user_resume):
+                    reply += token
+                    placeholder.markdown(reply)
+
+            # Add bot response to UI
+            st.session_state.messages.append({
+                "role": "bot",
+                "content": reply,
+                "time": current_time
+            })
+
+            st.rerun()

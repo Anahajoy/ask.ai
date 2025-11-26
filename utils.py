@@ -3649,7 +3649,7 @@ def generate_enhanced_resume():
     st.session_state['last_resume_user'] = current_user
     st.session_state['last_resume_hash'] = get_resume_hash(resume_data) if resume_data else None
     st.session_state['last_jd_hash'] = get_resume_hash(jd_data) if jd_data else None
-    
+    chatbot(enhanced_resume)
     return enhanced_resume
 
 
@@ -4604,10 +4604,10 @@ def chatbot(user_resume):
     if 'messages' not in st.session_state:
         st.session_state.messages = [
             {"role": "bot", "content": "Hello! How can I help you today?", "time": "10:30 AM"},
-            {"role": "user", "content": "I need help with my order", "time": "10:31 AM"},
-            {"role": "bot", "content": "I'd be happy to help! Could you provide your order number?", "time": "10:31 AM"},
-            {"role": "user", "content": "Sure, it's #12345", "time": "10:32 AM"},
-            {"role": "bot", "content": "Thank you! Let me check that for you... Your order is currently being processed and will ship within 24 hours.", "time": "10:32 AM"}
+            {"role": "user", "content": "I need help with my resume", "time": "10:31 AM"},
+            {"role": "bot", "content": "I'd be happy to help! Could you provide your basic information", "time": "10:31 AM"},
+            {"role": "user", "content": "Sure,", "time": "10:32 AM"},
+            {"role": "bot", "content": "Thank you! Let me check that for you...", "time": "10:32 AM"}
         ]
 
     # Custom CSS for the popover and chat styling

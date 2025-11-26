@@ -49,52 +49,115 @@ if "selected_template_config" not in st.session_state:
     st.session_state.selected_template_config = None
 
 # ----------------------------------
-# USER AUTHENTICATION
-# ----------------------------------
-if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+import streamlit as st
+import base64
+from datetime import datetime
+from pathlib import Path
+import hashlib
+import re
+from streamlit_extras.switch_page_button import switch_page
+import io
+from io import BytesIO
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
+import streamlit as st
+import json, os
+from datetime import datetime
+from utils import (load_user_doc_templates,load_user_doc_templates,save_user_doc_templates,
+                   replace_content, extract_document_structure, save_user_ppt_templates,
+                   load_user_ppt_templates,load_user_templates,save_user_templates,
+                   extract_template_from_html,get_html_download_link,get_doc_download_link,
+                   get_text_download_link,get_css_date_below,get_css_classic,get_css_minimalist,
+                   get_css_horizontal,get_css_bold_title,get_css_section_box,analyze_slide_structure,
+                   generate_ppt_sections,match_generated_to_original,clear_and_replace_text,
+                   format_section_title,get_standard_keys,generate_generic_html,SYSTEM_TEMPLATES,ATS_COLORS
+                   )
+from datetime import datetime
+
+# Define the preferred display order for sections
+RESUME_ORDER = ["summary", "experience", "education", "skills", "projects", "certifications", "achievements", "publications", "awards"]
+
+# ATS-friendly color palette
+ATS_COLORS = {
+    "Professional Blue (Default)": "#1F497D",
+    "Corporate Gray": "#4D4D4D",
+    "Deep Burgundy": "#800020",
+    "Navy Blue": "#000080",
+    "Black":"#000000"
+}
+
+# Initialize selected_template_config
+if "selected_template_config" not in st.session_state:
+    st.session_state.selected_template_config = None
+
+def app_download():
+    st.set_page_config(layout="wide", page_title="Download Resume")
+    ACCENT_COLOR = "#6ea8fe"
+    
+    # ----------------------------------
+    # USER AUTHENTICATION - MUST BE FIRST
+    # ----------------------------------
+    if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
         logged_user = st.query_params.get("user")
         if logged_user:
             st.session_state.logged_in_user = logged_user
         else:
             st.warning("Please login first!")
             st.switch_page("app.py")
+            return  # Stop execution if not logged in
 
-if st.session_state.logged_in_user:
+    if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
 
-current_user = st.session_state.get('logged_in_user', '')
+    current_user = st.session_state.get('logged_in_user', '')
+    
+    # ----------------------------------
+    # LOAD ALL TEMPLATES AFTER AUTHENTICATION
+    # ----------------------------------
+    if current_user:
+        # Load HTML templates
+        if 'uploaded_templates' not in st.session_state:
+            st.session_state.uploaded_templates = load_user_templates(current_user)
+        
+        # Load Word templates
+        if 'doc_templates' not in st.session_state:
+            st.session_state.doc_templates = load_user_doc_templates(current_user)
+        
+        # Load PowerPoint templates
+        if 'ppt_templates' not in st.session_state:
+            st.session_state.ppt_templates = load_user_ppt_templates(current_user)
     
     # ----------------------------------
     # RESTORE RESUME DATA FROM QUERY PARAMS
     # ----------------------------------
-if 'final_resume_data' not in st.session_state or st.session_state.final_resume_data is None:
+    if 'final_resume_data' not in st.session_state or st.session_state.final_resume_data is None:
         resume_data_param = st.query_params.get("resume_data")
         if resume_data_param:
             try:
                 import json
                 import base64
-                # Decode from base64
                 decoded_data = base64.b64decode(resume_data_param).decode('utf-8')
                 st.session_state.final_resume_data = json.loads(decoded_data)
             except Exception as e:
                 st.error(f"Error restoring resume data: {str(e)}")
     
     # Store resume data in query params for persistence
-if st.session_state.get('final_resume_data'):
+    if st.session_state.get('final_resume_data'):
         try:
             import json
             import base64
-            # Encode to base64 to store in URL
             json_str = json.dumps(st.session_state.final_resume_data)
             encoded_data = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
             st.query_params["resume_data"] = encoded_data
         except Exception as e:
-            pass  # Silently fail if encoding doesn't work
+            pass
     
     # ----------------------------------
     # RESTORE TEMPLATE SELECTION FROM QUERY PARAMS
     # ----------------------------------
-if 'selected_template' not in st.session_state or st.session_state.selected_template is None:
+    if 'selected_template' not in st.session_state or st.session_state.selected_template is None:
         template_name = st.query_params.get("template")
         template_source = st.query_params.get("source")
         
@@ -105,7 +168,7 @@ if 'selected_template' not in st.session_state or st.session_state.selected_temp
             if template_source == 'system' and template_name in SYSTEM_TEMPLATES:
                 st.session_state.selected_template_config = SYSTEM_TEMPLATES[template_name]
 
-if st.session_state.get('selected_template'):
+    if st.session_state.get('selected_template'):
         st.query_params["template"] = st.session_state.selected_template
         if st.session_state.get('template_source'):
             st.query_params["source"] = st.session_state.template_source
@@ -113,31 +176,15 @@ if st.session_state.get('selected_template'):
     # ----------------------------------
     # RESTORE SELECTED COLOR FROM QUERY PARAMS
     # ----------------------------------
-if 'selected_color' not in st.session_state or st.session_state.selected_color is None:
+    if 'selected_color' not in st.session_state or st.session_state.selected_color is None:
         color_param = st.query_params.get("color")
         if color_param:
             st.session_state.selected_color = color_param
     
-if st.session_state.get('selected_color'):
+    if st.session_state.get('selected_color'):
         st.query_params["color"] = st.session_state.selected_color
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def app_download():
-    st.set_page_config(layout="wide", page_title="Download Resume")
-    ACCENT_COLOR = "#6ea8fe" # Softer, bright blue
+    # [Continue with your CSS styling and rest of the code...]
 
     st.markdown(f"""
     <style>
@@ -678,10 +725,10 @@ button[data-testid="stBaseButton-secondary"]:hover {{
         with tab3:
 
             if 'uploaded_templates' not in st.session_state:
-                st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
+                st.session_state.uploaded_templates = load_user_templates(current_user)
             
             if 'doc_templates' not in st.session_state:
-                st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
+                st.session_state.doc_templates = load_user_doc_templates(current_user)
 
         
             st.markdown("### 🗂️ Your Saved Templates")

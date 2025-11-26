@@ -3,7 +3,7 @@ import base64
 from datetime import datetime
 import json
 from utils import(get_user_resume,generate_markdown_text,SYSTEM_TEMPLATES, 
-    ATS_COLORS, 
+    ATS_COLORS, chatbot,
     generate_generic_html,
     generate_markdown_text,
     save_user_doc_templates,load_user_templates,load_user_doc_templates,save_user_templates,replace_content
@@ -121,6 +121,8 @@ if not user_resume:
         st.query_params["user"] = email
         st.switch_page("pages/main.py")
     st.stop()
+
+chatbot(user_resume)
 
 # ----------------------------------
 # GET TEMPLATE SELECTION VALUES

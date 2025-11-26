@@ -494,10 +494,66 @@ if st.query_params.get("logout") == "true":
     st.query_params.clear()
     st.switch_page("app.py")
 
-if should_regenerate_resume():
 
+import time
+
+loading_placeholder = st.empty()
+
+if should_regenerate_resume():
+    loading_placeholder.markdown("""
+        <div id="overlay-loader">
+            <div class="loader-spinner"></div>
+            <p>Please Wait...</p>
+        </div>
+        <style>
+            #overlay-loader {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(6px);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                font-size: 1.2rem;
+                font-weight: 500;
+            }
+
+            .loader-spinner {
+                border: 5px solid rgba(232, 117, 50, 0.2);
+                border-top: 5px solid #e87532;
+                border-radius: 50%;
+                width: 70px;
+                height: 70px;
+                animation: spin 1s linear infinite;
+                margin-bottom: 20px;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            #overlay-loader p {
+                color: #1f2937;
+                font-size: 1.1rem;
+                letter-spacing: 0.5px;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Run spinner for 5 seconds
+    time.sleep(5)
+
+    # Run your function AFTER the delay
     generate_enhanced_resume()
 
+    # Remove spinner
+    loading_placeholder.empty()
 
 resume_data = st.session_state.get('enhanced_resume')
 jd_data = st.session_state.get('job_description')
@@ -582,7 +638,7 @@ def main():
     st.session_state['enhanced_resume'] = data
     
     # Create 3 columns with different widths: narrow, medium, wider
-    col1, col3 = st.columns([1.2, 6])
+    col1, col3 = st.columns([3.5, 6])
     
     # LEFT PANEL - Tools Section
     with col1:

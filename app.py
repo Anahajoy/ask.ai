@@ -729,14 +729,14 @@ with st.container():
                 css_styles="""
                     button {
                         background-color: #e87532 !important;
-                        color: white !important;
+                        color: #ffffff !important;
                         padding: 15px 35px !important;
                         border-radius: 50px !important;
                         font-weight: 600 !important;
                         border: 2px solid #e87532 !important;
                     }
                     button:hover {
-                        background-color: white !important;
+                        background-color: #ffffff !important;
                         color: #e87532 !important;
                     }
                 """

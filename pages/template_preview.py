@@ -766,25 +766,41 @@ document.addEventListener('DOMContentLoaded', function() {
 # ----------------------------------
 # TOP NAVIGATION
 # ----------------------------------
+# Build navigation menu conditionally
+nav_items = f"""
+    <div class="nav-item">
+        <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
+    </div>
+    <div class="nav-item">
+        <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
+    </div>
+"""
+
+# Add Edit Content link only if final_resume_data exists
+if st.session_state.get("final_resume_data"):
+    nav_items += f"""
+    <div class="nav-item">
+        <a class="nav-link" href="?edit=true&user={current_user}" target="_self">Edit Content</a>
+    </div>
+"""
+
+nav_items += f"""
+    <div class="nav-item">
+        <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+    </div>
+    <div class="nav-item">
+        <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+    </div>
+"""
+
 st.markdown(f"""
     <div class="nav-wrapper">
         <div class="logo">Resume Creator</div>
         <div class="nav-menu">
-            <div class="nav-item">
-                <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
-            </div>
-            <div class="nav-item">
-                <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
-            </div>
-            <div class="nav-item">
-                <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
-            </div>
-            <div class="nav-item">
-                <a class="nav-link" href="?logout=true" target="_self">Logout</a>
-            </div>
+            {nav_items}
         </div>
     </div>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
     # Handle navigation - PRESERVE USER IN SESSION STATE
 if st.query_params.get("addjd") == "true":
@@ -813,7 +829,17 @@ if st.query_params.get("logout") == "true":
         st.switch_page("app.py")
 
 
-
+if st.query_params.get("edit") == "true":
+    st.query_params.clear()
+    if current_user:
+        st.query_params["user"] = current_user
+    # Pass final_resume_data through query params
+    if st.session_state.get("final_resume_data"):
+        try:
+            st.query_params["final_resume"] = json.dumps(st.session_state.final_resume_data)
+        except:
+            pass
+    st.switch_page("pages/create.py") 
 # ----------------------------------
 # MAIN LAYOUT - THREE COLUMNS
 # ----------------------------------

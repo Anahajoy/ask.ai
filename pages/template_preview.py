@@ -224,14 +224,13 @@ section[data-testid="stAppViewContainer"] > div {
     --section-bg: #fffbf7;
 }
 
-/* Navigation */
 .nav-wrapper {
     position: fixed;
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
-    max-width: 1400px;
+    max-width: 1200px;
     z-index: 99999 !important;
     background-color: white !important;
     padding: 0.8rem 2rem;
@@ -256,6 +255,8 @@ section[data-testid="stAppViewContainer"] > div {
     align-items: center;
 }
 
+.nav-item { position: relative; }
+
 .nav-link {
     color: #000000 !important;
     text-decoration: none !important;
@@ -267,9 +268,13 @@ section[data-testid="stAppViewContainer"] > div {
     transition: all 0.3s ease;
 }
 
+.nav-link:visited {
+    color: #000000 !important;
+}
+
 .nav-link:hover {
-    background-color: #f8fafc;
-    color: #e87532;
+    background-color: #fff5f0;
+    color: #ff8c42 !important;  /* Added !important to override the default color */
 }
 
 /* Main Container - Increased bottom padding for white space */

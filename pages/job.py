@@ -299,58 +299,57 @@ st.markdown("""
     }
 
     .nav-wrapper {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90%;
-        max-width: 1200px;
-        z-index: 99999 !important;
-        background-color: white !important;
-        padding: 0.8rem 2rem;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-radius: 50px;
-    }
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 1200px;
+    z-index: 99999 !important;
+    background-color: white !important;
+    padding: 0.8rem 2rem;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 50px;
+}
 
-    .logo {
-        font-size: 24px;
-        font-weight: 400;
-        color: #2c3e50;
-        font-family: 'Nunito Sans', sans-serif !important;
-        letter-spacing: -0.5px;
-    }
+.logo {
+    font-size: 24px;
+    font-weight: 400;
+    color: #2c3e50;
+    font-family: 'Nunito Sans', sans-serif !important;
+    letter-spacing: -0.5px;
+}
 
-    .nav-menu {
-        display: flex;
-        gap: 2rem;
-        align-items: center;
-    }
+.nav-menu {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
 
-    .nav-item { position: relative; }
+.nav-item { position: relative; }
 
-    .nav-link {
-        color: #000000 !important;
-        text-decoration: none !important;
-        font-size: 1rem;
-        font-family: 'Nunito Sans', sans-serif;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
+.nav-link {
+    color: #000000 !important;
+    text-decoration: none !important;
+    font-size: 1rem;
+    font-family: 'Nunito Sans', sans-serif;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
 
-    .nav-link:visited {
-        color: #000000 !important;
-    }
+.nav-link:visited {
+    color: #000000 !important;
+}
 
-    .nav-link:hover {
-        background-color: #fff5f0;
-        color: #e87532;
-    }
-
+.nav-link:hover {
+    background-color: #fff5f0;
+    color: #ff8c42 !important;  /* Added !important to override the default color */
+}
 
     </style>
     """, unsafe_allow_html=True)

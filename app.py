@@ -110,65 +110,7 @@ st.markdown("""
 
 .nav-link:hover {
     background-color: #fff5f0;
-    color: #e87532;
-}
-
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
-
-.dropdown-toggle {
-    color: #000000;
-    text-decoration: none;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    background: transparent;
-    border: none;
-    transition: all 0.3s ease;
-}
-
-.dropdown-toggle:hover {
-    background-color: #fff5f0;
-    color: #d9534f;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: white;
-    min-width: 200px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    border-radius: 8px;
-    z-index: 100000;
-    top: 100%;
-    margin-top: 0.5rem;
-}
-
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
-.dropdown-item {
-    color: #000000 !important;
-    padding: 12px 16px;
-    text-decoration: none !important;
-    display: block;
-    font-family: 'Nunito Sans', sans-serif;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.dropdown-item:visited {
-    color: #000000 !important;
-}
-
-.dropdown-item:hover {
-    background-color: #fff5f0;
-    color: #d9534f;
+    color: #ff8c42 !important;  /* Added !important to override the default color */
 }
 
 .hero-title {

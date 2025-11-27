@@ -4077,11 +4077,6 @@ def show_login_modal():
         footer {visibility: hidden;}
         header {visibility: hidden;}
 
-        /* Main container styling */
-        .block-container {
-            padding: 1.5rem !important;
-            max-width: 1200px !important;
-        }
 
         /* Main heading */
         .main-heading {
@@ -4465,38 +4460,6 @@ def show_login_modal():
                 <p class="welcome-text">Register with your personal details to use all of site features</p>
             </div>
             ''', unsafe_allow_html=True)
-            
-            # Toggle button
-            with stylable_container(
-                key="signup_toggle_btn",
-                css_styles="""
-                button {
-                    background-color: transparent !important;
-                    color: #fff !important;
-                    border: 1px solid #fff !important;
-                    border-radius: 8px !important;
-                    padding: 10px 45px !important;
-                    font-size: 12px !important;
-                    font-weight: 600 !important;
-                    letter-spacing: 0.5px !important;
-                    text-transform: uppercase !important;
-                    cursor: pointer !important;
-                    width: 60% !important;
-                    transition: all 0.3s ease !important;
-                    font-family: 'Montserrat', sans-serif !important;
-                    margin: 0 auto !important;
-                    display: block !important;
-                }
-                button:hover {
-                    background-color: #fff !important;
-                    color: #f12711 !important;
-                    transform: translateY(-2px) !important;
-                }
-                """
-            ):
-                if st.button("Sign Up", key="toggle_signup"):
-                    st.session_state.mode = 'register'
-                    st.rerun()
         else:
             st.markdown('''
             <div class="welcome-panel">
@@ -4505,37 +4468,37 @@ def show_login_modal():
             </div>
             ''', unsafe_allow_html=True)
             
-            # Toggle button
-            with stylable_container(
-                key="login_toggle_btn",
-                css_styles="""
-                button {
-                    background-color: transparent !important;
-                    color: #fff !important;
-                    border: 1px solid #fff !important;
-                    border-radius: 8px !important;
-                    padding: 10px 45px !important;
-                    font-size: 12px !important;
-                    font-weight: 600 !important;
-                    letter-spacing: 0.5px !important;
-                    text-transform: uppercase !important;
-                    cursor: pointer !important;
-                    width: 60% !important;
-                    transition: all 0.3s ease !important;
-                    font-family: 'Montserrat', sans-serif !important;
-                    margin: 0 auto !important;
-                    display: block !important;
-                }
-                button:hover {
-                    background-color: #fff !important;
-                    color: #f12711 !important;
-                    transform: translateY(-2px) !important;
-                }
-                """
-            ):
-                if st.button("Sign In", key="toggle_login"):
-                    st.session_state.mode = 'login'
-                    st.rerun()
+            # # Toggle button
+            # with stylable_container(
+            #     key="login_toggle_btn",
+            #     css_styles="""
+            #     button {
+            #         background-color: transparent !important;
+            #         color: #fff !important;
+            #         border: 1px solid #fff !important;
+            #         border-radius: 8px !important;
+            #         padding: 10px 45px !important;
+            #         font-size: 12px !important;
+            #         font-weight: 600 !important;
+            #         letter-spacing: 0.5px !important;
+            #         text-transform: uppercase !important;
+            #         cursor: pointer !important;
+            #         width: 60% !important;
+            #         transition: all 0.3s ease !important;
+            #         font-family: 'Montserrat', sans-serif !important;
+            #         margin: 0 auto !important;
+            #         display: block !important;
+            #     }
+            #     button:hover {
+            #         background-color: #fff !important;
+            #         color: #f12711 !important;
+            #         transform: translateY(-2px) !important;
+            #     }
+            #     """
+            # ):
+            #     # if st.button("Sign In", key="toggle_login"):
+            #     #     st.session_state.mode = 'login'
+            #     #     st.rerun()
 
 
 

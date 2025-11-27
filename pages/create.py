@@ -60,9 +60,44 @@ if "job_description" not in st.session_state or st.session_state.job_description
     else:
         st.session_state.job_description = st.session_state.get("job_description", {})
 
+
+
 # Save JD back to URL
 if st.session_state.get("job_description"):
     st.query_params["jd"] = json.dumps(st.session_state.job_description)
+
+# ---------- ENHANCED RESUME STATE RESTORE ----------
+if "enhanced_resume" not in st.session_state or st.session_state.enhanced_resume is None:
+    enhanced_param = st.query_params.get("enhanced_resume")
+    if enhanced_param:
+        try:
+            st.session_state.enhanced_resume = json.loads(enhanced_param)
+        except:
+            st.session_state.enhanced_resume = None
+
+# ---------- RESTORE GENERATION METADATA ----------
+if "last_resume_hash" not in st.session_state or st.session_state.last_resume_hash is None:
+    st.session_state.last_resume_hash = st.query_params.get("last_resume_hash")
+
+if "last_jd_hash" not in st.session_state or st.session_state.last_jd_hash is None:
+    st.session_state.last_jd_hash = st.query_params.get("last_jd_hash")
+
+if "last_resume_user" not in st.session_state or st.session_state.last_resume_user is None:
+    st.session_state.last_resume_user = st.query_params.get("last_resume_user")
+
+# ---------- SAVE ALL STATE BACK TO URL (Always sync to URL) ----------
+if st.session_state.get("enhanced_resume"):
+    st.query_params["enhanced_resume"] = json.dumps(st.session_state.enhanced_resume)
+
+if st.session_state.get("last_resume_hash"):
+    st.query_params["last_resume_hash"] = str(st.session_state.last_resume_hash)
+
+if st.session_state.get("last_jd_hash"):
+    st.query_params["last_jd_hash"] = str(st.session_state.last_jd_hash)
+
+if st.session_state.get("last_resume_user"):
+    st.query_params["last_resume_user"] = str(st.session_state.last_resume_user)
+
 
 
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
@@ -342,14 +377,27 @@ def apply_custom_css():
     
     /* Delete button styling */
     .stButton > button[kind="secondary"] {
-        background: rgba(239, 68, 68, 0.1) !important;
-        color: var(--danger-red) !important;
-        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        background: #9FC0DE !important;
+        color: #ffffff !important;
+        border: 1px solid #9FC0DE !important;
     }
     
     .stButton > button[kind="secondary"]:hover {
-        background: rgba(239, 68, 68, 0.2) !important;
-        border-color: var(--danger-red) !important;
+        background: #ffffff !important;
+        border-color: #9FC0DE !important;
+        color : #9FC0DE !important;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: #e87532 !important;
+        color: #ffffff !important;
+        border: 1px solid #e87532 !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: #ffffff !important;
+        border-color: #e87532 !important;
+        color: #e87532 !important;
     }
 
     /* LIVE PREVIEW MOCK UI BOX */
@@ -495,65 +543,65 @@ if st.query_params.get("logout") == "true":
     st.switch_page("app.py")
 
 
-import time
+# import time
 
-loading_placeholder = st.empty()
+# loading_placeholder = st.empty()
 
 if should_regenerate_resume():
-    loading_placeholder.markdown("""
-        <div id="overlay-loader">
-            <div class="loader-spinner"></div>
-            <p>Please Wait...</p>
-        </div>
-        <style>
-            #overlay-loader {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(6px);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                font-size: 1.2rem;
-                font-weight: 500;
-            }
+    # loading_placeholder.markdown("""
+    #     <div id="overlay-loader">
+    #         <div class="loader-spinner"></div>
+    #         <p>Please Wait...</p>
+    #     </div>
+    #     <style>
+    #         #overlay-loader {
+    #             position: fixed;
+    #             top: 0;
+    #             left: 0;
+    #             width: 100vw;
+    #             height: 100vh;
+    #             background: rgba(255, 255, 255, 0.95);
+    #             backdrop-filter: blur(6px);
+    #             display: flex;
+    #             flex-direction: column;
+    #             justify-content: center;
+    #             align-items: center;
+    #             z-index: 9999;
+    #             font-size: 1.2rem;
+    #             font-weight: 500;
+    #         }
 
-            .loader-spinner {
-                border: 5px solid rgba(232, 117, 50, 0.2);
-                border-top: 5px solid #e87532;
-                border-radius: 50%;
-                width: 70px;
-                height: 70px;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
+    #         .loader-spinner {
+    #             border: 5px solid rgba(232, 117, 50, 0.2);
+    #             border-top: 5px solid #e87532;
+    #             border-radius: 50%;
+    #             width: 70px;
+    #             height: 70px;
+    #             animation: spin 1s linear infinite;
+    #             margin-bottom: 20px;
+    #         }
 
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
+    #         @keyframes spin {
+    #             0% { transform: rotate(0deg); }
+    #             100% { transform: rotate(360deg); }
+    #         }
 
-            #overlay-loader p {
-                color: #1f2937;
-                font-size: 1.1rem;
-                letter-spacing: 0.5px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
+    #         #overlay-loader p {
+    #             color: #1f2937;
+    #             font-size: 1.1rem;
+    #             letter-spacing: 0.5px;
+    #         }
+    #     </style>
+    # """, unsafe_allow_html=True)
 
-    # Run spinner for 5 seconds
-    time.sleep(5)
+    # # Run spinner for 5 seconds
+    # time.sleep(5)
 
     # Run your function AFTER the delay
     generate_enhanced_resume()
 
     # Remove spinner
-    loading_placeholder.empty()
+    # loading_placeholder.empty()
 
 resume_data = st.session_state.get('enhanced_resume')
 jd_data = st.session_state.get('job_description')
@@ -638,12 +686,12 @@ def main():
     st.session_state['enhanced_resume'] = data
     
     # Create 3 columns with different widths: narrow, medium, wider
-    col1, col3 = st.columns([3.5, 6])
+    col1, col3 = st.columns([3.5, 6], gap="large")
     
     # LEFT PANEL - Tools Section
     with col1:
         with st.container():
-            st.markdown("<div class='panel-container left-panel'>", unsafe_allow_html=True)
+            # st.markdown("<div class='panel-container left-panel'>", unsafe_allow_html=True)
             st.title("Resume Tools 🛠️")
             loading_placeholder = st.empty()
             # ========= PREMIUM ATS GAUGE ==========
@@ -811,7 +859,7 @@ def main():
                         "end_date": "2025-12-31",
                         "description": ["New responsibility 1."]
                     }),
-                    type="primary"
+                    type="secondary"
                 )
                 st.button(
                     "Add New Education",
@@ -822,7 +870,7 @@ def main():
                         "start_date": "2025-01-01",
                         "end_date": "2025-12-31"
                     }),
-                    type="primary"
+                    type="secondary"
                 )
                 st.button(
                     "Add New Certification",
@@ -832,7 +880,7 @@ def main():
                         "issuer": "Issuing Body",
                         "completed_date": "2025-01-01"
                     }),
-                    type="primary"
+                    type="secondary"
                 )
                 st.button(
                     "Add New Project",
@@ -841,7 +889,7 @@ def main():
                         "name": "New Project Title",
                         "description": ["Project detail"]
                     }),
-                    type="primary"
+                    type="secondary"
                 )
             st.markdown("</div>", unsafe_allow_html=True)
            
@@ -849,7 +897,7 @@ def main():
     with col3:
       
         with st.container():
-            st.markdown("<div class='panel-container middle-panel'>", unsafe_allow_html=True)
+            # st.markdown("<div class='panel-container middle-panel'>", unsafe_allow_html=True)
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>", unsafe_allow_html=True)
             
             # Render basic details

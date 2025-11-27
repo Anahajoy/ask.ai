@@ -3649,6 +3649,12 @@ def generate_enhanced_resume():
     st.session_state['last_resume_user'] = current_user
     st.session_state['last_resume_hash'] = get_resume_hash(resume_data) if resume_data else None
     st.session_state['last_jd_hash'] = get_resume_hash(jd_data) if jd_data else None
+
+    st.query_params["enhanced_resume"] = json.dumps(enhanced_resume)
+    st.query_params["last_resume_hash"] = st.session_state['last_resume_hash'] or ""
+    st.query_params["last_jd_hash"] = st.session_state['last_jd_hash'] or ""
+    st.query_params["last_resume_user"] = current_user
+
     chatbot(enhanced_resume)
     return enhanced_resume
 
@@ -3696,7 +3702,7 @@ def render_basic_details(data, is_edit):
         if data.get('summary'):
             st.markdown('<div class="resume-section">', unsafe_allow_html=True)
             st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
-            st.markdown(f"<p style='color:#E0E0E0;'>{data['summary']}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color:#000000;'>{data['summary']}</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
 

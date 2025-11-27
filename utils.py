@@ -28,7 +28,13 @@ import time
 import base64
 from io import BytesIO
 from datetime import datetime
+import requests
+import json
 
+
+# Recommended models:
+FAST_MODEL = "meta/llama3-8b-instruct"
+HEAVY_MODEL = "meta/llama3-70b-instruct"
 
 
 
@@ -612,19 +618,40 @@ Return only valid JSON format without any additional text.
 """
 
     payload = {
-        "model": "meta/llama-3.1-70b-instruct",
+        "model": HEAVY_MODEL,  # try high-quality model first
         "messages": [
             {"role": "system", "content": "You are an expert at extracting job description details. Always return valid JSON only."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.1,
-        "max_tokens": 2000
+        "temperature": 0.3,     # faster + less hallucinations
+        "max_tokens": 200,      # limit output for speed
+        "stream": True
     }
 
-    response = requests.post(url, headers=headers, json=payload)
-    response.raise_for_status()
-    result = response.json()
-    response_text = result['choices'][0]['message']['content']
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+    except Exception:
+        # Fallback to fast 8B model automatically 👍
+        payload["model"] = FAST_MODEL
+        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+
+    # Read streamed chunks
+    response_text = ""
+    for chunk in response.iter_lines():
+        if chunk:
+            try:
+                data = json.loads(chunk.decode("utf-8").replace("data: ", ""))
+                if "choices" in data and "delta" in data["choices"][0]:
+                    delta = data["choices"][0]["delta"].get("content", "")
+                    if delta:
+                        response_text += delta
+            except Exception:
+                pass
 
     # Extract JSON substring
     json_start = response_text.find('{')
@@ -635,6 +662,7 @@ Return only valid JSON format without any additional text.
         return jd_structured
     else:
         raise ValueError("Valid JSON not found in LLM response")
+
 
 
 
@@ -4551,13 +4579,7 @@ Example response style:
 
 Always be helpful and specific in your advice!"""
 
-import requests
-import json
 
-
-# Recommended models:
-FAST_MODEL = "meta/llama3-8b-instruct"
-HEAVY_MODEL = "meta/llama3-70b-instruct"
 
 def ask_llama(message, resume_data=None):
     """

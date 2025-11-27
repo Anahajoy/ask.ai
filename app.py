@@ -110,7 +110,7 @@ st.markdown("""
 
 .nav-link:hover {
     background-color: #fff5f0;
-    color: #d9534f;
+    color: #e87532;
 }
 
 .dropdown {

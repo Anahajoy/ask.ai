@@ -110,7 +110,7 @@ st.markdown("""
 
 .nav-link:hover {
     background-color: #fff5f0;
-    color: #ff8c42 !important;  /* Added !important to override the default color */
+    color: #ff8c42 !important;
 }
 
 .hero-title {
@@ -226,8 +226,6 @@ st.markdown("""
     letter-spacing: 0.5px;
 }
 
-
-/* Alternative wavy divider if you want the wave effect shown in the image */
 .section-divider-wave {
     width: 200px;
     height: 20px;
@@ -536,13 +534,20 @@ st.markdown("""
     background: #ff5733;
 }
 
-div[data-testid="stButton"] button:hover {
-    filter: brightness(1.1);
+div[data-testid="stButton"] > button:hover,
+.stButton > button:hover {
+    background-color: white !important;
+    color: #ff8c42 !important;
+    border: 2px solid #ff8c42 !important;
+}
+
+/* Template Toggle Buttons - Default State (Not Selected) */
+div[data-testid="stButton"] > button {
+    border: 2px solid #e87532 !important;
 }
 
 /* Scroll to Top Button */
 .scroll-to-top {
-   
     bottom: 30px;
     right: 30px;
     width: 50px;
@@ -569,7 +574,9 @@ div[data-testid="stButton"] button:hover {
 }
 
 .scroll-to-top:hover {
-    background: #d66629;
+    background: white !important;
+    color: #ff8c42 !important;
+    border: 2px solid #ff8c42 !important;
     transform: translateY(-5px);
     box-shadow: 0 6px 16px rgba(232, 117, 50, 0.6);
 }

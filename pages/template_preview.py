@@ -138,7 +138,82 @@ template_source = st.session_state.template_source
 
 st.markdown("""
 <style>
+/* CRITICAL: Prevent ALL scrolling on the page */
+html, body {
+    overflow: hidden !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    position: fixed !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overscroll-behavior: none !important;
+}
+
+/* Prevent touch scrolling on mobile */
+html {
+    touch-action: none !important;
+    -ms-touch-action: none !important;
+}
+
+/* Hide all scrollbars globally */
+* {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Prevent scroll on all Streamlit containers */
+#root, [data-testid="stAppViewContainer"], .main, .block-container {
+    overflow: hidden !important;
+    position: fixed !important;
+    height: 100vh !important;
+    width: 100% !important;
+    overscroll-behavior: none !important;
+}
+
 #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
+
+/* Streamlit app container - lock it */
+.stApp {
+    overflow: hidden !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    overscroll-behavior: none !important;
+}
+
+section[data-testid="stAppViewContainer"] {
+    overflow: hidden !important;
+    height: 100vh !important;
+    position: fixed !important;
+    width: 100% !important;
+}
+
+section[data-testid="stAppViewContainer"] > div {
+    overflow: hidden !important;
+    height: 100vh !important;
+}
+
+.main {
+    overflow: hidden !important;
+    height: 100vh !important;
+    position: fixed !important;
+    width: 100% !important;
+}
+
+.main .block-container {
+    overflow: hidden !important;
+    height: 100vh !important;
+    padding-top: 100px !important;
+    padding-bottom: 40px !important;
+    max-height: 100vh !important;
+    position: relative !important;
+}
 
 :root {
     --primary-orange: #e87532;
@@ -197,13 +272,80 @@ st.markdown("""
     color: #e87532;
 }
 
-/* Main Container */
+/* Main Container - Increased bottom padding for white space */
 .main-content {
     margin-top: 100px;
     display: grid;
     grid-template-columns: 280px 250px 1fr;
     gap: 1.5rem;
-    padding: 0 2rem;
+    padding: 0 2rem 3rem 2rem;
+    height: calc(100vh - 180px) !important;
+    max-height: calc(100vh - 180px) !important;
+    overflow: hidden !important;
+}
+
+/* Horizontal block wrapper */
+div[data-testid="stHorizontalBlock"] {
+    overflow: hidden !important;
+    height: calc(100vh - 180px) !important;
+    max-height: calc(100vh - 180px) !important;
+}
+
+/* Vertical blocks - prevent overflow */
+div[data-testid="stVerticalBlock"] {
+    overflow: hidden !important;
+}
+
+/* Left column (col1) - ONLY this scrolls */
+div[data-testid="column"]:first-child {
+    height: calc(100vh - 200px) !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 10px;
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+div[data-testid="column"]:first-child::-webkit-scrollbar {
+    display: block !important;
+    width: 8px !important;
+    height: 8px !important;
+}
+
+/* Right column (col3 - preview) - ONLY this scrolls with MORE bottom space */
+div[data-testid="column"]:last-child {
+    height: calc(100vh - 200px) !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 10px;
+    padding-bottom: 40px !important;
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+div[data-testid="column"]:last-child::-webkit-scrollbar {
+    display: block !important;
+    width: 8px !important;
+    height: 8px !important;
+}
+
+/* Scrollbar styling for columns */
+div[data-testid="column"]::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+div[data-testid="column"]::-webkit-scrollbar-thumb {
+    background: var(--primary-orange);
+    border-radius: 10px;
+}
+
+div[data-testid="column"]::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
 /* Panel Styling */
@@ -227,13 +369,37 @@ st.markdown("""
     border-bottom: 2px solid var(--primary-orange);
 }
 
-/* Template List Container */
+/* Template List Container - WITH SCROLLING */
 .template-list-container {
     background: white;
     border-radius: 8px;
     padding: 1rem;
-    max-height: 500px;
-    overflow-y: auto;
+    max-height: 350px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+.template-list-container::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+    height: 6px !important;
+}
+
+.template-list-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.template-list-container::-webkit-scrollbar-thumb {
+    background: var(--primary-orange);
+    border-radius: 10px;
+}
+
+.template-list-container::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
 /* Template List Header */
@@ -343,25 +509,6 @@ st.markdown("""
     border-color: #dc2626 !important;
 }
 
-/* Scrollbar Styling */
-.template-list-container::-webkit-scrollbar {
-    width: 6px;
-}
-
-.template-list-container::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 10px;
-}
-
-.template-list-container::-webkit-scrollbar-thumb {
-    background: var(--primary-orange);
-    border-radius: 10px;
-}
-
-.template-list-container::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-dark);
-}
-
 /* Color Circles */
 .color-palette {
     display: flex;
@@ -413,24 +560,33 @@ st.markdown("""
     font-size: 0.95rem;
 }
 
-/* Preview Panel */
+/* Preview Panel - with bottom spacing */
 .preview-panel {
     background: var(--section-bg);
     border-radius: 12px;
-    padding: 2rem;
+    padding: 1.5rem;
+    padding-bottom: 2.5rem;
     box-shadow: 0 2px 8px rgba(232, 117, 50, 0.1);
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
+    height: 100%;
+    max-height: calc(100vh - 200px);
+    overflow: visible;
     border: 1px solid var(--border-color);
+    margin-bottom: 20px;
 }
 
 .preview-header {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 600;
     color: var(--primary-orange);
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
     border-bottom: 2px solid var(--primary-orange);
+}
+
+/* Streamlit components iframe container - adjust height with bottom space */
+iframe {
+    max-height: calc(100vh - 280px) !important;
+    margin-bottom: 20px !important;
 }
 
 /* Streamlit Overrides */
@@ -499,12 +655,40 @@ st.markdown("""
     border-color: var(--primary-orange) !important;
 }
 
+/* Tab panels with scrolling and bottom space */
 .stTabs [data-baseweb="tab-panel"] {
     background-color: var(--section-bg);
     padding: 1.5rem;
+    padding-bottom: 2rem;
     border-radius: 0 0 8px 8px;
     border: 1px solid var(--border-color);
     border-top: none;
+    max-height: calc(100vh - 320px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    -ms-overflow-style: auto !important;
+    overscroll-behavior: contain !important;
+}
+
+.stTabs [data-baseweb="tab-panel"]::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+    height: 6px !important;
+}
+
+.stTabs [data-baseweb="tab-panel"]::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.stTabs [data-baseweb="tab-panel"]::-webkit-scrollbar-thumb {
+    background: var(--primary-orange);
+    border-radius: 10px;
+}
+
+.stTabs [data-baseweb="tab-panel"]::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
 }
 
 /* File uploader */
@@ -541,6 +725,42 @@ hr {
     display: none;
 }
 </style>
+
+<script>
+// JavaScript to prevent scrolling on the main window
+document.addEventListener('DOMContentLoaded', function() {
+    // Prevent wheel scrolling on window
+    window.addEventListener('wheel', function(e) {
+        // Only prevent if not scrolling inside a column or template list
+        if (!e.target.closest('[data-testid="column"]') && 
+            !e.target.closest('.template-list-container') &&
+            !e.target.closest('[data-baseweb="tab-panel"]')) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }, { passive: false });
+    
+    // Prevent arrow key scrolling
+    window.addEventListener('keydown', function(e) {
+        if(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) {
+            if (!e.target.closest('[data-testid="column"]') && 
+                !e.target.closest('.template-list-container') &&
+                !e.target.closest('[data-baseweb="tab-panel"]')) {
+                e.preventDefault();
+            }
+        }
+    });
+    
+    // Prevent touch scrolling
+    document.body.addEventListener('touchmove', function(e) {
+        if (!e.target.closest('[data-testid="column"]') && 
+            !e.target.closest('.template-list-container') &&
+            !e.target.closest('[data-baseweb="tab-panel"]')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+});
+</script>
 """, unsafe_allow_html=True)
 
 # ----------------------------------
@@ -638,20 +858,35 @@ with col1:
             </div>
             """, unsafe_allow_html=True)
             
-            # Browse templates button
             system_template_names = list(SYSTEM_TEMPLATES.keys())
+           # Find the current template's index
+            try:
+                current_index = system_template_names.index(st.session_state.selected_template)
+            except (ValueError, AttributeError):
+                current_index = 0
+
             selected_system_template = st.selectbox(
                 "Select a System Template:",
                 system_template_names,
+                index=current_index,  # Add this line
                 key="system_template_dropdown",
                 help="Choose a template from our professionally designed collection"
-            )
+)
 
             if selected_system_template:
-                template_config = SYSTEM_TEMPLATES[selected_system_template]
-                st.session_state.selected_template = selected_system_template
-                st.session_state.selected_template_config = template_config
-                st.session_state.template_source = 'system'
+                # Check if the selection has actually changed
+                if st.session_state.selected_template != selected_system_template:
+                    template_config = SYSTEM_TEMPLATES[selected_system_template]
+                    st.session_state.selected_template = selected_system_template
+                    st.session_state.selected_template_config = template_config
+                    st.session_state.template_source = 'system'
+                    
+                    # Update query params
+                    st.query_params["template"] = selected_system_template
+                    st.query_params["source"] = 'system'
+                    
+                    # Force rerun to update preview
+                    st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
             

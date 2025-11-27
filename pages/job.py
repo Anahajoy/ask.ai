@@ -96,13 +96,16 @@ st.markdown("""
         100% { left: 100%; }
     }
 
+
     h2 {
-        color: var(--text-dark) !important;
-        font-weight: 700 !important;
+        color: #e87532 !important;
+        font-weight: 400 !important;
+        margin-bottom: 0.2rem !important;
         font-size: 2rem !important;
-        text-align: center;
-        margin: 1rem 0;
-        animation: fadeInUp 0.8s ease-out;
+        display: flex;
+        align-items: center;
+        margin-left: 250px !important;
+        font-family: 'Montserrat', sans-serif;
     }
     
     h3 {
@@ -110,7 +113,6 @@ st.markdown("""
         font-weight: 300 !important;
         font-size: 1rem !important;
         text-align: center;
-        margin: 1rem 0;
         animation: fadeInUp 0.8s ease-out;
     }
 

@@ -803,7 +803,7 @@ st.markdown(f"""
         <div class="logo">Resume Creator</div>
         <div class="nav-menu">
             {nav_items}
-        </div>
+       
     </div>
 """, unsafe_allow_html=True)
 

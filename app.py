@@ -4,9 +4,9 @@ from utils import chatbot,show_login_modal, get_user_resume, load_users, load_us
 from streamlit_extras.stylable_container import stylable_container
 from pages.download import SYSTEM_TEMPLATES, generate_generic_html
 
-# ----------------------------------
-# PAGE CONFIG
-# ----------------------------------
+
+
+
 st.set_page_config(
     page_title="Resume Creator",
     page_icon="📄",
@@ -14,26 +14,26 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ----------------------------------
-# CRITICAL: RESTORE USER FROM QUERY PARAMS FIRST (BEFORE ANY OTHER LOGIC)
-# ----------------------------------
-# This MUST happen before any other checks to ensure login persists on refresh
+
+
+
+
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:
         st.session_state.logged_in_user = logged_user
-        # Immediately set it back to query params to ensure it persists
+        
         st.query_params["user"] = logged_user
     else:
         st.session_state.logged_in_user = None
 else:
-    # If user is already in session state, ensure it's in query params
+    
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
 
-# ----------------------------------
-# OTHER SESSION STATES
-# ----------------------------------
+
+
+
 if "show_login_modal" not in st.session_state:
     st.session_state.show_login_modal = False
 
@@ -49,9 +49,9 @@ if "template_view_mode" not in st.session_state:
 if 'current_template_type' not in st.session_state:
     st.session_state.current_template_type = "html"
 
-# ----------------------------------
-# CUSTOM CSS (keeping all existing styles)
-# ----------------------------------
+
+
+
 st.markdown("""
 <style>
 #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
@@ -587,10 +587,10 @@ div[data-testid="stButton"] > button {
 </style>
 """, unsafe_allow_html=True)
 
-# ----------------------------------
-# HANDLE NAVIGATION QUERY PARAMS
-# ----------------------------------
-# Handle LOGOUT - This is the ONLY way to remove logged user
+
+
+
+
 if st.query_params.get("logout") == "true":
     st.session_state.logged_in_user = None
     for key in list(st.session_state.keys()):
@@ -598,31 +598,31 @@ if st.query_params.get("logout") == "true":
     st.query_params.clear()
     st.rerun()
 
-# Handle HOME navigation - ALWAYS PRESERVE USER PARAM
+
 if st.query_params.get("home") == "true":
     if "home" in st.query_params:
         del st.query_params["home"]
-    # Critical: Keep user param
+    
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
     st.rerun()
 
-# ----------------------------------
-# ENSURE USER PARAM ALWAYS EXISTS IN URL IF LOGGED IN
-# ----------------------------------
+
+
+
 if st.session_state.get('logged_in_user') and not st.query_params.get("user"):
     st.query_params["user"] = st.session_state.logged_in_user
 
-# ----------------------------------
-# GET CURRENT USER FOR NAVIGATION LINKS
-# ----------------------------------
+
+
+
 current_user = st.session_state.get('logged_in_user', '')
 is_logged_in = bool(current_user)
 
-# ----------------------------------
-# NAVIGATION BAR (with conditional Login/Logout buttons)
-# ----------------------------------
-# Build the login/logout button HTML based on state
+
+
+
+
 if is_logged_in:
     auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
 else:
@@ -636,12 +636,6 @@ st.markdown(f"""
             <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="About" href="#About">About</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="Resume" href="#Resume">Resume</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" data-section="Templates" href="#Templates">Templates</a>
         </div>
         {auth_button}
@@ -649,12 +643,12 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Add spacing for fixed navbar
+
 st.markdown('<div style="height: 80px;"></div>', unsafe_allow_html=True)
 
-# ----------------------------------
-# HOME SECTION
-# ----------------------------------
+
+
+
 st.markdown('<div id="Home"></div>', unsafe_allow_html=True)
 
 with st.container():
@@ -720,7 +714,7 @@ with st.container():
 
 st.markdown('<div style="padding: 10px 0; min-height: 50px;">', unsafe_allow_html=True)
 
-# Handle Create Resume button click
+
 if create_resume_clicked:
     if st.session_state.logged_in_user is None:
         st.warning("🔒 Please login first to create a resume.")
@@ -730,7 +724,7 @@ if create_resume_clicked:
         users = load_users()
         user_entry = users.get(email)
         
-        # PRESERVE USER PARAM
+        
         st.query_params["user"] = email
         
         if isinstance(user_entry, dict):
@@ -746,9 +740,9 @@ if create_resume_clicked:
         else:
             st.switch_page("pages/main.py")
 
-# -------------------------------
-# If NOT logged in: only show Home + Login modal
-# -------------------------------
+
+
+
 if st.session_state.logged_in_user is None:
     st.markdown(
         "<p style='text-align:center; color:#e87532; font-weight:600; margin-top:1rem;margin-bottom:10rem;'>🔒 Please login to access all sections.</p>",
@@ -758,472 +752,20 @@ if st.session_state.logged_in_user is None:
     show_login_modal()
     st.stop()
 
-# ----------------------------------
-# LOGGED-IN USER CONTENT - Ensure user param is always in URL
-# ----------------------------------
+
+
+
 email = st.session_state.logged_in_user
 
-# Double check: ensure query param is set
+
 if not st.query_params.get("user"):
     st.query_params["user"] = email
 
-# Get user resume data
+
 user_resume = get_user_resume(email)
 has_resume = user_resume and len(user_resume) > 0
 chatbot(user_resume)
-# ----------------------------------
-# ABOUT SECTION (ENHANCED WITH DOCUMENT 1 LOGIC)
-# ----------------------------------
-st.markdown('<div id="About"></div>', unsafe_allow_html=True)
 
-st.markdown('<div style="padding: 10px 0; min-height: 50px;">', unsafe_allow_html=True)
-
-if has_resume:
-    st.markdown('<div class="about-section-container">', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="section-header">About</div>
-    <div class="section-divider-wave"></div>
-    """, unsafe_allow_html=True)
-    col_img, col_content = st.columns([1, 2])
-    
-    with col_img:
-        try:
-            from PIL import Image
-            profile_img = Image.open(r"C:\ask.ai\image\g1.png")
-            st.markdown('<div>', unsafe_allow_html=True)
-            st.image(profile_img, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        except Exception as e:
-            st.markdown(f"""
-            <div class="about-image-container">
-                <div style="background: #f8fafc; padding: 2rem; border-radius: 16px; text-align: center; color: #64748b;">
-                    <p>Profile Image</p>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col_content:
-        # Check if it's manual entry or uploaded
-        is_manual_entry = user_resume.get('input_method') == 'Manual Entry'
-        
-        # Safely get values with fallbacks - works for both manual and uploaded
-        job_title = user_resume.get('job_title', user_resume.get('position', 'Professional'))
-        summary = user_resume.get('summary', 'No summary available')
-        name = user_resume.get('name', 'Not provided')
-        phone = user_resume.get('phone', 'Not provided')
-        user_email = user_resume.get('email', email)
-        location = user_resume.get('location', user_resume.get('address', 'Not provided'))
-        
-        # Handle experience years (manual entry specific)
-        experience_years = user_resume.get('experience_years', user_resume.get('years_of_experience', 'N/A'))
-        if experience_years != 'N/A' and experience_years:
-            experience_display = f"{experience_years} Years"
-        else:
-            experience_display = 'Not provided'
-        
-        # LinkedIn/Website (uploaded may have 'website' field)
-        linkedin_url = user_resume.get('url', user_resume.get('linkedin', user_resume.get('website', 'Not provided')))
-        
-        st.markdown(f"""
-<div class="about-card">
-    <div class="about-header">About Me</div>
-    <div class="about-title">{job_title}</div>
-    <div class="about-description">
-        {summary}
-    </div>
-    <div class="info-grid">
-        <div class="info-item">
-            <div class="info-label">Name</div>
-            <div class="info-value">{name}</div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">Phone</div>
-            <div class="info-value">{phone}</div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">Experience</div>
-            <div class="info-value">{experience_display}</div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">Email</div>
-            <div class="info-value">{user_email}</div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">LinkedIn/Website</div>
-            <div class="info-value">{linkedin_url}</div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">Location</div>
-            <div class="info-value">{location}</div>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="no-resume-message">
-        <h3 style="color: #e87532; margin-bottom: 1rem;">📄 No Resume Data Available</h3>
-        <p>You haven't created a resume yet. Click "Create Resume" to get started!</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ----------------------------------
-# RESUME SECTION (ENHANCED WITH DOCUMENT 1 LOGIC)
-# ----------------------------------
-st.markdown('<div id="Resume"></div>', unsafe_allow_html=True)
-
-if has_resume:
-    st.markdown("""
-    <div class="resume-container">
-        <div class="section-header">Resume</div>
-        <div class="section-divider-wave"></div>
-    """, unsafe_allow_html=True)
-    
-    # Check if it's manual entry or uploaded
-    is_manual_entry = user_resume.get('input_method') == 'Manual Entry'
-    
-    # Work Experience Section - Handle both manual and uploaded
-    experience_data = None
-    if is_manual_entry and 'professional_experience' in user_resume:
-        experience_data = user_resume.get('professional_experience', [])
-        experience_type = 'manual'
-    elif 'experience' in user_resume:
-        experience_data = user_resume.get('experience', [])
-        experience_type = 'uploaded'
-    
-    if experience_data:
-        valid_experiences = [exp for exp in experience_data if exp]
-        
-        if valid_experiences:
-            st.markdown("""
-            <div class="work-experience-section">
-                <div class="work-experience-title">Work Experience</div>
-            """, unsafe_allow_html=True)
-            
-            for exp in valid_experiences:
-                if experience_type == 'manual':
-                    # Manual entry structure
-                    company = exp.get('company', 'Company Name')
-                    position = exp.get('position', 'Position')
-                    start_date = exp.get('start_date', '')
-                    end_date = exp.get('end_date', 'Present')
-                    dates = f"{start_date} - {end_date}" if start_date else end_date
-                    skills = exp.get('exp_skills', [])
-                    
-                    if skills and isinstance(skills, list) and len(skills) > 0:
-                        skills_text = '<br>• '.join(str(skill) for skill in skills if skill)
-                        if skills_text:
-                            skills_text = '• ' + skills_text
-                        else:
-                            skills_text = 'No skills listed'
-                    else:
-                        skills_text = 'No skills listed'
-                    
-                    description_display = skills_text
-                else:
-                    # Uploaded entry structure
-                    company = exp.get('company', 'Company Name')
-                    position = exp.get('title', 'Position')
-                    dates = exp.get('duration', 'Current')
-                    
-                    # Handle location if present
-                    location_info = exp.get('location', '')
-                    if location_info:
-                        company = f"{company}, {location_info}"
-                    
-                    # Handle description - can be list or string
-                    description = exp.get('description', [])
-                    if description:
-                        if isinstance(description, list):
-                            desc_text = '<br>• '.join(str(d) for d in description if d)
-                            if desc_text:
-                                description_display = '• ' + desc_text
-                            else:
-                                description_display = 'No description available'
-                        else:
-                            description_display = str(description)
-                    else:
-                        # Check for 'overview' field as fallback
-                        overview = exp.get('overview', '')
-                        description_display = overview if overview else 'No description available'
-                
-                st.markdown(f"""
-                <div class="experience-item">
-                    <div class="experience-timeline">
-                        <div class="timeline-dot"></div>
-                        <div class="company-name">{company}</div>
-                        <div class="experience-date">{dates}</div>
-                    </div>
-                    <div class="experience-content">
-                        <div class="experience-role">{position}</div>
-                        <div class="experience-description">{description_display}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Education Section - Handle both manual and uploaded
-    education_data = user_resume.get('education', [])
-    if education_data:
-        valid_education = [ed for ed in education_data if ed]
-        
-        if valid_education:
-            st.markdown("""
-            <div class="work-experience-section">
-                <div class="work-experience-title">Education</div>
-            """, unsafe_allow_html=True)
-            
-            for ed in valid_education:
-                if is_manual_entry:
-                    # Manual entry structure
-                    inst = ed.get('university', 'Institution Name')
-                    degree = ed.get('course', 'Degree')
-                    start_date = ed.get('start_date', '')
-                    end_date = ed.get('end_date', '')
-                    dates = f"{start_date} - {end_date}" if start_date or end_date else 'Duration not provided'
-                    additional_info = ''
-                else:
-                    # Uploaded entry structure
-                    inst = ed.get('institution', 'Institution Name')
-                    degree = ed.get('degree', 'Degree')
-                    
-                    # Handle various date fields
-                    dates = ed.get('duration', ed.get('date', ed.get('graduation_date', 'Duration')))
-                    
-                    # Collect additional info (minor, GPA, distinctions, relevant coursework)
-                    additional_parts = []
-                    if ed.get('minor'):
-                        additional_parts.append(f"Minor: {ed['minor']}")
-                    if ed.get('gpa'):
-                        additional_parts.append(f"GPA: {ed['gpa']}")
-                    if ed.get('distinctions'):
-                        additional_parts.append(ed['distinctions'])
-                    if ed.get('relevantCoursework'):
-                        additional_parts.append(f"Relevant Coursework: {ed['relevantCoursework']}")
-                    
-                    additional_info = '<br>'.join(additional_parts) if additional_parts else ''
-                
-                st.markdown(f"""
-                <div class="experience-item">
-                    <div class="experience-timeline">
-                        <div class="timeline-dot"></div>
-                        <div class="company-name">{inst}</div>
-                        <div class="experience-date">{degree}</div>
-                    </div>
-                    <div class="experience-content">
-                        <div class="experience-role">{dates}</div>
-                        <div class="experience-description">{additional_info}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Skills Section - Handle both formats
-    skills_data = user_resume.get('skills', [])
-    if skills_data:
-        if isinstance(skills_data, list):
-            valid_skills = [str(skill) for skill in skills_data if skill]
-        else:
-            valid_skills = []
-        
-        if valid_skills:
-            st.markdown("""
-            <div class="work-experience-section">
-                <div class="work-experience-title">Skills</div>
-                <div class="experience-description" style="padding: 1rem 1.5rem;">
-            """, unsafe_allow_html=True)
-            
-            skills_text = ', '.join(valid_skills)
-            st.markdown(f"{skills_text}", unsafe_allow_html=True)
-            
-            st.markdown('</div></div>', unsafe_allow_html=True)
-    
-    # Certifications Section (can be in uploaded resumes)
-    certifications_data = user_resume.get('certifications', user_resume.get('certificate', []))
-    if certifications_data:
-        valid_certs = [cert for cert in certifications_data if cert] if isinstance(certifications_data, list) else []
-        
-        if valid_certs:
-            st.markdown("""
-            <div class="work-experience-section">
-                <div class="work-experience-title">Certifications</div>
-            """, unsafe_allow_html=True)
-            
-            for cert in valid_certs:
-                if isinstance(cert, dict):
-                    # Structured certificate data
-                    cert_name = cert.get('certificate_name', cert.get('name', 'Certificate Name'))
-                    provider = cert.get('provider_name', cert.get('provider', cert.get('issuer', 'Provider')))
-                    completed = cert.get('completed_date', cert.get('date', cert.get('year', 'Date')))
-                    
-                    st.markdown(f"""
-                    <div class="experience-item">
-                        <div class="experience-timeline">
-                            <div class="timeline-dot"></div>
-                            <div class="company-name">{provider}</div>
-                            <div class="experience-date">{completed}</div>
-                        </div>
-                        <div class="experience-content">
-                            <div class="experience-role">{cert_name}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    # Simple string certificate
-                    st.markdown(f"""
-                    <div class="experience-item">
-                        <div class="experience-content">
-                            <div class="experience-role">{str(cert)}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Projects Section
-    projects_data = user_resume.get('projects', user_resume.get('project', []))
-    if projects_data:
-        valid_projects = [proj for proj in projects_data if proj] if isinstance(projects_data, list) else []
-        
-        if valid_projects:
-            st.markdown("""
-            <div class="work-experience-section">
-                <div class="work-experience-title">Projects</div>
-            """, unsafe_allow_html=True)
-            
-            for proj in valid_projects:
-                if isinstance(proj, dict):
-                    project_name = proj.get('projectname', proj.get('name', 'Project Name'))
-                    tools = proj.get('tools', proj.get('technologies', ''))
-                    description = proj.get('decription', proj.get('description', proj.get('overview', 'No description')))
-                    
-                    # Handle description if it's a list
-                    if isinstance(description, list):
-                        desc_text = '<br>• '.join(str(d) for d in description if d)
-                        if desc_text:
-                            description = '• ' + desc_text
-                    
-                    st.markdown(f"""
-                    <div class="experience-item">
-                        <div class="experience-timeline">
-                            <div class="timeline-dot"></div>
-                            <div class="company-name">{project_name}</div>
-                            <div class="experience-date">{tools}</div>
-                        </div>
-                        <div class="experience-content">
-                            <div class="experience-description">{description}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="experience-item">
-                        <div class="experience-content">
-                            <div class="experience-role">{str(proj)}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Custom Sections (for manual entry) and any other dynamic fields from uploaded resumes
-    if is_manual_entry and 'custom_sections' in user_resume:
-        custom_sections = user_resume['custom_sections']
-        
-        if isinstance(custom_sections, dict):
-            for section_name, section_content in custom_sections.items():
-                if section_content and str(section_content).strip():
-                    formatted_content = str(section_content).replace('\n', '<br>')
-                    
-                    st.markdown(f"""
-                    <div class="work-experience-section">
-                        <div class="work-experience-title">{section_name}</div>
-                        <div class="experience-description" style="padding: 1rem 1.5rem;">
-                            {formatted_content}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-    else:
-        # Handle dynamic fields from uploaded resumes (interests, languages, awards, etc.)
-        # Define standard fields we've already handled
-        handled_fields = {
-            'name', 'email', 'phone', 'address', 'location', 'website', 'linkedin', 'url',
-            'summary', 'experience', 'education', 'skills', 'certifications', 'projects',
-            'input_method', 'job_title', 'position', 'experience_years', 'years_of_experience'
-        }
-        
-        # Find any additional fields
-        for field_name, field_value in user_resume.items():
-            if field_name not in handled_fields and field_value:
-                # Format the field name (capitalize, replace underscores)
-                display_name = field_name.replace('_', ' ').title()
-                
-                # Handle different data types
-                if isinstance(field_value, list):
-                    if field_value and isinstance(field_value[0], dict):
-                        # List of structured data
-                        st.markdown(f"""
-                        <div class="work-experience-section">
-                            <div class="work-experience-title">{display_name}</div>
-                        """, unsafe_allow_html=True)
-                        
-                        for item in field_value:
-                            item_text = '<br>'.join([f"<strong>{k.title()}:</strong> {v}" for k, v in item.items() if v])
-                            st.markdown(f"""
-                            <div class="experience-item">
-                                <div class="experience-content">
-                                    <div class="experience-description">{item_text}</div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    else:
-                        # Simple list
-                        items_text = ', '.join([str(item) for item in field_value if item])
-                        if items_text:
-                            st.markdown(f"""
-                            <div class="work-experience-section">
-                                <div class="work-experience-title">{display_name}</div>
-                                <div class="experience-description" style="padding: 1rem 1.5rem;">
-                                    {items_text}
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                elif isinstance(field_value, str) and field_value.strip():
-                    # Simple string field
-                    formatted_content = field_value.replace('\n', '<br>')
-                    st.markdown(f"""
-                    <div class="work-experience-section">
-                        <div class="work-experience-title">{display_name}</div>
-                        <div class="experience-description" style="padding: 1rem 1.5rem;">
-                            {formatted_content}
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <div class="resume-container">
-        <div class="no-resume-message">
-            <h3 style="color: #e87532; margin-bottom: 1rem;">📄 No Resume Data Available</h3>
-            <p>Create your resume to see it displayed here with all your work experience and qualifications.</p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ----------------------------------
-# CUSTOM TEMPLATES SECTION
-# ----------------------------------
 st.markdown('<div id="Templates"></div>', unsafe_allow_html=True)
 
 
@@ -1284,7 +826,7 @@ with col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Custom Templates View
+
 if st.session_state.template_view_mode == "custom":
     if 'uploaded_templates' not in st.session_state:
         st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
@@ -1295,7 +837,7 @@ if st.session_state.template_view_mode == "custom":
     if 'ppt_templates' not in st.session_state:
         st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
 
-    # Template Type Tabs
+    
     st.markdown('<div class="template-type-tabs">', unsafe_allow_html=True)
     type_col1, type_col2, type_col3 = st.columns([1, 1, 1])
     
@@ -1414,7 +956,7 @@ if st.session_state.template_view_mode == "custom":
                             st.session_state.template_source = 'saved'
                             st.session_state.current_upload_id = template_id
                             
-                            # PRESERVE USER PARAM and navigate to preview page
+                            
                             st.query_params["user"] = st.session_state.logged_in_user
                             st.switch_page("pages/template_preview.py")
                     
@@ -1447,7 +989,7 @@ if st.session_state.template_view_mode == "custom":
                             del st.session_state.uploaded_templates[template_id]
                             save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
                             
-                            # PRESERVE USER PARAM
+                            
                             st.query_params["user"] = st.session_state.logged_in_user
                             st.success(f"Deleted: {template_data['name']}")
                             st.rerun()
@@ -1511,7 +1053,7 @@ if st.session_state.template_view_mode == "custom":
                                 st.session_state.selected_template = template_data['name']
                                 st.session_state.selected_template_config = template_data
                                 
-                                # PRESERVE USER PARAM and navigate to preview page
+                                
                                 st.query_params["user"] = st.session_state.logged_in_user
                                 st.switch_page("pages/template_preview.py")
                             except Exception as e:
@@ -1546,7 +1088,7 @@ if st.session_state.template_view_mode == "custom":
                             del st.session_state.doc_templates[template_id]
                             save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
                             
-                            # PRESERVE USER PARAM
+                            
                             st.query_params["user"] = st.session_state.logged_in_user
                             st.success(f"Deleted: {template_data['name']}")
                             st.rerun()
@@ -1658,7 +1200,7 @@ if st.session_state.template_view_mode == "custom":
                                 st.session_state.selected_template = template_data['name']
                                 st.session_state.selected_template_config = template_data
                                 
-                                # PRESERVE USER PARAM and navigate to preview page
+                                
                                 st.query_params["user"] = st.session_state.logged_in_user
                                 st.switch_page("pages/template_preview.py")
                             except Exception as e:
@@ -1693,7 +1235,7 @@ if st.session_state.template_view_mode == "custom":
                             del st.session_state.ppt_templates[template_id]
                             save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
                             
-                            # PRESERVE USER PARAM
+                            
                             st.query_params["user"] = st.session_state.logged_in_user
                             st.success(f"Deleted: {template_data['name']}")
                             st.rerun()
@@ -1707,7 +1249,7 @@ if st.session_state.template_view_mode == "custom":
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-# System Templates View
+
 elif st.session_state.template_view_mode == "system":
     st.markdown('<div class="template-grid">', unsafe_allow_html=True)
     
@@ -1750,7 +1292,7 @@ elif st.session_state.template_view_mode == "system":
                     st.session_state.selected_template_config = SYSTEM_TEMPLATES[template_name]
                     st.session_state.template_source = 'system'
                     
-                    # PRESERVE USER PARAM and navigate to preview page
+                    
                     st.query_params["user"] = st.session_state.logged_in_user
                     st.switch_page("pages/template_preview.py")
     
@@ -1758,15 +1300,15 @@ elif st.session_state.template_view_mode == "system":
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ----------------------------------
-# HANDLE TEMPLATE MODAL
-# ----------------------------------
+
+
+
 if template_clicked:
     if st.session_state.logged_in_user is None:
         st.warning("🔒 Please login first to view templates.")
         st.session_state.show_login_modal = True
     else:
-        # Use HTML/JS to force immediate scroll
+        
         st.components.v1.html("""
         <script>
             window.parent.document.getElementById('Templates').scrollIntoView({
@@ -1775,9 +1317,9 @@ if template_clicked:
             });
         </script>
         """, height=0)
-# ----------------------------------
-# FOOTER - Preserve user param in all navigation + Handle browser refresh + Scroll to Top Button
-# ----------------------------------
+
+
+
 st.markdown(f"""
 <!-- Scroll to Top Button -->
 <button class="scroll-to-top" id="scrollToTop" onclick="scrollToTop()">

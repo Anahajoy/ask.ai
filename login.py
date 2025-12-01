@@ -17,22 +17,37 @@ if 'page_transitioning' not in st.session_state:
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family/Inter:wght@300;400;500;600;700;800&display=swap');
     
     /* Hide Streamlit default elements */
     #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
     [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
     
-    /* Remove scrollbar */
-    html, body, [data-testid="stAppViewContainer"], .main {
+    /* CRITICAL: Remove ALL scrollbars and prevent scrolling */
+    * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+    *::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+    
+    html, body {
         overflow: hidden !important;
         height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: fixed !important;
+        width: 100% !important;
     }
     
     /* Full-screen background with modern workspace image */
     .stApp {
-        height: 100vh;
-        overflow: hidden;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        overflow: hidden !important;
         background: url('https://plus.unsplash.com/premium_photo-1666820202651-314501c88358?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=870') center/cover fixed no-repeat;
         font-family: 'Inter', sans-serif;
         position: relative;
@@ -50,243 +65,220 @@ st.markdown("""
         z-index: 0;
     }
     
-    /* Remove default padding */
+    /* Remove default padding but keep relative positioning */
     .main .block-container {
         padding: 0 !important;
         margin: 0 !important;
         max-width: 100vw !important;
         position: relative;
         z-index: 1;
+        height: 100vh !important;
         overflow: hidden !important;
     }
     
-    /* Fade out overlay for page transitions */
-    .fade-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(15, 23, 42, 0.95);
-        z-index: 9999;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.6s ease-in-out;
+    [data-testid="stAppViewContainer"], .main {
+        overflow: hidden !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        position: fixed !important;
+        width: 100% !important;
+        top: 0 !important;
+        left: 0 !important;
     }
     
-    .fade-overlay.active {
-        opacity: 1;
-        pointer-events: all;
+    /* Additional overflow prevention */
+    [data-testid="stAppViewContainer"] > section,
+    [data-testid="stMainBlockContainer"] {
+        overflow: hidden !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
     }
     
-    /* Center container */
-    .main-container {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+/* Center container - positioned at top with scroll capability */
+ .main-container {
+    position: fixed;
+    top: 2vh;  /* Small top margin */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 480px;
+    max-height: 96vh;  /* Allow almost full height */
+    padding: 0.5rem 1rem;
+    z-index: 10;
+    overflow-y: auto;  /* Enable vertical scrolling */
+    overflow-x: hidden;
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.main-container::-webkit-scrollbar {
+    width: 6px;
+    display: block !important;
+}
+
+.main-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.main-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+    /* Container for form elements with scroll if needed */
+    .form-container {
         width: 100%;
-        max-width: 500px;
-        padding: 1rem;
-        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        max-height: 85vh; /* Limit height to allow scrolling if needed */
+        overflow-y: auto; /* Enable scrolling if content overflows */
+        padding: 0.5rem 0;
     }
     
     .main-container.fade-out {
         opacity: 0;
-        transform: translate(-50%, -45%);
+        transform: translate(-50%, -5%);
     }
     
-    /* Logo container - minimal spacing */
+    /* Logo container - reduced spacing */
     .logo-wrapper {
         display: flex;
         justify-content: center;
         align-items: center;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.5rem;
+        margin-top: -100px;
         width: 100%;
     }
-    
-    .logo-wrapper img {
-        display: block;
-        max-width: 400px;
-        width: 100%;
-        height: auto;
-        max-height: 100px;
-        object-fit: contain;
-    }
-    
-    /* Modern glassmorphism card - reduced padding */
-    .stContainer {
-        max-width: 450px;
-        width: 100%;
-        background: rgba(255, 255, 255, 0.08);
-        padding: 24px 32px;
-        border-radius: 24px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4),
-                    0 0 0 1px rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(16px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        animation: slideIn 0.6s ease-out;
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+
     
     .subtitle {
         text-align: center;
         color: rgba(255, 255, 255, 0.9);
         font-size: 0.95rem;
-        margin-bottom: 0.10rem;
-        margin-top: 0.3rem;
+        margin-bottom: 0.5rem;
+        margin-top: 0.2rem;
         font-weight: 400;
         letter-spacing: 0.3px;
     }
     
     /* Clean input fields - minimal spacing */
     .stTextInput > div > div > input {
-        background: rgba(255, 255, 255, 0.85);
+        background: rgba(255, 255, 255, 0.85) !important;
         color: #000000 !important;
-        border: 1.5px solid rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 0.95rem;
-        font-weight: 400;
-        transition: all 0.3s ease;
-        font-family: 'Inter', sans-serif;
+        border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        padding: 10px 14px !important;
+        font-size: 0.95rem !important;
+        font-weight: 400 !important;
+        transition: all 0.3s ease !important;
+        font-family: 'Inter', sans-serif !important;
     }
 
     .stTextInput > div > div > input:focus {
-        background: #ffffff;
-        border-color: rgba(8, 145, 178, 0.6);
-        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
-        outline: none;
+        background: #ffffff !important;
+        border-color: rgba(8, 145, 178, 0.6) !important;
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15) !important;
+        outline: none !important;
     }
 
     .stTextInput > div > div > input::placeholder {
-        color: rgba(0, 0, 0, 0.45);
-        font-weight: 300;
+        color: rgba(0, 0, 0, 0.45) !important;
+        font-weight: 300 !important;
     }
     
-    /* Solid color button - peacock blue */
+    /* Solid color button - peacock blue - REDUCED WIDTH */
     .stButton > button {
-        background: #0891b2;
-        color: #ffffff;
-        border: none;
-        border-radius: 12px;
-        padding: 10px 24px;
-        font-size: 1rem;
-        font-weight: 600;
-        width: 100%;
-        margin-top: 0.8rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 14px 0 rgba(8, 145, 178, 0.35);
-        letter-spacing: 0.3px;
-        font-family: 'Inter', sans-serif;
+        background: #0891b2 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 10px 24px !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        width: 100% !important;
+        max-width: 200px !important;
+        margin: 0.8rem auto 0 auto !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 14px 0 rgba(8, 145, 178, 0.35) !important;
+        letter-spacing: 0.3px !important;
+        font-family: 'Inter', sans-serif !important;
+        text-align: center !important;
+        display: block !important;
     }
     
     .stButton > button:hover {
-        background: #0e7490;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px 0 rgba(8, 145, 178, 0.45);
+        background: #0e7490 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px 0 rgba(8, 145, 178, 0.45) !important;
     }
     
     .stButton > button:active {
-        transform: translateY(0px);
+        transform: translateY(0px) !important;
     }
     
     /* Link buttons - clean text links */
-    .stButton[key="create_link"] > button, .stButton[key="help_link"] > button {
+    .stButton[key="create_link"] > button, 
+    .stButton[key="help_link"] > button {
         background: transparent !important;
         border: none !important;
         color: rgba(255, 255, 255, 0.8) !important;
         font-size: 0.9rem !important;
         padding: 6px 0 !important;
         box-shadow: none !important;
-        text-decoration: none; 
-        margin-top: 0.4rem;
-        font-weight: 500;
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
+        text-decoration: none !important; 
+        margin-top: 0.4rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.3px !important;
+        text-transform: uppercase !important;
     }
     
-    .stButton[key="create_link"] > button:hover, .stButton[key="help_link"] > button:hover {
+    .stButton[key="create_link"] > button:hover, 
+    .stButton[key="help_link"] > button:hover {
         color: #ffffff !important;
         transform: none !important;
+        box-shadow: none !important;
     }
 
     /* Divider */
     [data-testid="stHorizontalBlock"] > div > div:nth-child(2) > p {
         color: rgba(255, 255, 255, 0.25) !important;
-        text-align: center; 
+        text-align: center !important; 
         margin-top: 0.4rem !important;
-        font-size: 1rem;
+        font-size: 1rem !important;
     }
     
     /* Alert styling - minimal spacing */
     .stAlert {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: #ffffff;
-        margin-top: 0.4rem;
-        margin-bottom: 0.4rem;
-        padding: 0.6rem;
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+        margin-top: 0.4rem !important;
+        margin-bottom: 0.4rem !important;
+        padding: 0.6rem !important;
+        max-width: 100% !important;
     }
     
     /* Input label visibility fix */
     .stTextInput label {
-        visibility: hidden;
-        height: 0;
-        margin: 0;
-        padding: 0;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
-    /* Target the column that contains all form elements */
+    /* Target the column that contains all form elements - NO BACKGROUND */
     div[data-testid="column"]:has(.form-wrapper) {
         position: relative;
         width: 100%;
         max-width: 500px;
         margin-left: auto;
         margin-right: auto;
-    }
-
-    /* Create background using ::before pseudo-element */
-    div[data-testid="column"]:has(.form-wrapper)::before {
-        content: '';
-        position: absolute;
-        top: -5px;
-        left: -20px;
-        right: -20px;
-        bottom: -10px;
-        background: linear-gradient(
-            145deg,
-            rgba(255, 255, 255, 0.50) 0%,
-            rgba(255, 255, 255, 0.35) 35%,
-            rgba(8, 145, 178, 0.10) 65%,
-            rgba(255, 255, 255, 0.30) 100%
-        );
-        backdrop-filter: blur(40px) saturate(150%) contrast(120%);
-        -webkit-backdrop-filter: blur(40px) saturate(150%) contrast(120%);
-        border-radius: 10px;
-        box-shadow:
-            0 25px 80px rgba(0, 0, 0, 0.1),
-            inset 0 2px 1px rgba(255, 255, 255, 0.7),
-            inset 0 -1px 1px rgba(255, 255, 255, 0.3);
-        z-index: 0;
-        pointer-events: none;
+        padding: 0 !important;
     }
 
     /* Ensure form elements are above the background */
@@ -295,35 +287,44 @@ st.markdown("""
         z-index: 1;
     }
 
-    /* Remove the form-wrapper styles since we're using ::before */
+    /* Form wrapper */
     .form-wrapper {
         display: contents;
     }
 
     /* Minimal spacing between inputs */
     .stTextInput {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem !important;
     }
     
     /* First input spacing */
     .stTextInput:first-of-type {
-        margin-top: 0rem;
+        margin-top: 0rem !important;
     }
 
     /* Reduce button top margin */
     .stButton > button {
-        margin-top: 0.6rem;
+        margin-top: 0.5rem !important;
     }
     
     /* Links container spacing */
     [data-testid="stHorizontalBlock"] {
-        margin-top: 0.6rem;
+        margin-top: 0.5rem !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+    
+    /* Center the columns inside horizontal block */
+    [data-testid="stHorizontalBlock"] > div {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Add fade overlay div
-st.markdown('<div class="fade-overlay" id="fade-overlay"></div>', unsafe_allow_html=True)
 
 st.markdown('<div class="main-container" id="main-container">', unsafe_allow_html=True)
 
@@ -357,7 +358,7 @@ with st.container(border=False):
         
         button_text = "Sign-Up" if st.session_state.mode == 'register' else "Sign-In"
         
-        if st.button(button_text, key="main_action_btn"):
+        if st.button(button_text, key="main_action_btn", use_container_width=True):
             if email and password:
                 if not is_valid_email(email):
                     st.error("Please enter a valid email address")
@@ -387,30 +388,10 @@ with st.container(border=False):
                                 st.session_state.resume_source = user_resume
                                 st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
                                 st.success(f"Welcome back, {st.session_state.username}! Loading your saved resume...")
-                                
-                                # Trigger fade out transition
-                                st.session_state.page_transitioning = True
-                                st.markdown("""
-                                <script>
-                                document.getElementById('fade-overlay').classList.add('active');
-                                document.getElementById('main-container').classList.add('fade-out');
-                                </script>
-                                """, unsafe_allow_html=True)
-                                
                                 time.sleep(0.8)
                                 st.switch_page("pages/job.py")
                             else:
                                 st.success(f"Welcome, {st.session_state.username}! Let's create your resume.")
-                                
-                                # Trigger fade out transition
-                                st.session_state.page_transitioning = True
-                                st.markdown("""
-                                <script>
-                                document.getElementById('fade-overlay').classList.add('active');
-                                document.getElementById('main-container').classList.add('fade-out');
-                                </script>
-                                """, unsafe_allow_html=True)
-                                
                                 time.sleep(0.8)
                                 st.switch_page("pages/main.py")
                     else:
@@ -430,35 +411,29 @@ with st.container(border=False):
                             st.session_state.username = name.strip()
                             st.session_state.mode = 'login'
                             st.success(f"Account created successfully, {name.strip()}! Redirecting...")
-                            
-                            # Trigger fade out transition
-                            st.session_state.page_transitioning = True
-                            st.markdown("""
-                            <script>
-                            document.getElementById('fade-overlay').classList.add('active');
-                            document.getElementById('main-container').classList.add('fade-out');
-                            </script>
-                            """, unsafe_allow_html=True)
-                            
                             time.sleep(0.8)
                             st.switch_page("pages/main.py")
             else:
                 st.warning("Please enter both email and password")
 
-        col_link1, col_sep, col_link2 = st.columns([1, 0.1, 1])
+        col_link1, col_sep, col_link2 = st.columns([1, 0.05, 1])
         
         with col_link1:
-            if st.button("Create Account" if st.session_state.mode == 'login' else "Back to Login", 
-                        key="create_link", use_container_width=False):
-                st.session_state.mode = 'register' if st.session_state.mode == 'login' else 'login'
-                st.rerun()
+            col_a, col_b = st.columns([1, 2])
+            with col_b:
+                if st.button("Create Account" if st.session_state.mode == 'login' else "Back to Login", 
+                            key="create_link", use_container_width=True):
+                    st.session_state.mode = 'register' if st.session_state.mode == 'login' else 'login'
+                    st.rerun()
         
         with col_sep:
             st.markdown('<p style="color: rgba(255, 255, 255, 0.25); text-align: center; margin-top: 0.4rem; font-size: 1rem;">|</p>', unsafe_allow_html=True)
         
         with col_link2:
-            if st.button("Need Help?", key="help_link", use_container_width=False):
-                st.info("Please contact support at support@ask.ai")
+            col_c, col_d = st.columns([2, 1])
+            with col_c:
+                if st.button("Need Help?", key="help_link", use_container_width=True):
+                    st.info("Please contact support at support@ask.ai")
         st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)

@@ -1614,11 +1614,18 @@ def extract_resume_text(resume_data):
     if resume_data.get('summary'):
         text_parts.append(resume_data['summary'])
     
-    # Add skills
+    # Add skills - handle both dict and list
     skills = resume_data.get('skills', {})
-    for skill_list in skills.values():
-        if isinstance(skill_list, list):
-            text_parts.extend(skill_list)
+    if isinstance(skills, dict):
+        # If it's a dict, iterate over values
+        for skill_list in skills.values():
+            if isinstance(skill_list, list):
+                text_parts.extend(skill_list)
+            else:
+                text_parts.append(str(skill_list))
+    elif isinstance(skills, list):
+        # If it's already a list, just extend directly
+        text_parts.extend([str(s) for s in skills])
     
     # Add experience
     for exp in resume_data.get('experience', []):
@@ -1651,21 +1658,17 @@ def extract_resume_text(resume_data):
     
     # Add certifications
     for cert in resume_data.get('certifications', []):
-        # Add certifications
-        for cert in resume_data.get('certifications', []):
-            if isinstance(cert, dict):
-                # cert is a dictionary
-                name = cert.get('certificate_name') or cert.get('name')
-            else:
-                # cert is a string
-                name = cert
-            
-            if name:
-                text_parts.append(name)
-
+        if isinstance(cert, dict):
+            # cert is a dictionary
+            name = cert.get('certificate_name') or cert.get('name')
+        else:
+            # cert is a string
+            name = cert
+        
+        if name:
+            text_parts.append(name)
     
     return ' '.join([str(part) for part in text_parts])
-
 
 def extract_section_text(section_list):
     """Extract text from a list section."""
@@ -1695,12 +1698,27 @@ def calculate_skills_match(resume_skills, job_description):
     total_skills = 0
     matched_skills = 0
     
-    for skill_category, skills_list in resume_skills.items():
-        if isinstance(skills_list, list):
-            for skill in skills_list:
+    # Handle both dict and list formats for resume_skills
+    if isinstance(resume_skills, dict):
+        # Dictionary format: {'technical': ['Python', 'Java'], 'soft': ['Leadership']}
+        for skill_category, skills_list in resume_skills.items():
+            if isinstance(skills_list, list):
+                for skill in skills_list:
+                    total_skills += 1
+                    if str(skill).lower() in jd_lower:
+                        matched_skills += 1
+            else:
+                # Handle single skill as string
                 total_skills += 1
-                if str(skill).lower() in jd_lower:
+                if str(skills_list).lower() in jd_lower:
                     matched_skills += 1
+    
+    elif isinstance(resume_skills, list):
+        # List format: ['Python', 'Java', 'Leadership']
+        for skill in resume_skills:
+            total_skills += 1
+            if str(skill).lower() in jd_lower:
+                matched_skills += 1
     
     return (matched_skills / total_skills * 100) if total_skills > 0 else 0
 
@@ -3924,20 +3942,47 @@ def render_skills_section(data, is_edit):
     st.markdown('<div class="resume-section">', unsafe_allow_html=True)
     st.markdown('<h2>Skills</h2>', unsafe_allow_html=True)
 
-    if is_edit:
-        with st.expander("📝 Edit Skills (Separate by Line)", expanded=False):
-            for skill_type, skill_list in skills_data.items():
-                st.subheader(format_section_title(skill_type))
-                skill_text = "\n".join(skill_list)
+    # Handle both dict and list formats
+    if isinstance(skills_data, dict):
+        # Dictionary format: {'technical': ['Python', 'Java'], 'soft': ['Leadership']}
+        if is_edit:
+            with st.expander("📝 Edit Skills (Separate by Line)", expanded=False):
+                for skill_type, skill_list in skills_data.items():
+                    st.subheader(format_section_title(skill_type))
+                    
+                    # Ensure skill_list is actually a list
+                    if isinstance(skill_list, list):
+                        skill_text = "\n".join(skill_list)
+                    else:
+                        skill_text = str(skill_list)
+                    
+                    edited_text = st.text_area(f"Edit {skill_type}", skill_text, height=100, key=f"skills_edit_{skill_type}")
+                    
+                    st.session_state['enhanced_resume']['skills'][skill_type] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+        
+        for skill_type, skill_list in skills_data.items():
+            if skill_list:
+                st.markdown(f"**{format_section_title(skill_type)}:**", unsafe_allow_html=True)
                 
-                edited_text = st.text_area(f"Edit {skill_type}", skill_text, height=100, key=f"skills_edit_{skill_type}")
+                # Ensure skill_list is actually a list
+                if isinstance(skill_list, list):
+                    skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skill_list])
+                else:
+                    skills_html = f'<li class="skill-item">{skill_list}</li>'
                 
-                st.session_state['enhanced_resume']['skills'][skill_type] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+                st.markdown(f'<ul class="skill-list">{skills_html}</ul>', unsafe_allow_html=True)
     
-    for skill_type, skill_list in skills_data.items():
-        if skill_list:
-            st.markdown(f"**{format_section_title(skill_type)}:**", unsafe_allow_html=True)
-            skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skill_list])
+    elif isinstance(skills_data, list):
+        # List format: ['Python', 'Java', 'Leadership']
+        if is_edit:
+            with st.expander("📝 Edit Skills (Separate by Line)", expanded=False):
+                skill_text = "\n".join(skills_data)
+                edited_text = st.text_area("Edit Skills", skill_text, height=150, key="skills_edit_all")
+                st.session_state['enhanced_resume']['skills'] = [line.strip() for line in edited_text.split('\n') if line.strip()]
+        
+        # Display as a single list
+        if skills_data:
+            skills_html = "".join([f'<li class="skill-item">{s}</li>' for s in skills_data])
             st.markdown(f'<ul class="skill-list">{skills_html}</ul>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)

@@ -2,17 +2,12 @@ import streamlit as st
 import base64
 from datetime import datetime
 import json
-from utils import(get_user_resume,generate_markdown_text,SYSTEM_TEMPLATES, 
-    ATS_COLORS, chatbot,
-    generate_generic_html,
-    generate_markdown_text,
-    save_user_doc_templates,load_user_templates,load_user_doc_templates,save_user_templates,replace_content
-    ,load_user_ppt_templates,analyze_slide_structure,generate_ppt_sections,match_generated_to_original,clear_and_replace_text,save_user_ppt_templates)
-# from pages.download import (
-#     SYSTEM_TEMPLATES, 
-#     ATS_COLORS, 
-#     generate_generic_html
-# )
+from templates.templateconfig import SYSTEM_TEMPLATES,ATS_COLORS,load_css_template
+from utils import(get_user_resume,generate_markdown_text,  chatbot,
+    generate_generic_html,generate_markdown_text,save_user_doc_templates,
+    load_user_templates,load_user_doc_templates,save_user_templates,replace_content
+    ,load_user_ppt_templates,analyze_slide_structure,generate_ppt_sections,
+    match_generated_to_original,clear_and_replace_text,save_user_ppt_templates)
 
 # ----------------------------------
 # PAGE CONFIG
@@ -1194,7 +1189,11 @@ with col1:
         
         if template_source == 'system':
             selected_color = st.session_state.get('preview_selected_color', ATS_COLORS["Professional Blue (Default)"])
-            css = selected_config['css_generator'](selected_color)
+            css = load_css_template(
+                selected_config['css_template'],
+                selected_color
+            )
+
             html_content = selected_config['html_generator'](user_resume)
             
             # HTML Download
@@ -1593,7 +1592,11 @@ with col3:
         selected_color = st.session_state.get('preview_selected_color', ATS_COLORS["Professional Blue (Default)"])
         
         # Generate CSS and HTML with the selected color
-        css = selected_config['css_generator'](selected_color)
+        css = load_css_template(
+    selected_config['css_template'],
+    selected_color
+)
+
         html_content = selected_config['html_generator'](user_resume)
         
         # Create full HTML with inline styles - using the exact format from download.py

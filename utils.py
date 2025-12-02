@@ -4338,79 +4338,84 @@ def show_login_modal():
         password = st.text_input("", placeholder="Password", type="password", label_visibility="collapsed", key="password")
         
         # Sign up / Login text link - moved BEFORE main button
+        # Find this section in your show_login_modal() function and replace it entirely:
+
+        # Sign up / Login text link - moved BEFORE main button
+# Replace the "Sign up / Login text link" section with this:
+
+        # Sign up / Login text link - moved BEFORE main button
+# Replace the "Sign up / Login text link" section with this:
+
+        # Sign up / Login text link - moved BEFORE main button
         col_spacer1, col_toggle_text, col_spacer2 = st.columns([2, 8, 2])
         with col_toggle_text:
+            # Add custom CSS to hide checkbox and make label look like plain text
+            st.markdown("""
+            <style>
+                /* Hide the checkbox itself */
+                .stCheckbox {
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                }
+                .stCheckbox > label {
+                    display: flex !important;
+                    justify-content: center !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 8px 0 !important;
+                }
+                .stCheckbox > label > div[data-testid="stMarkdownContainer"] {
+                    text-align: center !important;
+                }
+                .stCheckbox input[type="checkbox"] {
+                    display: none !important;
+                }
+                .stCheckbox > label > div:first-child {
+                    display: none !important;
+                }
+                
+                /* Style the text */
+                .toggle-text-link {
+                    color: #000000 !important;
+                    font-size: 13px !important;
+                    font-family: 'Montserrat', sans-serif !important;
+                    font-weight: 400 !important;
+                    text-align: center !important;
+                }
+                .toggle-text-link strong {
+                    font-weight: 600 !important;
+                    text-decoration: underline !important;
+                    cursor: pointer !important;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            
             if st.session_state.mode == 'login':
                 # Show Sign up link
-                with stylable_container(
-                    key="signup_text_btn",
-                    css_styles="""
-                    button {
-                        background: transparent !important;
-                        border: none !important;
-                        color: #333 !important;
-                        font-size: 13px !important;
-                        padding: 8px 0 !important;
-                        font-weight: 400 !important;
-                        cursor: pointer !important;
-                        font-family: 'Montserrat', sans-serif !important;
-                        box-shadow: none !important;
-                        width: 100% !important;
-                    }
-                    button:hover {
-                        background: transparent !important;
-                        box-shadow: none !important;
-                        transform: none !important;
-                        border: none !important;
-                    }
-                    button:hover p {
-                        background: transparent !important;
-                    }
-                    button p {
-                        margin: 0 !important;
-                        text-align: center !important;
-                    }
-                    """
-                ):
-                    if st.button("Don't have an account? **Sign up**", key="signup_text_link"):
-                        st.session_state.mode = 'register'
-                        st.rerun()
+                toggle_signup = st.checkbox(
+                    "Don't have an account? **Sign up**",
+                    key="toggle_to_signup",
+                    value=False,
+                    label_visibility="visible"
+                )
+                
+                if toggle_signup:
+                    st.session_state.mode = 'register'
+                    st.rerun()
+                    
             else:
                 # Show Back to Login link
-                with stylable_container(
-                    key="login_text_btn",
-                    css_styles="""
-                    button {
-                        background: transparent !important;
-                        border: none !important;
-                        color: #333 !important;
-                        font-size: 13px !important;
-                        padding: 8px 0 !important;
-                        font-weight: 400 !important;
-                        cursor: pointer !important;
-                        font-family: 'Montserrat', sans-serif !important;
-                        box-shadow: none !important;
-                        width: 100% !important;
-                    }
-                    button:hover {
-                        background: transparent !important;
-                        box-shadow: none !important;
-                        transform: none !important;
-                        border: none !important;
-                    }
-                    button:hover p {
-                        background: transparent !important;
-                    }
-                    button p {
-                        margin: 0 !important;
-                        text-align: center !important;
-                    }
-                    """
-                ):
-                    if st.button("Already have an account? **Back to Login**", key="login_text_link"):
-                        st.session_state.mode = 'login'
-                        st.rerun()
-        
+                toggle_login = st.checkbox(
+                    "Already have an account? **Back to Login**",
+                    key="toggle_to_login", 
+                    value=False,
+                    label_visibility="visible"
+                )
+                
+                if toggle_login:
+                    st.session_state.mode = 'login'
+                    st.rerun()
         # Main action button (Login/Sign Up) - Centered
         button_text = "Sign Up" if st.session_state.mode == 'register' else "Sign In"
         

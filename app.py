@@ -623,6 +623,15 @@ is_logged_in = bool(current_user)
 
 
 
+current_user = st.session_state.get('logged_in_user', '')
+is_logged_in = bool(current_user)
+
+# Build the home URL - only add user param if logged in, otherwise just scroll to top
+if is_logged_in and current_user:
+    home_url = f"?home=true&user={current_user}"
+else:
+    home_url = "#Home"  # Just scroll to home section, don't trigger any navigation
+
 if is_logged_in:
     auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
 else:
@@ -633,7 +642,7 @@ st.markdown(f"""
     <div class="logo">Resume Creator</div>
     <div class="nav-menu">
         <div class="nav-item">
-            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
+            <a class="nav-link" href="{home_url}" target="_self">Home</a>
         </div>
         <div class="nav-item">
             <a class="nav-link" data-section="Templates" href="#Templates">Templates</a>
@@ -643,8 +652,25 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-
 st.markdown('<div style="height: 80px;"></div>', unsafe_allow_html=True)
+
+# Handle the home button click ONLY for logged-in users
+if st.query_params.get("home") == "true":
+    # Check if user is logged in
+    if st.session_state.get('logged_in_user'):
+        # User is logged in, allow home navigation
+        if "home" in st.query_params:
+            del st.query_params["home"]
+        
+        if st.session_state.logged_in_user:
+            st.query_params["user"] = st.session_state.logged_in_user
+        st.rerun()
+    else:
+        # User is NOT logged in, remove the home param and don't unlock
+        if "home" in st.query_params:
+            del st.query_params["home"]
+        # Don't rerun, just remove the param
+        st.rerun()
 
 
 
@@ -1308,15 +1334,9 @@ if template_clicked:
         st.warning("🔒 Please login first to view templates.")
         st.session_state.show_login_modal = True
     else:
-        
-        st.components.v1.html("""
-        <script>
-            window.parent.document.getElementById('Templates').scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        </script>
-        """, height=0)
+        st.session_state.from_template_button = True
+        st.switch_page("pages/main.py")
+
 
 
 

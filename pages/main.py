@@ -1250,20 +1250,25 @@ if  st.session_state.logged_in_user :
                             }
 
                         st.session_state.resume_source = user_data
+                        if 'from_template_button' in st.session_state and st.session_state.from_template_button:
+                            # Clear the flag
+                            st.session_state.from_template_button = False
+                            # Navigate to template.py with the parsed data
+                            st.switch_page("pages/template_preview.py")
+                        else:
+                            if 'logged_in_user' in st.session_state:
+                                st.session_state.input_method = "Manual Entry"
+                                save_success = save_user_resume(
+                                    st.session_state.logged_in_user,
+                                    user_data,
+                                    input_method="Manual Entry"
+                                )
+                                if save_success:
+                                    st.success("Resume processed and saved to profile!")
+                                else:
+                                    st.warning("Resume processed but couldn't save to profile")
 
-                        if 'logged_in_user' in st.session_state:
-                            st.session_state.input_method = "Manual Entry"
-                            save_success = save_user_resume(
-                                st.session_state.logged_in_user,
-                                user_data,
-                                input_method="Manual Entry"
-                            )
-                            if save_success:
-                                st.success("Resume processed and saved to profile!")
-                            else:
-                                st.warning("Resume processed but couldn't save to profile")
-
-                        st.switch_page("pages/job.py")
+                            st.switch_page("pages/job.py")
                     else:
                         st.error("Please complete the Personal Info section first (Name, Skills, and Experience are required)")
 
@@ -1392,26 +1397,29 @@ if  st.session_state.logged_in_user :
                                 parsed_data = None
                             finally:
                                 loading_placeholder.empty()
-
-                            if parsed_data:
-                                st.session_state.resume_source = parsed_data
-                                st.session_state.resume_processed = True
-                                st.session_state.input_method = "Upload Entry"
-
-                                save_success = save_user_resume(
-                                    st.session_state.logged_in_user,
-                                    parsed_data,
-                                    input_method="Upload Entry"
-                                )
-
-                                if save_success:
-                                    st.success("✅ Resume processed and saved successfully! Redirecting...")
-                                    time.sleep(0.5)
-                                    st.switch_page("pages/job.py")
-                                else:
-                                    st.error("❌ Failed to save resume. Please try again.")
+                            if 'from_template_button' in st.session_state and st.session_state.from_template_button:
+                                st.session_state.from_template_button = False
+                                st.switch_page("pages/template_preview.py")
                             else:
-                                st.error("Failed to process resume. Please ensure your file is clean or try manual entry.")
+                                if parsed_data:
+                                    st.session_state.resume_source = parsed_data
+                                    st.session_state.resume_processed = True
+                                    st.session_state.input_method = "Upload Entry"
+
+                                    save_success = save_user_resume(
+                                        st.session_state.logged_in_user,
+                                        parsed_data,
+                                        input_method="Upload Entry"
+                                    )
+
+                                    if save_success:
+                                        st.success("✅ Resume processed and saved successfully! Redirecting...")
+                                        time.sleep(0.5)
+                                        st.switch_page("pages/job.py")
+                                    else:
+                                        st.error("❌ Failed to save resume. Please try again.")
+                                else:
+                                    st.error("Failed to process resume. Please ensure your file is clean or try manual entry.")
                         else:
                             st.error("Please upload your resume first")
 else:

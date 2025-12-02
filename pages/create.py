@@ -1,6 +1,6 @@
 import streamlit as st
 import os,json
-from utils import get_score_color,get_score_label,calculate_ats_score,analyze_and_improve_resume, should_regenerate_resume, generate_enhanced_resume, save_and_improve, add_new_item, render_basic_details, render_skills_section, render_generic_section
+from utils import get_score_color,get_score_label,ai_ats_score,analyze_and_improve_resume, should_regenerate_resume, generate_enhanced_resume, save_and_improve, add_new_item, render_basic_details, render_skills_section, render_generic_section
 from streamlit_extras.switch_page_button import switch_page
 from streamlit_extras.stylable_container import stylable_container
 
@@ -603,7 +603,12 @@ resume_data = st.session_state.get('enhanced_resume')
 jd_data = st.session_state.get('job_description')
 
 if resume_data and jd_data:
-    st.session_state['ats_result'] = calculate_ats_score(resume_data, jd_data)
+    try:
+        st.session_state['ats_result'] = ai_ats_score(resume_data, jd_data)
+        # st.write("✅ ATS Analysis Complete:", st.session_state['ats_result'])
+    except Exception as e:
+        st.error(f"❌ Error analyzing resume: {str(e)}")
+        st.session_state['ats_result'] = {}
 
 def get_standard_keys():
     """Return set of standard resume keys that should not be treated as custom sections."""
@@ -693,11 +698,13 @@ def main():
             # ========= PREMIUM ATS GAUGE ==========
             ats_data = st.session_state.get('ats_result', {})
 
-            if ats_data:
-                score = ats_data.get("score", 0)
+            if ats_data and ats_data.get("overall_score", 0) > 0:
+                score = ats_data.get("overall_score", 0)  # Changed from "score" to "overall_score"
                 label = get_score_label(score)
                 color = get_score_color(score)
-
+                
+                st.markdown(f"### ATS Score: {score}/100")
+                st.markdown(f"**{label}**", unsafe_allow_html=True)
                 st.markdown(f"""
                 <div style="
                     text-align:center;
@@ -729,10 +736,20 @@ def main():
                 # ================= Keyword Table Expander ====================
                 with st.expander("🔎 View ATS Keyword Analysis"):
                     st.markdown("### 🟢 Matched Keywords")
-                    st.write(ats_data.get("matched_keywords"))
-
+                    # Changed from matched_keywords to matched_skills
+                    matched = ats_data.get("matched_skills", [])
+                    if matched:
+                        st.write(", ".join(matched))
+                    else:
+                        st.write("None")
+                    
                     st.markdown("### 🔴 Missing Keywords")
-                    st.write(ats_data.get("missing_keywords"))
+                    # Changed from missing_keywords to missing_skills
+                    missing = ats_data.get("missing_skills", [])
+                    if missing:
+                        st.write(", ".join(missing))
+                    else:
+                        st.write("None")
 
 
             if st.button("✨ **Save & Auto-Improve**", type="primary", use_container_width=True):

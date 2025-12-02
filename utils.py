@@ -93,21 +93,59 @@ def extract_details_from_text(extracted_text: str) -> Dict[str, Any]:
     """
     
     prompt = f"""
-    Extract structured information from the following text and return it in JSON format only.
-    
-    Include all fields you can detect, even if they are not listed below. 
-    Standard fields to include (if present):
-    - name, email, phone, skills, experience, education, certifications, summary, projects
-    For experience:
-        - title, company, duration, description (array of strings), overview
-    For projects:
-        - name, description (array of strings), overview
-    Include any other sections present (interests, languages, hobbies, awards, etc.)
-    
-    Text to analyze:
-    {extracted_text}
-    
-    Return only valid JSON.
+   Extract structured information from the resume text below.
+Return ONLY valid JSON. Do NOT include explanations.
+
+RULES:
+1. Do NOT invent or infer any information that is not explicitly present. 
+2. If a field is missing, return null or an empty list.
+3. Preserve the exact wording of skills, titles, companies, and achievements.
+4. Follow the exact schema below. Do not add extra top-level keys.
+
+SCHEMA:
+{
+  "name": string|null,
+  "email": string|null,
+  "phone": string|null,
+  "summary": string|null,
+  "skills": [string],
+  "experience": [
+    {
+      "title": string|null,
+      "company": string|null,
+      "location": string|null,
+      "duration": string|null,
+      "overview": string|null,
+      "description": [string]
+    }
+  ],
+  "education": [
+    {
+      "degree": string|null,
+      "institution": string|null,
+      "duration": string|null,
+      "overview": string|null
+    }
+  ],
+  "projects": [
+    {
+      "name": string|null,
+      "overview": string|null,
+      "description": [string]
+    }
+  ],
+  "certifications": [string],
+  "awards": [string],
+  "languages": [string],
+  "interests": [string],
+  "extras": {
+      "raw_sections_detected": [string]
+  }
+}
+
+Resume text:
+{extracted_text}
+
     """
 
     payload = {
@@ -593,38 +631,49 @@ def extract_text_from_docx(docx_file):
         st.error(f"Error reading DOCX: {e}")
         return ""
 ""
-    
+
+
+
 
 def extract_details_from_jd(job_description_text: str) -> dict:
+
+
     prompt = f"""
-Extract structured information from the following job description. Return valid JSON only.
+You are an expert job description analyst.
 
-Extract these fields:
-- job_title
-- company
-- location
-- employment_type
-- required_skills (list)
-- responsibilities (list)
-- qualifications (list)
-- salary_range
-- benefits (list)
-- job_summary
+Extract structured information from the compressed job description below.
 
-Text to analyze:
+RULES:
+1. Do NOT invent missing info.
+2. If unclear → return null or [].
+3. Strict JSON only.
+
+Schema:
+{{
+  "job_title": string|null,
+  "company": string|null,
+  "location": string|null,
+  "employment_type": string|null,
+  "primary_skills": [string],
+  "secondary_skills": [string],
+  "responsibilities": [string],
+  "qualifications": [string],
+  "salary_range": string|null,
+  "benefits": [string],
+  "job_summary": string|null
+}}
+
+Compressed JD:
 {job_description_text}
-
-Return only valid JSON format without any additional text.
 """
 
     payload = {
-        "model": HEAVY_MODEL,  # try high-quality model first
+        "model": HEAVY_MODEL,
         "messages": [
-            {"role": "system", "content": "You are an expert at extracting job description details. Always return valid JSON only."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.3,     # faster + less hallucinations
-        "max_tokens": 200,      # limit output for speed
+        "temperature": 0.0,
+        "max_tokens": 300,
         "stream": True
     }
 
@@ -633,35 +682,26 @@ Return only valid JSON format without any additional text.
         "Content-Type": "application/json"
     }
 
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
-    except Exception:
-        # Fallback to fast 8B model automatically 👍
-        payload["model"] = FAST_MODEL
-        response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+    response = requests.post(API_URL, headers=headers, json=payload, stream=True)
 
-    # Read streamed chunks
     response_text = ""
     for chunk in response.iter_lines():
         if chunk:
             try:
                 data = json.loads(chunk.decode("utf-8").replace("data: ", ""))
-                if "choices" in data and "delta" in data["choices"][0]:
-                    delta = data["choices"][0]["delta"].get("content", "")
-                    if delta:
-                        response_text += delta
-            except Exception:
+                delta = data["choices"][0]["delta"].get("content", "")
+                response_text += delta
+            except:
                 pass
 
-    # Extract JSON substring
-    json_start = response_text.find('{')
-    json_end = response_text.rfind('}') + 1
+    # Extract JSON
+    json_start = response_text.find("{")
+    json_end = response_text.rfind("}") + 1
+
     if json_start != -1 and json_end > json_start:
-        json_text = response_text[json_start:json_end]
-        jd_structured = json.loads(json_text)
-        return jd_structured
-    else:
-        raise ValueError("Valid JSON not found in LLM response")
+        return json.loads(response_text[json_start:json_end])
+
+    raise ValueError("Valid JSON not found")
 
 
 
@@ -1482,267 +1522,193 @@ def save_user_ppt_templates(user_email, templates):
         json.dump(templates_copy, f, indent=4, ensure_ascii=False)
 
 
+import json
+import re
 
-def calculate_ats_score(resume_data, job_description):
+
+def extract_json(text):
     """
-    Calculate ATS score based on keyword matching between resume and JD.
-    Returns a score out of 100 and breakdown details.
+    Extracts JSON from LLM response, handling markdown fences and extra text.
     """
-    if not job_description or not resume_data:
-        return {"score": 0, "breakdown": {}, "missing_keywords": []}
-    
-    # FIXED: Handle job_description if it's a dict
-    if isinstance(job_description, dict):
-        jd_text = extract_jd_text(job_description)
-    else:
-        jd_text = job_description
-    
-    # Extract keywords from job description
-    jd_keywords = extract_keywords(jd_text)
-    
-    # Extract all text from resume
-    resume_text = extract_resume_text(resume_data)
-    resume_keywords = extract_keywords(resume_text)
-    
-    # Calculate matching
-    matched_keywords = jd_keywords.intersection(resume_keywords)
-    match_percentage = (len(matched_keywords) / len(jd_keywords) * 100) if jd_keywords else 0
-    
-    # Calculate breakdown by sections
-    breakdown = {
-        "skills_match": calculate_skills_match(resume_data.get('skills', {}), jd_text),
-        "experience_match": calculate_text_match(
-            extract_section_text(resume_data.get('experience', [])), 
-            jd_text
-        ),
-        "keyword_match": match_percentage
-    }
-    
-    # Calculate overall score (weighted)
-    overall_score = (
-        breakdown["skills_match"] * 0.4 +
-        breakdown["experience_match"] * 0.3 +
-        breakdown["keyword_match"] * 0.3
-    )
-    
-    # Find missing important keywords
-    missing_keywords = list(jd_keywords - resume_keywords)[:10]  # Top 10 missing
-    
-    return {
-        "score": round(overall_score, 1),
-        "breakdown": breakdown,
-        "matched_keywords": list(matched_keywords)[:15],
-        "missing_keywords": missing_keywords
-    }
-
-
-def extract_jd_text(jd_dict):
-    """Extract text from job description dictionary."""
-    if not isinstance(jd_dict, dict):
-        return str(jd_dict)
-    
-    text_parts = []
-    
-    # Common JD fields
-    jd_fields = [
-        'job_title', 'title', 'position', 
-        'description', 'job_description',
-        'responsibilities', 'requirements', 
-        'qualifications', 'skills_required',
-        'preferred_skills', 'experience_required',
-        'summary', 'overview', 'about_role'
-    ]
-    
-    # Extract text from all fields
-    for field in jd_fields:
-        if field in jd_dict:
-            value = jd_dict[field]
-            if isinstance(value, str):
-                text_parts.append(value)
-            elif isinstance(value, list):
-                text_parts.extend([str(item) for item in value])
-    
-    # If no specific fields found, extract all string values
-    if not text_parts:
-        for key, value in jd_dict.items():
-            if isinstance(value, str):
-                text_parts.append(value)
-            elif isinstance(value, list):
-                text_parts.extend([str(item) for item in value if item])
-    
-    return ' '.join(text_parts)
-
-
-def extract_keywords(text):
-    """Extract meaningful keywords from text."""
     if not text:
-        return set()
-    
-    # Ensure text is a string
-    if not isinstance(text, str):
-        text = str(text)
-    
-    # Convert to lowercase
-    text = text.lower()
-    
-    # Remove special characters and split into words
-    words = re.findall(r'\b[a-z]{3,}\b', text)
-    
-    # Common stop words to exclude
-    stop_words = {
-        'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her', 'was',
-        'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'may',
-        'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'she', 'use', 'way',
-        'about', 'after', 'also', 'back', 'been', 'before', 'being', 'both', 'could',
-        'each', 'from', 'have', 'here', 'into', 'just', 'like', 'more', 'most', 'only',
-        'other', 'over', 'such', 'than', 'that', 'them', 'then', 'there', 'these',
-        'they', 'this', 'through', 'time', 'very', 'were', 'what', 'when', 'where',
-        'which', 'while', 'will', 'with', 'would', 'your', 'work', 'using', 'able'
-    }
-    
-    # Filter out stop words and keep meaningful keywords
-    keywords = {word for word in words if word not in stop_words and len(word) > 3}
-    
-    return keywords
+        raise ValueError("Empty response – cannot extract JSON")
 
+    # Remove markdown code fences
+    text = re.sub(r'```json\s*|\s*```', '', text, flags=re.IGNORECASE)
 
-def extract_resume_text(resume_data):
-    """Extract all text content from resume data."""
-    text_parts = []
-    
-    # Add summary
-    if resume_data.get('summary'):
-        text_parts.append(resume_data['summary'])
-    
-    # Add skills - handle both dict and list
-    skills = resume_data.get('skills', {})
-    if isinstance(skills, dict):
-        # If it's a dict, iterate over values
-        for skill_list in skills.values():
-            if isinstance(skill_list, list):
-                text_parts.extend(skill_list)
-            else:
-                text_parts.append(str(skill_list))
-    elif isinstance(skills, list):
-        # If it's already a list, just extend directly
-        text_parts.extend([str(s) for s in skills])
-    
-    # Add experience
-    for exp in resume_data.get('experience', []):
-        if exp.get('position'):
-            text_parts.append(exp['position'])
-        if exp.get('title'):
-            text_parts.append(exp['title'])
-        if exp.get('description'):
-            if isinstance(exp['description'], list):
-                text_parts.extend(exp['description'])
-            else:
-                text_parts.append(str(exp['description']))
-    
-    # Add projects
-    for proj in resume_data.get('projects', []):
-        if proj.get('name'):
-            text_parts.append(proj['name'])
-        if proj.get('description'):
-            if isinstance(proj['description'], list):
-                text_parts.extend(proj['description'])
-            else:
-                text_parts.append(str(proj['description']))
-    
-    # Add education
-    for edu in resume_data.get('education', []):
-        if edu.get('degree'):
-            text_parts.append(edu['degree'])
-        if edu.get('course'):
-            text_parts.append(edu['course'])
-    
-    # Add certifications
-    for cert in resume_data.get('certifications', []):
-        if isinstance(cert, dict):
-            # cert is a dictionary
-            name = cert.get('certificate_name') or cert.get('name')
-        else:
-            # cert is a string
-            name = cert
+    # Try multiple extraction strategies
+    strategies = [
+        # Strategy 1: Find outermost balanced braces
+        lambda t: re.search(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', t, re.DOTALL),
         
-        if name:
-            text_parts.append(name)
-    
-    return ' '.join([str(part) for part in text_parts])
+        # Strategy 2: Non-greedy match
+        lambda t: re.search(r'\{.*?\}(?=\s*$)', t, re.DOTALL),
+        
+        # Strategy 3: Greedy match
+        lambda t: re.search(r'\{.*\}', t, re.DOTALL)
+    ]
 
-def extract_section_text(section_list):
-    """Extract text from a list section."""
-    text_parts = []
-    for item in section_list:
-        if isinstance(item, dict):
-            for value in item.values():
-                if isinstance(value, str):
-                    text_parts.append(value)
-                elif isinstance(value, list):
-                    text_parts.extend([str(v) for v in value])
-    return ' '.join(text_parts)
+    for strategy in strategies:
+        match = strategy(text)
+        if match:
+            json_text = match.group(0)
+            try:
+                return json.loads(json_text)
+            except json.JSONDecodeError:
+                continue
 
-
-def calculate_skills_match(resume_skills, job_description):
-    """Calculate how many resume skills match the job description."""
-    if not resume_skills or not job_description:
-        return 0
-    
-    # Ensure job_description is a string
-    if isinstance(job_description, dict):
-        jd_text = extract_jd_text(job_description)
-    else:
-        jd_text = str(job_description)
-    
-    jd_lower = jd_text.lower()
-    total_skills = 0
-    matched_skills = 0
-    
-    # Handle both dict and list formats for resume_skills
-    if isinstance(resume_skills, dict):
-        # Dictionary format: {'technical': ['Python', 'Java'], 'soft': ['Leadership']}
-        for skill_category, skills_list in resume_skills.items():
-            if isinstance(skills_list, list):
-                for skill in skills_list:
-                    total_skills += 1
-                    if str(skill).lower() in jd_lower:
-                        matched_skills += 1
-            else:
-                # Handle single skill as string
-                total_skills += 1
-                if str(skills_list).lower() in jd_lower:
-                    matched_skills += 1
-    
-    elif isinstance(resume_skills, list):
-        # List format: ['Python', 'Java', 'Leadership']
-        for skill in resume_skills:
-            total_skills += 1
-            if str(skill).lower() in jd_lower:
-                matched_skills += 1
-    
-    return (matched_skills / total_skills * 100) if total_skills > 0 else 0
+    # Last resort: try the entire text
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError as e:
+        print("=" * 60)
+        print("FAILED TO EXTRACT JSON")
+        print("=" * 60)
+        print(f"Response length: {len(text)}")
+        print(f"First 500 chars: {text[:500]}")
+        print("=" * 60)
+        raise ValueError(f"No valid JSON found in response: {str(e)}")
 
 
-def calculate_text_match(text, job_description):
-    """Calculate keyword match percentage between text and JD."""
-    if not text or not job_description:
-        return 0
-    
-    # Ensure inputs are strings
-    if isinstance(job_description, dict):
-        jd_text = extract_jd_text(job_description)
-    else:
-        jd_text = str(job_description)
-    
-    text_keywords = extract_keywords(text)
-    jd_keywords = extract_keywords(jd_text)
-    
-    if not jd_keywords:
-        return 0
-    
-    matched = text_keywords.intersection(jd_keywords)
-    return (len(matched) / len(jd_keywords) * 100)
+def call_llm_for_json(prompt: str, max_tokens: int = 2000) -> dict:
+    """
+    Wrapper around call_llm_api that handles JSON extraction.
+    Returns a dict instead of a string.
+    """
+    try:
+        # Call the existing function
+        result = call_llm_api(prompt, max_tokens=max_tokens)
+        
+        print("\n" + "=" * 80)
+        print("🔍 Raw LLM Response:")
+        print(result[:500])
+        print("=" * 80)
+        
+        # Check for error message
+        if "⚠️" in result or "unavailable" in result.lower():
+            raise ValueError(f"API service error: {result}")
+        
+        # Extract JSON from the response
+        return extract_json(result)
+        
+    except Exception as e:
+        print(f"\n❌ Error in call_llm_for_json: {str(e)}")
+        raise
 
+def ai_ats_score(resume_text, jd_text):
+    """
+    Evaluates resume-job fit using AI and returns structured scores.
+    """
+    
+    # Safe truncation with type checking
+    def safe_truncate(text, max_length=3000):
+        """Safely convert to string and truncate"""
+        if text is None:
+            return ""
+        if isinstance(text, dict):
+            text = json.dumps(text)
+        return str(text)[:max_length]
+    
+    resume_truncated = safe_truncate(resume_text)
+    jd_truncated = safe_truncate(jd_text)
+    
+    # Validate we have content
+    if not resume_truncated.strip():
+        raise ValueError("Resume text is empty")
+    if not jd_truncated.strip():
+        raise ValueError("Job description is empty")
+    
+    prompt = f"""
+You are an ATS scoring engine designed to evaluate resume–job fit using semantic understanding.
+
+Your job is to:
+1. Compare the resume with the job description.
+2. Score the match on a scale of 0–100.
+3. Identify matched skills, missing skills, and experience relevance.
+4. Evaluate semantic similarity, not keyword overlap.
+5. Consider:
+   - technical skills match
+   - responsibilities match
+   - seniority/experience level
+   - domain knowledge relevance
+   - transferable skills
+
+Return ONLY valid JSON in the following format:
+
+{{
+  "overall_score": number,
+  "skill_match_score": number,
+  "experience_match_score": number,
+  "semantic_alignment_score": number,
+  "matched_skills": [string],
+  "missing_skills": [string],
+  "strengths": [string],
+  "weaknesses": [string],
+  "explanation": string
+}}
+
+Resume:
+{resume_truncated}
+
+Job Description:
+{jd_truncated}
+
+IMPORTANT: Return ONLY the JSON object. No markdown formatting, no explanation text, no other content.
+"""
+
+    try:
+        result = call_llm_for_json(prompt, max_tokens=2500)
+        
+        # Validate and fix the result
+        required_fields = {
+            "overall_score": 0,
+            "skill_match_score": 0,
+            "experience_match_score": 0,
+            "semantic_alignment_score": 0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "strengths": [],
+            "weaknesses": [],
+            "explanation": "Analysis completed"
+        }
+        
+        # Ensure all fields exist with proper defaults
+        for field, default in required_fields.items():
+            if field not in result:
+                result[field] = default
+            # Fix None values
+            elif result[field] is None:
+                result[field] = default
+            # Fix empty strings in lists
+            elif isinstance(default, list) and not result[field]:
+                result[field] = []
+        
+        # Debug output
+        print("\n" + "=" * 80)
+        print("✅ ATS Analysis Results:")
+        print(f"Overall Score: {result['overall_score']}")
+        print(f"Matched Skills: {len(result['matched_skills'])} items - {result['matched_skills']}")
+        print(f"Missing Skills: {len(result['missing_skills'])} items - {result['missing_skills']}")
+        print("=" * 80)
+        
+        return result
+        
+    except Exception as e:
+        print(f"\n❌ Error in ai_ats_score: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return {
+            "overall_score": 0,
+            "skill_match_score": 0,
+            "experience_match_score": 0,
+            "semantic_alignment_score": 0,
+            "matched_skills": [],
+            "missing_skills": [],
+            "strengths": ["Unable to complete analysis"],
+            "weaknesses": ["API error occurred"],
+            "explanation": f"Error: {str(e)}"
+        }
 
 def get_score_color(score):
     """Return color based on score."""
@@ -1766,9 +1732,6 @@ def get_score_label(score):
         return "Fair Match"
     else:
         return "Needs Improvement"
-    
-
-
 
 def analyze_slide_structure(slide_texts):
     """Use LLM to find headings, subheadings, and related contents - INCLUDING BASIC INFO"""

@@ -635,73 +635,86 @@ def extract_text_from_docx(docx_file):
 
 
 
-def extract_details_from_jd(job_description_text: str) -> dict:
+def extract_details_from_jd(jd_text: str) -> dict:
+    """
+    No-bullshit JD extraction that actually works.
+    """
+    
+    # Remove obviously useless lines (this is the ONLY compression worth doing)
+    lines = [
+        line.strip() 
+        for line in jd_text.split('\n')
+        if line.strip() and not line.strip().startswith('Apply')
+    ]
+    clean_jd = '\n'.join(lines)
+    
+    # Simple, clear prompt - no flowery nonsense
+    prompt = f"""Extract this job description into JSON. Return ONLY the JSON object, no explanation.
 
+{clean_jd}
 
-    prompt = f"""
-You are an expert job description analyst.
-
-Extract structured information from the compressed job description below.
-
-RULES:
-1. Do NOT invent missing info.
-2. If unclear → return null or [].
-3. Strict JSON only.
-
-Schema:
+Required format:
 {{
-  "job_title": string|null,
-  "company": string|null,
-  "location": string|null,
-  "employment_type": string|null,
-  "primary_skills": [string],
-  "secondary_skills": [string],
-  "responsibilities": [string],
-  "qualifications": [string],
-  "salary_range": string|null,
-  "benefits": [string],
-  "job_summary": string|null
-}}
-
-Compressed JD:
-{job_description_text}
-"""
+  "job_title": "string or null",
+  "company": "string or null",
+  "location": "string or null",
+  "employment_type": "string or null",
+  "primary_skills": ["array of strings"],
+  "secondary_skills": ["array of strings"],
+  "responsibilities": ["array of strings"],
+  "qualifications": ["array of strings"],
+  "salary_range": "string or null",
+  "benefits": ["array of strings"],
+  "job_summary": "string or null"
+}}"""
 
     payload = {
         "model": HEAVY_MODEL,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
+        "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
-        "max_tokens": 300,
-        "stream": True
+        "max_tokens": 2000,  # ACTUALLY ENOUGH TOKENS
+        "stream": False  # NO STREAMING FOR STRUCTURED OUTPUT
     }
-
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-
-    response = requests.post(API_URL, headers=headers, json=payload, stream=True)
-
-    response_text = ""
-    for chunk in response.iter_lines():
-        if chunk:
-            try:
-                data = json.loads(chunk.decode("utf-8").replace("data: ", ""))
-                delta = data["choices"][0]["delta"].get("content", "")
-                response_text += delta
-            except:
-                pass
-
-    # Extract JSON
-    json_start = response_text.find("{")
-    json_end = response_text.rfind("}") + 1
-
-    if json_start != -1 and json_end > json_start:
-        return json.loads(response_text[json_start:json_end])
-
-    raise ValueError("Valid JSON not found")
+    
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        result = response.json()
+        content = result["choices"][0]["message"]["content"].strip()
+        
+        # Remove markdown if LLM adds it
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.split("```")[0].strip()
+        
+        # Parse JSON
+        parsed = json.loads(content)
+        
+        # Validate structure (catch garbage early)
+        required_keys = {"job_title", "company", "location", "employment_type", 
+                        "primary_skills", "secondary_skills", "responsibilities",
+                        "qualifications", "salary_range", "benefits", "job_summary"}
+        
+        if not required_keys.issubset(parsed.keys()):
+            missing = required_keys - parsed.keys()
+            raise ValueError(f"LLM returned incomplete JSON. Missing: {missing}")
+        
+        return parsed
+        
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"API request failed: {e}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"LLM returned invalid JSON: {e}\nContent: {content[:500]}")
+    except KeyError as e:
+        raise ValueError(f"Unexpected API response structure: {e}")
 
 
 
@@ -792,24 +805,33 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     # 🚀 UPDATED PROMPT -> SUMMARY: Highlight only existing skills
     # ==========================================================
     summary_prompt = f"""
-Act as a professional resume writer and produce a polished professional summary
-for {resume_data.get('name','')} applying for {job_title} at {jd_data.get('company','')}.
+Rewrite this resume summary for a {job_title} position. 
 
-RULES (STRICT):
-- Mention ONLY skills and experience that ALREADY exist in the user's resume.
-- Do NOT invent or assume any new roles, skills, tools, achievements, metrics, or claims.
-- Make it aligned with the job by emphasizing only matching elements that truly exist.
-- Keep it factual, concise, ATS-friendly, and written in implied first person (no "I", "my", "me").
+CRITICAL RULES - READ TWICE:
+1. Write in THIRD PERSON - NO "I", "my", "me" anywhere
+2. Use PAST TENSE for describing experience (e.g., "worked with", "built", "tested")
+3. Write 2-3 sentences MAXIMUM
+4. Only mention what's actually in their resume - no fake skills
 
-Use ONLY this content:
-- Original summary: {resume_data.get('summary','')}
-- Experience points: {all_exp_desc[:10]}
-- Skills to highlight ONLY if they exist in resume: {', '.join(required_skills)}
+WRONG TONE (do NOT write like this):
+"I am a results-driven professional leveraging cutting-edge technologies to drive transformative solutions. I have a proven track record of spearheading initiatives that maximize ROI."
 
-Length: 2–3 sentences maximum.
+RIGHT TONE (write like THIS):
+"QA tester with 3 years testing web applications using JavaScript and React. Worked closely with development teams to identify bugs and improve product quality. Looking to apply testing methodology skills to a new challenge."
 
-⚠️ Return ONLY the final professional summary text.
-⚠️ Do NOT include titles, labels, comments, explanations, headers, or extra lines.
+ANOTHER GOOD EXAMPLE:
+"Background in manual and automated testing for e-learning platforms. Familiar with API testing, test case design, and working with cross-functional teams. Experience with HTML, CSS, JavaScript, and SQL for test validation."
+
+THEIR ACTUAL RESUME INFO:
+Name: {resume_data.get('name','')}
+Current Summary: {resume_data.get('summary','')}
+Work Experience: {all_exp_desc[:10]}
+Skills: {', '.join(candidate_skills[:15])}
+
+JD Context (only use skills from their resume that match these needs):
+{', '.join(required_skills[:10])}
+
+Write the summary now. Return ONLY the summary text, nothing else.
 """
 
     rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
@@ -820,20 +842,53 @@ Length: 2–3 sentences maximum.
     # ==========================================================
     if experience:
         exp_prompt = f"""
-        Rewrite the candidate's experience to better align with {job_title} at {jd_data.get('company','')}.
+Rewrite work experience bullet points for a {job_title} application.
 
-        RULES (VERY IMPORTANT):
-        - Do NOT create fake tasks, tools, achievements, or metrics.
-        - Only rephrase and highlight what ALREADY exists.
-        - If skills match the JD, highlight them clearly.
-        - Keep structure the same: JSON with 'position', 'company', 'duration', 'overview', and 'description' (bullet list).
+ABSOLUTE REQUIREMENTS:
+1. THIRD PERSON ONLY - ZERO usage of "I", "my", "me", "we"
+2. Start bullets with PAST TENSE VERBS: "Developed", "Tested", "Created", "Worked", "Built"
+3. Keep original facts - only improve clarity and relevance
+4. NO PERCENTAGES unless they were in the original
+5. Keep it factual and straightforward - no marketing fluff
 
-        Original Experience JSON: {json.dumps(experience)}
-        JD Responsibilities: {', '.join(responsibilities)}
-        Matching Skills to Highlight Only if Present: {', '.join(required_skills)}
+BAD EXAMPLES (NEVER write like this):
+❌ "I spearheaded a transformative initiative that drove 40% efficiency gains"
+❌ "I leveraged cutting-edge technologies to facilitate seamless integration"
+❌ "I was responsible for testing various applications"
 
-        Return ONLY the cleaned JSON array.
-        """
+GOOD EXAMPLES (write like THIS):
+✅ "Created and executed test cases for web-based biology curriculum, achieving 99% test coverage"
+✅ "Worked with developers to identify and resolve critical bugs, reducing defect density by 30%"
+✅ "Built automated test scripts using JavaScript to speed up regression testing"
+✅ "Tested API endpoints using Postman and documented integration issues"
+✅ "Reviewed functional requirements and translated them into detailed test plans"
+
+STRUCTURE FOR EACH BULLET:
+[Action verb] + [What you did] + [Tools/technologies used] + [Result if it existed in original]
+
+ORIGINAL EXPERIENCE TO REWRITE:
+{json.dumps(experience, indent=2)}
+
+JD CONTEXT (only emphasize skills they actually used):
+Responsibilities: {', '.join(responsibilities[:8])}
+Required Skills: {', '.join(required_skills[:10])}
+
+OUTPUT FORMAT - Return this exact JSON structure:
+[
+  {{
+    "position": "exact position title from original",
+    "company": "exact company name from original",
+    "duration": "exact duration from original",
+    "description": [
+      "Bullet point 1 starting with past tense verb",
+      "Bullet point 2 starting with past tense verb",
+      "Bullet point 3 starting with past tense verb"
+    ]
+  }}
+]
+
+Return ONLY valid JSON, no markdown, no extra text.
+"""
         rewritten_exp_text = call_llm_api(exp_prompt, 500)
         try:
             json_start = rewritten_exp_text.find('[')
@@ -848,18 +903,50 @@ Length: 2–3 sentences maximum.
     # ==========================================================
     if projects:
         proj_prompt = f"""
-        Rewrite the candidate's project descriptions to align with {job_title}.
+Rewrite project descriptions for a {job_title} role application.
 
-        RULES:
-        - Do NOT add new technologies, tools, responsibilities or outcomes.
-        - Only rephrase and highlight relevant points that ALREADY exist.
-        - Highlight only skills already present in project text.
+MANDATORY RULES:
+1. THIRD PERSON - No "I", "my", "me", "we" anywhere
+2. Start with PAST TENSE VERBS: "Built", "Created", "Developed", "Tested", "Designed"
+3. Be specific about WHAT you built and HOW
+4. Only describe what actually happened - no embellishment
+5. Keep metrics only if they were in the original
 
-        Original Projects JSON: {json.dumps(projects)}
-        Skills to highlight only if they ALREADY exist: {', '.join(required_skills)}
+WRONG WAY (do NOT write like this):
+❌ "I spearheaded the development of an innovative platform leveraging React"
+❌ "I was tasked with creating test cases for the application"
+❌ "My role involved facilitating testing processes"
 
-        Return ONLY valid JSON array (same structure).
-        """
+RIGHT WAY (write like THIS):
+✅ "Built automated testing framework for e-learning platform using JavaScript and Selenium"
+✅ "Created 150+ test cases covering user authentication, course navigation, and payment flows"
+✅ "Tested API endpoints and documented integration issues between frontend and backend"
+✅ "Set up CI/CD pipeline for running automated tests on each deployment"
+✅ "Worked with designers to test responsive layouts across mobile and desktop browsers"
+
+FORMULA FOR EACH BULLET:
+[Past tense verb] + [Specific technical detail] + [Technology/tool used] + [Concrete outcome]
+
+ORIGINAL PROJECTS:
+{json.dumps(projects, indent=2)}
+
+JD SKILLS TO HIGHLIGHT (only if they actually appear in the projects):
+{', '.join(required_skills[:10])}
+
+OUTPUT - Return this JSON structure:
+[
+  {{
+    "name": "Project Name",
+    "description": [
+      "Specific bullet starting with action verb",
+      "Another specific bullet with technical details",
+      "Third bullet with concrete outcome"
+    ]
+  }}
+]
+
+Return ONLY the JSON array, nothing else.
+"""
         rewritten_proj_text = call_llm_api(proj_prompt, 400)
         try:
             json_start = rewritten_proj_text.find('[')
@@ -872,18 +959,45 @@ Length: 2–3 sentences maximum.
     # 🚀 UPDATED PROMPT -> SKILLS: ONLY enhance, NO new skills
     # ==========================================================
     skills_prompt = f"""
-    Categorize ONLY the candidate's existing skills to align with {job_title}.
+    Organize the candidate's existing skills into logical categories for a {job_title} role.
 
-    RULES:
-    - DO NOT add new tools or skills that are NOT already in the resume.
-    - If a skill matches the JD, place it at the TOP of its category.
-    - Categorize ONLY the user's existing skills into:
-      technicalSkills, tools, cloudSkills, softSkills, languages.
+    APPROACH:
+    - Simply categorize what they already know - don't oversell or add things
+    - Put the most relevant skills for this job toward the top of each category
+    - Keep it straightforward - this is just organizing, not marketing
+    - If a skill matches what the job needs and they have it, prioritize it naturally
 
-    USER SKILLS: {', '.join(candidate_skills[:30])}
-    JD SKILLS to highlight only if they exist in USER skills: {', '.join(required_skills)}
+    STRICT RULES:
+    - ONLY use skills that are ALREADY in their resume
+    - DO NOT add any new tools, languages, or technologies
+    - DO NOT assume they know something just because it's related to what they know
+    - If a JD skill isn't in their actual skillset, leave it out completely
+    - Just reorganize what exists, don't expand or embellish
 
-    Return ONLY JSON object with the categories.
+    THEIR ACTUAL SKILLS:
+    {', '.join(candidate_skills[:30])}
+
+    JD REQUIREMENTS (only prioritize these IF they're already in the list above):
+    {', '.join(required_skills)}
+
+    CATEGORIES TO USE:
+    - technicalSkills: core technical abilities, methodologies, concepts
+    - tools: specific software, platforms, applications they've used
+    - cloudSkills: cloud platforms and services (only if they have them)
+    - softSkills: communication, teamwork, problem-solving abilities
+    - languages: programming languages, query languages
+
+    OUTPUT:
+    Return a simple JSON object:
+    {{
+    "technicalSkills": ["skill1", "skill2", ...],
+    "tools": ["tool1", "tool2", ...],
+    "cloudSkills": ["cloud1", "cloud2", ...],
+    "softSkills": ["soft1", "soft2", ...],
+    "languages": ["lang1", "lang2", ...]
+    }}
+
+    Only include categories that have items. Return ONLY the JSON object, nothing else.
     """
     skills_text = call_llm_api(skills_prompt, 300)
     try:

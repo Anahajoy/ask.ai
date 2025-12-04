@@ -660,7 +660,7 @@ def generate_and_switch():
     st.session_state['final_resume_data'] = finalized_data
 
     # Set default template config
-    from utils import SYSTEM_TEMPLATES  # make sure this import exists
+    from templates.templateconfig import SYSTEM_TEMPLATES  # make sure this import exists
     st.session_state.selected_template_config = SYSTEM_TEMPLATES.get(default_template)
 
     st.switch_page("pages/template_preview.py")

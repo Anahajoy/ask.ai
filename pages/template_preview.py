@@ -1,5 +1,6 @@
 import streamlit as st
 import base64
+import  io
 from datetime import datetime
 import json
 from templates.templateconfig import SYSTEM_TEMPLATES,ATS_COLORS,load_css_template
@@ -1025,31 +1026,61 @@ with col1:
                         if st.button("Use", key=f"use_doc_{template_id}", type="primary", use_container_width=True):
                             try:
                                 import io
-                                from docx import Document
                                 
-                                doc_stream = io.BytesIO(template_data['doc_data'])
-                                doc = Document(doc_stream)
-                                structure = template_data.get('structure', [])
-                                output, replaced, removed = replace_content(doc, structure, user_resume)
+                                # ✅ Get the ORIGINAL template bytes
+                                template_bytes = template_data['doc_data']
                                 
-                                st.session_state.generated_doc = output.getvalue()
+                                # ✅ Verify it's valid bytes
+                                if not isinstance(template_bytes, bytes):
+                                    st.error("❌ Invalid template data format")
+                                    st.stop()
+                                
+                                # ✅ Extract text from template
+                                uploadtext = extract_temp_from_docx(io.BytesIO(template_bytes))
+                                
+                                # ✅ Generate mapping with user resume
+                                mapped_data = ask_ai_for_mapping(uploadtext, user_resume)
+                                
+                                # ✅ Ensure mapping is a dictionary
+                                if isinstance(mapped_data, list):
+                                    mapped_data = {
+                                        item["template"]: item["new"]
+                                        for item in mapped_data
+                                        if "template" in item and "new" in item
+                                    }
+                                
+                                # ✅ Process the template with user data
+                                output_doc = auto_process_docx(
+                                    io.BytesIO(template_bytes),
+                                    mapped_data
+                                )
+                                
+                                # ✅ Store the generated document
+                                st.session_state['generated_docx'] = output_doc.getvalue()
                                 st.session_state.selected_doc_template_id = template_id
                                 st.session_state.selected_doc_template = template_data
-                                st.session_state.doc_template_source = 'saved'
+                                
+                                # ✅ Set template source to trigger preview in col3
+                                st.session_state['template_source'] = 'doc_saved'
                                 
                                 st.success(f"✅ Using template: {template_data['name']}")
                                 st.rerun()
+                                
                             except Exception as e:
-                                st.error(f"Error loading template: {str(e)}")
+                                st.error(f"❌ Error loading template: {str(e)}")
+                                st.exception(e)
                     
                     with col2:
                         if st.button("🗑️", key=f"delete_doc_{template_id}", use_container_width=True):
+                            # Clear session state if this template is active
                             if st.session_state.get('selected_doc_template_id') == template_id:
-                                st.session_state.pop('generated_doc', None)
+                                st.session_state.pop('generated_docx', None)
                                 st.session_state.pop('selected_doc_template_id', None)
                                 st.session_state.pop('selected_doc_template', None)
-                                st.session_state.pop('doc_template_source', None)
+                                if st.session_state.get('template_source') == 'doc_saved':
+                                    st.session_state['template_source'] = 'system'
                             
+                            # Delete the template
                             del st.session_state.doc_templates[template_id]
                             save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
                             st.success(f"✅ Deleted '{template_data['name']}'")
@@ -1373,9 +1404,13 @@ with col1:
 
             if uploaded_file:
                 try:
+                    # ✅ Read the file ONCE and store it
+                    uploaded_file.seek(0)
+                    original_file_bytes = uploaded_file.read()  # Store original file bytes
+                    
                     # ✅ Extract template text
+                    uploaded_file.seek(0)
                     uploadtext = extract_temp_from_docx(uploaded_file)
-                    xml_data = extract_docx_xml(uploaded_file) 
                     
                     # ✅ Generate mapping
                     mapped_data = ask_ai_for_mapping(uploadtext, user_resume)
@@ -1391,22 +1426,21 @@ with col1:
                     st.session_state['mapping'] = mapped_data
                     st.session_state['template_text'] = uploadtext
 
-                    # ✅ Generate updated DOCX
-                    uploaded_file.seek(0)
+                    # ✅ Generate updated DOCX using the original bytes
                     output_doc = auto_process_docx(
-                        uploaded_file,
+                        io.BytesIO(original_file_bytes),
                         st.session_state['mapping']
                     )
 
-                    # ✅ Store the generated document
+                    # ✅ Store everything properly
                     st.session_state['generated_docx'] = output_doc.getvalue()
                     st.session_state['doc_original_filename'] = uploaded_file.name
-                    st.session_state['doc_xml_data'] = xml_data  # Store for saving later
+                    st.session_state['doc_original_bytes'] = original_file_bytes  # ✅ Store ORIGINAL file bytes
                     
                     # ✅ Set template source to trigger col3 preview
                     st.session_state['template_source'] = 'doc_saved'
 
-                    st.success("Check preview on the right →,Note: Previw slighlty diffrent from the exact file")
+                    st.success("✅ DOCX processed successfully! Check preview on the right →")
 
                     # ==============================
                     # ✅ SAVE TEMPLATE SECTION
@@ -1432,9 +1466,10 @@ with col1:
 
                             template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
+                            # ✅ Save with ORIGINAL file bytes (not XML)
                             st.session_state.doc_templates[template_id] = {
                                 'name': doc_template_name,
-                                'doc_data': st.session_state['doc_xml_data'],  # Use stored xml_data
+                                'doc_data': st.session_state['doc_original_bytes'],  # ✅ Use original bytes
                                 'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 'original_filename': st.session_state['doc_original_filename']
                             }
@@ -1452,7 +1487,6 @@ with col1:
                                     # Set as active template
                                     st.session_state.selected_doc_template_id = template_id
                                     st.session_state.selected_doc_template = st.session_state.doc_templates[template_id]
-                                    st.session_state.doc_template_source = 'saved'
                                     
                                     st.rerun()
                                 else:
@@ -1463,7 +1497,7 @@ with col1:
                                 st.exception(e)
 
                     # ==============================
-                    # ✅ DOWNLOAD BUTTON (Optional)
+                    # ✅ DOWNLOAD BUTTON
                     # ==============================
                     st.divider()
                     st.download_button(

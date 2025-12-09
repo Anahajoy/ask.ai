@@ -30,6 +30,8 @@ from io import BytesIO
 from datetime import datetime
 import requests
 import json
+from lxml import etree
+import mammoth
 
 
 # Recommended models:
@@ -2807,28 +2809,44 @@ def load_user_doc_templates(username):
     return {}
 
 def save_user_doc_templates(username, templates):
-    """Save user's document templates to JSON"""
+    """Save user's document templates to JSON (supports bytes or text safely)"""
     filepath = get_user_doc_templates_path(username)
-    
+
     try:
-        # Convert binary data to base64 for JSON serialization
         templates_to_save = {}
-        
+
         for template_id, template_data in templates.items():
             templates_to_save[template_id] = template_data.copy()
-            
-            # Convert binary doc_data to base64
+
             if 'doc_data' in template_data:
-                templates_to_save[template_id]['doc_data_b64'] = base64.b64encode(template_data['doc_data']).decode('utf-8')
+                doc_data = template_data['doc_data']
+
+                # ✅ CASE 1: If bytes → base64 encode
+                if isinstance(doc_data, (bytes, bytearray)):
+                    templates_to_save[template_id]['doc_data_b64'] = (
+                        base64.b64encode(doc_data).decode('utf-8')
+                    )
+
+                # ✅ CASE 2: If list → save directly as text
+                elif isinstance(doc_data, list):
+                    templates_to_save[template_id]['doc_data_text'] = doc_data
+
+                # ✅ CASE 3: If string → save directly
+                elif isinstance(doc_data, str):
+                    templates_to_save[template_id]['doc_data_text'] = doc_data
+
+                # ✅ Remove raw doc_data from JSON
                 del templates_to_save[template_id]['doc_data']
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(templates_to_save, f, indent=2)
-        
+            json.dump(templates_to_save, f, indent=2, ensure_ascii=False)
+
         return True
+
     except Exception as e:
-        print(f"Error saving doc templates: {str(e)}")
+        print(f"❌ Error saving doc templates: {str(e)}")
         return False
+
 
 def delete_user_doc_template(username, template_id):
     """Delete a specific doc template"""
@@ -4698,3 +4716,690 @@ def get_text_download_link(data, filename_suffix=""):
     filename = f"Resume_{data.get('name', 'User').replace(' ', '_')}_ATS_Plain_Text{filename_suffix}.txt"
     href = f'<a href="data:text/plain;base64,{b64_data}" download="{filename}" style="font-size: 0.95em; text-decoration: none; padding: 10px 15px; background-color: #40E0D0; color: white; border-radius: 5px; display: inline-block; margin-top: 10px; width: 100%; text-align: center;"><strong> Plain Text (.txt)</strong></a>'
     return href
+
+
+
+
+# utils.py
+import zipfile
+import re
+import json
+import requests
+from io import BytesIO
+# import aspose.words as aw
+
+
+# ---------------------------
+# 1. Extract all visible text
+# ---------------------------
+def extract_all_text(docx_bytes):
+    """
+    Extract visible text from word/document.xml.
+    This is only for AI mapping — not for replacement.
+    """
+    with zipfile.ZipFile(BytesIO(docx_bytes), 'r') as zf:
+        xml = zf.read('word/document.xml').decode('utf-8')
+
+    pattern = r'<w:t[^>]*>(.*?)</w:t>'
+    matches = re.findall(pattern, xml, flags=re.S)
+
+    result = []
+    for text in matches:
+        clean = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").strip()
+        if clean:
+            result.append(clean)
+
+    return result
+
+
+def identify_headings(extracted_texts):
+    """
+    Identify which paragraphs are section headings vs content.
+    Returns tuple: (headings_list, content_list)
+    """
+    HEADING_KEYWORDS = {
+        "EXPERIENCE", "EDUCATION", "SKILLS", "PROJECTS", "CERTIFICATIONS",
+        "SUMMARY", "OBJECTIVE", "PROFILE", "ACHIEVEMENTS", "AWARDS",
+        "WORK EXPERIENCE", "PROFESSIONAL EXPERIENCE", "TECHNICAL SKILLS",
+        "SOFT SKILLS", "PROFESSIONAL SUMMARY", "CAREER OBJECTIVE",
+        "CONTACT", "ABOUT", "LANGUAGES", "INTERESTS", "REFERENCES"
+    }
+    
+    headings = []
+    content = []
+    
+    for para in extracted_texts:
+        para_upper = para.strip().upper()
+        
+        # Check if it's a heading
+        is_heading = (
+            # Exact match with common headings
+            para_upper in HEADING_KEYWORDS or
+            # Short and all uppercase
+            (len(para) < 50 and para.strip().isupper()) or
+            # Contains heading keyword and is relatively short
+            (len(para) < 50 and any(kw in para_upper for kw in HEADING_KEYWORDS))
+        )
+        
+        if is_heading:
+            headings.append(para)
+        else:
+            content.append(para)
+    
+    return headings, content
+
+
+def ask_ai_for_mapping(extracted_texts, resume_data):
+    """
+    Creates direct paragraph-to-paragraph mapping from template to new resume data.
+    Section headings are preserved unchanged, only content is mapped.
+    """
+    
+    # Identify headings vs content
+    headings, content_paragraphs = identify_headings(extracted_texts)
+    
+    prompt = f"""
+You are creating a direct mapping from old resume content paragraphs to new resume data.
+
+IMPORTANT: Section headings have been filtered out. You are ONLY mapping content paragraphs, NOT headings.
+
+### TEMPLATE CONTENT PARAGRAPHS (exact keys to use):
+{json.dumps(content_paragraphs, indent=2)}
+
+### NEW RESUME DATA:
+{json.dumps(resume_data, indent=2)}
+
+### MAPPING INSTRUCTIONS:
+
+1. **Name paragraph**: 
+   - Map to: resume_data["name"]
+   - Example: "Andree Rocher": "Rahul Menon"
+
+2. **Contact info paragraph**:
+   - Map to: phone + " | " + email
+   - Example: "Philadelphia, PA | 705.555.0121 | andree@example.com": "+91-9812345678 | rahul@example.com"
+
+3. **Job title paragraph**:
+   - Map to: resume_data["job_title"]
+   - Example: "Data Scientist": "Robotics Engineer"
+
+4. **Summary/Objective content paragraph**:
+   - Map to: resume_data["summary"]
+   - This is the paragraph text UNDER the "Summary" heading
+   - Example: "To obtain a challenging position...": "Results-driven Robotics Engineer..."
+
+5. **Experience company/position paragraph**:
+   - Format: resume_data["experience"][0]["company"] + " | " + resume_data["experience"][0]["position"]
+   - Example: "FlueroGen | Data Scientist 20XX – 20XX": "Quartrdesign.com | Quality Assurance Tester"
+   
+6. **Experience bullet points**:
+   - If template has MULTIPLE separate bullet paragraphs, DISTRIBUTE the description bullets across them
+   - Each template bullet should get ONE description bullet (one-to-one mapping)
+   - DO NOT combine all descriptions into one paragraph
+   - Example with 3 template bullets:
+     * Template bullet 1: "Increased retention by 20%" → "Spearheaded the creation of detailed Functional Requirement Documents (FRDs) from customer requirements, ensuring 95% accuracy in implementation and setting the standard for future projects."
+     * Template bullet 2: "Developed new features" → "Collaborated with cross-functional teams to guarantee successful completion of requirements, resulting in a 25% reduction in project timelines and improved overall efficiency."
+     * Template bullet 3: "Improved performance" → "Developed and executed comprehensive test cases using HTML, CSS, JavaScript, and React, achieving 99% test coverage and identifying critical defects that significantly improved product quality."
+   - If template has only ONE bullet paragraph, put ALL descriptions there joined with \\n: "• Desc1\\n• Desc2\\n• Desc3"
+   - IMPORTANT: Match the number of template bullets - don't put everything in the first bullet
+
+7. **Skills content paragraph**:
+   - If there are MULTIPLE skill paragraphs in template, DISTRIBUTE skills across them
+   - Each paragraph should get DIFFERENT skills (no repetition)
+   - Example with 3 skill bullets:
+     * First bullet: "Data Modeling\\nData Warehousing\\nData Validation\\nData Cleansing"
+     * Second bullet: "Azure Data Factory (ADF)\\nSSIS\\nDBT\\nPower BI\\nTableau"
+     * Third bullet: "Communication\\nInterpersonal Skills\\nOrganizational Skills\\nSQL"
+   - If template has only ONE skill paragraph, put ALL skills there
+   - NEVER repeat the same skill in multiple paragraphs
+
+8. **Project name**:
+   - Map to: resume_data["projects"][0]["name"]
+   
+9. **Project descriptions**:
+   - Map to: ALL project descriptions joined with \\n
+   - Format: "• Desc 1\\n• Desc 2"
+
+10. **Certifications**:
+    - Format: "Name - Issuer" for each, joined with \\n
+    - Example: "Database Management System - IIT Madras\\nGoogle Analytics - Google"
+
+11. **Education**:
+    - If resume_data["education"] is empty: map to ""
+    - Otherwise: format education details
+
+12. **No matching data**:
+    - Map to: ""
+
+### DATA STRUCTURE REFERENCE:
+```
+experience[0] = {{
+  "company": "Quartrdesign.com",
+  "position": "Quality Assurance Tester",
+  "duration": "",
+  "description": ["bullet 1", "bullet 2", ...]
+}}
+
+skills = {{
+  "technicalSkills": ["Data Modeling", "Data Warehousing", ...],
+  "tools": ["Azure Data Factory (ADF)", "SSIS", "DBT", ...],
+  "cloudSkills": ["Azure", "Azure Storage", ...],
+  "softSkills": ["Communication", "Interpersonal Skills", ...],
+  "languages": ["SQL"]
+}}
+
+To map skills: Combine ALL arrays from skills dict into one list with \\n
+```
+
+### CRITICAL RULES:
+- Keys MUST exactly match template paragraphs (character-for-character)
+- Use \\n to join multi-line content (NOT actual newlines)
+- Add bullet points (•) before each description item
+- Combine all related data together
+
+### OUTPUT (JSON only, no markdown):
+{{
+  "Andree Rocher": "Rahul Menon",
+  "Data Scientist": "Robotics Engineer",
+  "Philadelphia, PA | 705.555.0121 | andree@example.com": "+91-9812345678 | rahul@example.com",
+  "To obtain a challenging position...": "Results-driven Robotics Engineer with expertise...",
+  "FlueroGen | Data Scientist 20XX": "Quartrdesign.com | Quality Assurance Tester",
+  "Increased retention by 20%": "Spearheaded the creation of detailed Functional Requirement Documents (FRDs) from customer requirements, ensuring 95% accuracy in implementation and setting the standard for future projects.",
+  "Developed new features": "Collaborated with cross-functional teams to guarantee successful completion of requirements, resulting in a 25% reduction in project timelines and improved overall efficiency.",
+  "Improved performance": "Developed and executed comprehensive test cases using HTML, CSS, JavaScript, and React, achieving 99% test coverage and identifying critical defects that significantly improved product quality.",
+  "Data Modeling": "Data Modeling\\nData Warehousing\\nData Validation\\nData Cleansing\\nData Optimization",
+  "Problem solving": "Unit Testing\\nDebugging\\nProblem Solving\\nBusiness Intelligence\\nData Management",
+  "Communication": "Communication\\nInterpersonal Skills\\nOrganizational Skills\\nSQL"
+}}
+
+CRITICAL: 
+- For EXPERIENCE bullets: Each template bullet gets ONE description (distribute across bullets, don't combine)
+- For SKILLS bullets: Distribute different skills to each bullet (no repetition)
+
+NOW MAP ALL CONTENT PARAGRAPHS:
+"""
+    
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.0,
+        "max_tokens": 8192
+    }
+    
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        raw = response.json()["choices"][0]["message"]["content"]
+        
+        # Clean markdown if present
+        raw_clean = raw.strip()
+        if raw_clean.startswith("```"):
+            raw_clean = re.sub(r'^```(?:json)?\n', '', raw_clean)
+            raw_clean = re.sub(r'\n```$', '', raw_clean)
+        
+        # Extract JSON
+        match = re.search(r'\{.*\}', raw_clean, re.DOTALL)
+        if not match:
+            raise ValueError(f"LLM returned non-JSON response: {raw[:200]}")
+        
+        content_mapping = json.loads(match.group(0))
+        
+        # Post-process: Ensure skills are properly mapped without repetition
+        all_skills_text = format_all_skills(resume_data.get('skills', {}))
+        all_skills_list = [skill.strip() for skill in all_skills_text.split('\n') if skill.strip()]
+        
+        # Track which skills have been used
+        used_skills = set()
+        skills_paragraphs = []
+        
+        # Identify all skills-related paragraphs
+        for para in content_paragraphs:
+            para_lower = para.lower()
+            if any(kw in para_lower for kw in ['skill', 'management', 'technical', 'tools', 'language', 'abilities']):
+                skills_paragraphs.append(para)
+        
+        # Build complete mapping: headings unchanged + content mapped
+        complete_mapping = {}
+        
+        # Add all headings (map to themselves to keep unchanged)
+        for heading in headings:
+            complete_mapping[heading] = heading
+        
+        # Add content with AI mappings
+        for para in content_paragraphs:
+            mapped_value = content_mapping.get(para, "")
+            
+            # Check if this is a skills paragraph
+            if para in skills_paragraphs:
+                # If AI didn't map it or mapped poorly
+                if mapped_value == "" or len(mapped_value) < 20:
+                    # Distribute remaining skills
+                    remaining_skills = [s for s in all_skills_list if s not in used_skills]
+                    
+                    if remaining_skills:
+                        # Take a reasonable chunk (e.g., 5-10 skills per paragraph)
+                        chunk_size = max(5, len(remaining_skills) // len(skills_paragraphs))
+                        skills_chunk = remaining_skills[:chunk_size]
+                        
+                        mapped_value = '\n'.join(skills_chunk)
+                        used_skills.update(skills_chunk)
+                    else:
+                        # All skills used, leave empty to remove
+                        mapped_value = ""
+                else:
+                    # AI provided mapping, track which skills were used
+                    for skill in all_skills_list:
+                        if skill in mapped_value:
+                            used_skills.add(skill)
+            
+            complete_mapping[para] = mapped_value
+        
+        return complete_mapping
+        
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"API request failed: {str(e)}")
+    except json.JSONDecodeError as e:
+        raise Exception(f"Failed to parse JSON response: {str(e)}\nRaw: {raw[:500]}")
+
+
+def format_experience_bullets(descriptions):
+    """Format experience descriptions with bullet points"""
+    return "\n".join([f"• {desc}" for desc in descriptions])
+
+
+def format_all_skills(skills_dict):
+    """Combine all skill categories into one list (supports dict or list safely)"""
+
+    all_skills = []
+
+    # ✅ CASE 1: Proper dictionary format
+    if isinstance(skills_dict, dict):
+        for category, skills in skills_dict.items():
+            if isinstance(skills, list):
+                all_skills.extend(skills)
+
+    # ✅ CASE 2: Direct list format (DOCX / user input case)
+    elif isinstance(skills_dict, list):
+        all_skills.extend(skills_dict)
+
+    # ✅ Final clean output
+    return "\n".join(str(skill) for skill in all_skills if skill)
+
+
+
+def format_certifications(certs_list):
+    """Format certifications as 'Name - Issuer'"""
+    return "\n".join([f"{cert['name']} - {cert['issuer']}" for cert in certs_list])
+
+
+def format_projects(projects_list):
+    """Format project descriptions"""
+    formatted = []
+    for project in projects_list:
+        formatted.append(project['name'])
+        if 'description' in project:
+            for desc in project['description']:
+                formatted.append(f"• {desc}")
+    return "\n".join(formatted)
+
+
+def extract_temp_from_docx(uploaded_file):
+    """Extract all text paragraphs from DOCX file"""
+    file_bytes = uploaded_file.read()
+    with zipfile.ZipFile(BytesIO(file_bytes)) as docx:
+        xml = docx.read("word/document.xml")
+
+    tree = etree.fromstring(xml)
+    paragraphs = []
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+    for p in tree.iter(f"{ns}p"):
+        text = "".join((t.text or "") for t in p.iter(f"{ns}t")).strip()
+        if text:
+            paragraphs.append(text)
+
+    return paragraphs
+
+
+
+
+def get_text_runs(tree):
+    """Get all text run nodes from XML tree"""
+    return [node for node in tree.iter() if node.tag.endswith("}t")]
+
+
+def safe_replace(xml_content, old, new):
+    """
+    Safely replace text in DOCX XML without corrupting formatting.
+    Uses run-by-run replacement to preserve document structure.
+    """
+    try:
+        tree = etree.fromstring(xml_content)
+    except:
+        return xml_content, False
+
+    runs = get_text_runs(tree)
+    if not runs:
+        return xml_content, False
+
+    run_texts = [r.text or "" for r in runs]
+    full = "".join(run_texts)
+    old_lower = old.lower()
+
+    # Find match position (case-insensitive)
+    match_start = full.lower().find(old_lower)
+    if match_start == -1:
+        return xml_content, False
+
+    match_end = match_start + len(old)
+
+    # Replace text across runs
+    pos = 0
+    for i, r in enumerate(runs):
+        t = run_texts[i]
+        start_in_run = None
+        end_in_run = None
+
+        for j, ch in enumerate(t):
+            if pos == match_start:
+                start_in_run = j
+            if pos == match_end - 1:
+                end_in_run = j
+            pos += 1
+
+        if start_in_run is not None and end_in_run is not None:
+            # Match contained in this run
+            runs[i].text = t[:start_in_run] + new + t[end_in_run + 1:]
+        elif start_in_run is not None:
+            # Match starts here
+            runs[i].text = t[:start_in_run] + new
+        elif end_in_run is not None:
+            # Match ends here
+            runs[i].text = t[end_in_run + 1:]
+        elif match_start < pos - len(t) and match_end > pos - len(t):
+            # Run is inside match
+            runs[i].text = ""
+
+    return etree.tostring(tree, encoding="utf-8", xml_declaration=True), True
+
+
+def remove_empty_bullets(xml_content):
+    """
+    Remove paragraphs that contain only bullet points with no actual text content.
+    Preserves divider lines, horizontal rules, and other formatting elements.
+    """
+    try:
+        tree = etree.fromstring(xml_content)
+    except:
+        return xml_content
+
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    paragraphs_to_remove = []
+
+    for p in tree.iter(f"{ns}p"):
+        # Check if paragraph has numbering/bullet formatting
+        has_bullet_formatting = False
+        pPr = p.find(f"{ns}pPr")
+        if pPr is not None:
+            numPr = pPr.find(f"{ns}numPr")
+            if numPr is not None:
+                has_bullet_formatting = True
+        
+        # Get text content
+        text = "".join((t.text or "") for t in p.iter(f"{ns}t")).strip()
+        
+        # Only remove if:
+        # 1. Has bullet formatting AND
+        # 2. Is empty OR contains only bullet character
+        if has_bullet_formatting and (not text or text in ['•', '-', '*', '▪', '◦', '■', '●', '○', '–', '—']):
+            paragraphs_to_remove.append(p)
+        # Also remove standalone bullet characters without formatting (edge case)
+        elif text in ['•', '-', '*', '▪', '◦', '■', '●', '○'] and len(text) == 1:
+            paragraphs_to_remove.append(p)
+
+    # Remove empty bullet paragraphs
+    for p in paragraphs_to_remove:
+        parent = p.getparent()
+        if parent is not None:
+            parent.remove(p)
+
+    return etree.tostring(tree, encoding="utf-8", xml_declaration=True)
+
+
+def auto_process_docx(file, mapping):
+    """
+    Process DOCX file by applying paragraph mapping and removing empty bullets.
+    
+    Args:
+        file: Uploaded DOCX file
+        mapping: Dictionary mapping old paragraphs to new content
+    
+    Returns:
+        BytesIO object containing the updated DOCX file
+    """
+    out = BytesIO()
+    
+    with zipfile.ZipFile(file, "r") as src:
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+            for item in src.infolist():
+                data = src.read(item.filename)
+
+                if item.filename == "word/document.xml":
+                    xml = data
+                    
+                    # Apply all mappings
+                    for old_text, new_text in mapping.items():
+                        if new_text.strip() == "":
+                            # Remove text completely
+                            xml, _ = safe_replace(xml, old_text, "")
+                        else:
+                            # Replace with new content
+                            xml, _ = safe_replace(xml, old_text, new_text)
+                    
+                    # Clean up empty bullet points
+                    xml = remove_empty_bullets(xml)
+                    
+                    dst.writestr(item.filename, xml)
+                else:
+                    # Copy other files unchanged
+                    dst.writestr(item.filename, data)
+
+    out.seek(0)
+    return out
+
+
+def extract_docx_xml(uploaded_file):
+    """Extract raw XML (word/document.xml) from DOCX"""
+    uploaded_file.seek(0)
+    file_bytes = uploaded_file.read()
+
+    with zipfile.ZipFile(BytesIO(file_bytes)) as docx:
+        xml = docx.read("word/document.xml")
+
+    return xml  # ✅ This is BYTES
+
+
+def docx_to_html_preview(docx_bytes):
+    """
+    Convert DOCX BytesIO to HTML for preview with enhanced style preservation
+    
+    Args:
+        docx_bytes: BytesIO object containing DOCX file
+    
+    Returns:
+        HTML string for preview
+    """
+    try:
+        docx_bytes.seek(0)
+        
+        # Use mammoth with style mapping to preserve more formatting
+        style_map = """
+        p[style-name='Heading 1'] => h1:fresh
+        p[style-name='Heading 2'] => h2:fresh
+        p[style-name='Heading 3'] => h3:fresh
+        p[style-name='Title'] => h1.title:fresh
+        p[style-name='Subtitle'] => p.subtitle:fresh
+        """
+        
+        result = mammoth.convert_to_html(
+            docx_bytes,
+            style_map=style_map,
+            include_default_style_map=True,
+            include_embedded_style_map=True
+        )
+        html = result.value
+        
+        # Add base styling that adapts to the document
+        styled_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                * {{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }}
+                
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    background: #f5f5f5;
+                }}
+                
+                .preview-container {{
+                    font-family: 'Calibri', 'Segoe UI', 'Arial', sans-serif;
+                    line-height: 1.5;
+                    padding: 60px 70px;
+                    background: #ffffff;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                    min-height: 11in;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                }}
+                
+                /* Reset default margins */
+                .preview-container > * {{
+                    margin-block-start: 0;
+                    margin-block-end: 0;
+                }}
+                
+                /* Headers */
+                .preview-container h1 {{
+                    font-size: 14pt;
+                    font-weight: bold;
+                    margin-top: 18px;
+                    margin-bottom: 10px;
+                    padding-bottom: 5px;
+                }}
+                
+                .preview-container h2 {{
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin-top: 12px;
+                    margin-bottom: 8px;
+                }}
+                
+                .preview-container h3 {{
+                    font-size: 11pt;
+                    font-weight: bold;
+                    margin-top: 10px;
+                    margin-bottom: 6px;
+                }}
+                
+                /* Paragraphs */
+                .preview-container p {{
+                    font-size: 11pt;
+                    line-height: 1.5;
+                    margin-top: 6px;
+                    margin-bottom: 6px;
+                }}
+                
+                /* Lists */
+                .preview-container ul,
+                .preview-container ol {{
+                    margin-left: 25px;
+                    margin-top: 8px;
+                    margin-bottom: 8px;
+                }}
+                
+                .preview-container li {{
+                    font-size: 11pt;
+                    line-height: 1.5;
+                    margin-top: 4px;
+                    margin-bottom: 4px;
+                }}
+                
+                /* Tables */
+                .preview-container table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 10px 0;
+                }}
+                
+                .preview-container td,
+                .preview-container th {{
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                }}
+                
+                /* Strong and emphasis */
+                .preview-container strong,
+                .preview-container b {{
+                    font-weight: bold;
+                }}
+                
+                .preview-container em,
+                .preview-container i {{
+                    font-style: italic;
+                }}
+                
+                /* Links */
+                .preview-container a {{
+                    color: #0563C1;
+                    text-decoration: underline;
+                }}
+                
+                /* Preserve any inline styles from mammoth */
+                .preview-container [style] {{
+                    /* Inline styles will be preserved */
+                }}
+                
+                /* Scrollbar */
+                .preview-container::-webkit-scrollbar {{
+                    width: 10px;
+                }}
+                
+                .preview-container::-webkit-scrollbar-track {{
+                    background: #f5f5f5;
+                }}
+                
+                .preview-container::-webkit-scrollbar-thumb {{
+                    background: #cccccc;
+                    border-radius: 5px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="preview-container">
+                {html}
+            </div>
+        </body>
+        </html>
+        """
+        
+        return styled_html
+    except Exception as e:
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+            <div style="padding: 20px; color: red; font-family: Arial;">
+                <h3>Preview Generation Failed</h3>
+                <p>{str(e)}</p>
+                <p>The document will still be available for download.</p>
+            </div>
+        </body>
+        </html>
+        """

@@ -730,7 +730,7 @@ with st.container():
                 }
             """
         ):
-            template_clicked = st.button("Show Template")
+            template_clicked = st.button("Change Template")
 
     with col2:
         try:
@@ -793,539 +793,539 @@ user_resume = get_user_resume(email)
 has_resume = user_resume and len(user_resume) > 0
 chatbot(user_resume)
 
-st.markdown('<div id="Templates"></div>', unsafe_allow_html=True)
+# st.markdown('<div id="Templates"></div>', unsafe_allow_html=True)
 
 
-st.markdown("""
-<div class="template-header">
-    <div class="section-header">Templates</div>
-    <div class="section-divider-wave"></div>
-    <div class="template-subtitle">Choose from our collection of professional templates</div>
-</div>
-""", unsafe_allow_html=True)
+# st.markdown("""
+# <div class="template-header">
+#     <div class="section-header">Templates</div>
+#     <div class="section-divider-wave"></div>
+#     <div class="template-subtitle">Choose from our collection of professional templates</div>
+# </div>
+# """, unsafe_allow_html=True)
 
-# Template Mode Toggle
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    toggle_col1, toggle_col2 = st.columns(2)
-    with toggle_col1:
-        custom_style = """
-            button {
-                background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "white !important") + """;
-                color: """ + ("white !important" if st.session_state.template_view_mode == "custom" else "#64748b !important") + """;
-                border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "#e2e8f0 !important") + """;
-                border-radius: 50px !important;
-                padding: 2px 50px !important;
-                font-weight: 600 !important;
-                transition: all 0.3s ease !important;
-            }
-            button:hover {
-                border-color: #e87532 !important;
-                color: """ + ("white !important" if st.session_state.template_view_mode == "custom" else "#e87532 !important") + """;
-                background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "#fff5f2 !important") + """;
-            }
-        """
-        with stylable_container("custom_toggle", css_styles=custom_style):
-            if st.button("Custom Templates", key="custom_toggle_btn", use_container_width=True):
-                st.session_state.template_view_mode = "custom"
-                st.rerun()
-    with toggle_col2:
-        system_style = """
-            button {
-                background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "white !important") + """;
-                color: """ + ("white !important" if st.session_state.template_view_mode == "system" else "#64748b !important") + """;
-                border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "#e2e8f0 !important") + """;
-                border-radius: 50px !important;
-                padding: 2px 40px !important;
-                font-weight: 600 !important;
-                transition: all 0.3s ease !important;
-            }
-            button:hover {
-                border-color: #e87532 !important;
-                color: """ + ("white !important" if st.session_state.template_view_mode == "system" else "#e87532 !important") + """;
-                background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "#fff5f2 !important") + """;
-            }
-        """
-        with stylable_container("system_toggle", css_styles=system_style):
-            if st.button("System Templates", key="system_toggle_btn", use_container_width=True):
-                st.session_state.template_view_mode = "system"
-                st.rerun()
+# # Template Mode Toggle
+# col1, col2, col3 = st.columns([1, 1, 1])
+# with col2:
+#     toggle_col1, toggle_col2 = st.columns(2)
+#     with toggle_col1:
+#         custom_style = """
+#             button {
+#                 background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "white !important") + """;
+#                 color: """ + ("white !important" if st.session_state.template_view_mode == "custom" else "#64748b !important") + """;
+#                 border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "#e2e8f0 !important") + """;
+#                 border-radius: 50px !important;
+#                 padding: 2px 50px !important;
+#                 font-weight: 600 !important;
+#                 transition: all 0.3s ease !important;
+#             }
+#             button:hover {
+#                 border-color: #e87532 !important;
+#                 color: """ + ("white !important" if st.session_state.template_view_mode == "custom" else "#e87532 !important") + """;
+#                 background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "custom" else "#fff5f2 !important") + """;
+#             }
+#         """
+#         with stylable_container("custom_toggle", css_styles=custom_style):
+#             if st.button("Custom Templates", key="custom_toggle_btn", use_container_width=True):
+#                 st.session_state.template_view_mode = "custom"
+#                 st.rerun()
+#     with toggle_col2:
+#         system_style = """
+#             button {
+#                 background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "white !important") + """;
+#                 color: """ + ("white !important" if st.session_state.template_view_mode == "system" else "#64748b !important") + """;
+#                 border: 2px solid """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "#e2e8f0 !important") + """;
+#                 border-radius: 50px !important;
+#                 padding: 2px 40px !important;
+#                 font-weight: 600 !important;
+#                 transition: all 0.3s ease !important;
+#             }
+#             button:hover {
+#                 border-color: #e87532 !important;
+#                 color: """ + ("white !important" if st.session_state.template_view_mode == "system" else "#e87532 !important") + """;
+#                 background: """ + ("#e87532 !important" if st.session_state.template_view_mode == "system" else "#fff5f2 !important") + """;
+#             }
+#         """
+#         with stylable_container("system_toggle", css_styles=system_style):
+#             if st.button("System Templates", key="system_toggle_btn", use_container_width=True):
+#                 st.session_state.template_view_mode = "system"
+#                 st.rerun()
 
-st.markdown("<br>", unsafe_allow_html=True)
+# st.markdown("<br>", unsafe_allow_html=True)
 
 
-if st.session_state.template_view_mode == "custom":
-    if 'uploaded_templates' not in st.session_state:
-        st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
+# if st.session_state.template_view_mode == "custom":
+#     if 'uploaded_templates' not in st.session_state:
+#         st.session_state.uploaded_templates = load_user_templates(st.session_state.logged_in_user)
     
-    if 'doc_templates' not in st.session_state:
-        st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
+#     if 'doc_templates' not in st.session_state:
+#         st.session_state.doc_templates = load_user_doc_templates(st.session_state.logged_in_user)
     
-    if 'ppt_templates' not in st.session_state:
-        st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
+#     if 'ppt_templates' not in st.session_state:
+#         st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
 
     
-    st.markdown('<div class="template-type-tabs">', unsafe_allow_html=True)
-    type_col1, type_col2, type_col3 = st.columns([1, 1, 1])
+#     st.markdown('<div class="template-type-tabs">', unsafe_allow_html=True)
+#     type_col1, type_col2, type_col3 = st.columns([1, 1, 1])
     
-    with type_col1:
-        html_style = """
-            button {
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "white !important") + """;
-                color: """ + ("white !important" if st.session_state.current_template_type == "html" else "#64748b !important") + """;
-                border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "#e2e8f0 !important") + """;
-                border-radius: 50px !important;
-                padding: 10px 30px !important;
-                font-weight: 500 !important;
-                transition: all 0.3s ease !important;
-            }
-            button:hover {
-                border-color: #e87532 !important;
-                color: """ + ("white !important" if st.session_state.current_template_type == "html" else "#e87532 !important") + """;
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "#fff5f2 !important") + """;
-            }
-        """
-        with stylable_container("html_type_btn", css_styles=html_style):
-            if st.button("HTML Templates", key="html_type", use_container_width=True):
-                st.session_state.current_template_type = "html"
-                st.rerun()
+#     with type_col1:
+#         html_style = """
+#             button {
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "white !important") + """;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "html" else "#64748b !important") + """;
+#                 border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "#e2e8f0 !important") + """;
+#                 border-radius: 50px !important;
+#                 padding: 10px 30px !important;
+#                 font-weight: 500 !important;
+#                 transition: all 0.3s ease !important;
+#             }
+#             button:hover {
+#                 border-color: #e87532 !important;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "html" else "#e87532 !important") + """;
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "html" else "#fff5f2 !important") + """;
+#             }
+#         """
+#         with stylable_container("html_type_btn", css_styles=html_style):
+#             if st.button("HTML Templates", key="html_type", use_container_width=True):
+#                 st.session_state.current_template_type = "html"
+#                 st.rerun()
     
-    with type_col2:
-        word_style = """
-            button {
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "white !important") + """;
-                color: """ + ("white !important" if st.session_state.current_template_type == "word" else "#64748b !important") + """;
-                border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "#e2e8f0 !important") + """;
-                border-radius: 50px !important;
-                padding: 10px 30px !important;
-                font-weight: 500 !important;
-                transition: all 0.3s ease !important;
-            }
-            button:hover {
-                border-color: #e87532 !important;
-                color: """ + ("white !important" if st.session_state.current_template_type == "word" else "#e87532 !important") + """;
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "#fff5f2 !important") + """;
-            }
-        """
-        with stylable_container("word_type_btn", css_styles=word_style):
-            if st.button("Word Templates", key="word_type", use_container_width=True):
-                st.session_state.current_template_type = "word"
-                st.rerun()
+#     with type_col2:
+#         word_style = """
+#             button {
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "white !important") + """;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "word" else "#64748b !important") + """;
+#                 border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "#e2e8f0 !important") + """;
+#                 border-radius: 50px !important;
+#                 padding: 10px 30px !important;
+#                 font-weight: 500 !important;
+#                 transition: all 0.3s ease !important;
+#             }
+#             button:hover {
+#                 border-color: #e87532 !important;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "word" else "#e87532 !important") + """;
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "word" else "#fff5f2 !important") + """;
+#             }
+#         """
+#         with stylable_container("word_type_btn", css_styles=word_style):
+#             if st.button("Word Templates", key="word_type", use_container_width=True):
+#                 st.session_state.current_template_type = "word"
+#                 st.rerun()
     
-    with type_col3:
-        ppt_style = """
-            button {
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "white !important") + """;
-                color: """ + ("white !important" if st.session_state.current_template_type == "ppt" else "#64748b !important") + """;
-                border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "#e2e8f0 !important") + """;
-                border-radius: 50px !important;
-                padding: 10px 30px !important;
-                font-weight: 500 !important;
-                transition: all 0.3s ease !important;
-            }
-            button:hover {
-                border-color: #e87532 !important;
-                color: """ + ("white !important" if st.session_state.current_template_type == "ppt" else "#e87532 !important") + """;
-                background: """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "#fff5f2 !important") + """;
-            }
-        """
-        with stylable_container("ppt_type_btn", css_styles=ppt_style):
-            if st.button("PowerPoint Templates", key="ppt_type", use_container_width=True):
-                st.session_state.current_template_type = "ppt"
-                st.rerun()
+#     with type_col3:
+#         ppt_style = """
+#             button {
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "white !important") + """;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "ppt" else "#64748b !important") + """;
+#                 border: 2px solid """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "#e2e8f0 !important") + """;
+#                 border-radius: 50px !important;
+#                 padding: 10px 30px !important;
+#                 font-weight: 500 !important;
+#                 transition: all 0.3s ease !important;
+#             }
+#             button:hover {
+#                 border-color: #e87532 !important;
+#                 color: """ + ("white !important" if st.session_state.current_template_type == "ppt" else "#e87532 !important") + """;
+#                 background: """ + ("#e87532 !important" if st.session_state.current_template_type == "ppt" else "#fff5f2 !important") + """;
+#             }
+#         """
+#         with stylable_container("ppt_type_btn", css_styles=ppt_style):
+#             if st.button("PowerPoint Templates", key="ppt_type", use_container_width=True):
+#                 st.session_state.current_template_type = "ppt"
+#                 st.rerun()
     
-    st.markdown('</div>', unsafe_allow_html=True)
+#     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Display templates based on selected type
-    st.markdown('<div class="template-grid">', unsafe_allow_html=True)
+#     # Display templates based on selected type
+#     st.markdown('<div class="template-grid">', unsafe_allow_html=True)
     
-    if st.session_state.current_template_type == "html":
-        if st.session_state.uploaded_templates:
-            cols = st.columns(4)
-            for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
-                with cols[idx % 4]:
-                    st.markdown(f"""
-                    <div class="template-card-new">
-                        <div class="template-info">
-                            <div class="template-category">HTML</div>
-                            <div class="template-name">{template_data['name']}</div>
-                            <div class="template-description">{template_data['original_filename']}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+#     if st.session_state.current_template_type == "html":
+#         if st.session_state.uploaded_templates:
+#             cols = st.columns(4)
+#             for idx, (template_id, template_data) in enumerate(st.session_state.uploaded_templates.items()):
+#                 with cols[idx % 4]:
+#                     st.markdown(f"""
+#                     <div class="template-card-new">
+#                         <div class="template-info">
+#                             <div class="template-category">HTML</div>
+#                             <div class="template-name">{template_data['name']}</div>
+#                             <div class="template-description">{template_data['original_filename']}</div>
+#                         </div>
+#                     </div>
+#                     """, unsafe_allow_html=True)
 
-                    with stylable_container(
-                        f"use_html_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #e87532 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 12px !important;
-                                padding: 12px 20px !important;
-                                font-weight: 600 !important;
-                                font-size: 0.95rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #d66629 !important;
-                                transform: translateY(-2px);
-                            }
-                        """
-                    ):
-                        if st.button("Preview", key=f"use_html_{template_id}", use_container_width=True):
-                            if 'temp_upload_config' in st.session_state:
-                                del st.session_state.temp_upload_config
+#                     with stylable_container(
+#                         f"use_html_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #e87532 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 12px !important;
+#                                 padding: 12px 20px !important;
+#                                 font-weight: 600 !important;
+#                                 font-size: 0.95rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #d66629 !important;
+#                                 transform: translateY(-2px);
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Preview", key=f"use_html_{template_id}", use_container_width=True):
+#                             if 'temp_upload_config' in st.session_state:
+#                                 del st.session_state.temp_upload_config
                             
-                            st.session_state.selected_template = template_data['name']
-                            st.session_state.selected_template_config = template_data
-                            st.session_state.template_source = 'saved'
-                            st.session_state.current_upload_id = template_id
+#                             st.session_state.selected_template = template_data['name']
+#                             st.session_state.selected_template_config = template_data
+#                             st.session_state.template_source = 'saved'
+#                             st.session_state.current_upload_id = template_id
                             
                             
-                            st.query_params["user"] = st.session_state.logged_in_user
-                            st.switch_page("pages/template_preview.py")
+#                             st.query_params["user"] = st.session_state.logged_in_user
+#                             st.switch_page("pages/template_preview.py")
                     
-                    with stylable_container(
-                        f"delete_html_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #dc3545 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 8px !important;
-                                padding: 8px 16px !important;
-                                font-weight: 500 !important;
-                                font-size: 0.85rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #c82333 !important;
-                            }
-                        """
-                    ):
-                        if st.button("Delete", key=f"delete_html_{template_id}", use_container_width=True):
-                            if st.session_state.get('current_upload_id') == template_id:
-                                st.session_state.pop('selected_template_preview', None)
-                                st.session_state.pop('selected_template', None)
-                                st.session_state.pop('selected_template_config', None)
-                                st.session_state.pop('current_upload_id', None)
+#                     with stylable_container(
+#                         f"delete_html_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #dc3545 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 8px !important;
+#                                 padding: 8px 16px !important;
+#                                 font-weight: 500 !important;
+#                                 font-size: 0.85rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #c82333 !important;
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Delete", key=f"delete_html_{template_id}", use_container_width=True):
+#                             if st.session_state.get('current_upload_id') == template_id:
+#                                 st.session_state.pop('selected_template_preview', None)
+#                                 st.session_state.pop('selected_template', None)
+#                                 st.session_state.pop('selected_template_config', None)
+#                                 st.session_state.pop('current_upload_id', None)
                             
-                            del st.session_state.uploaded_templates[template_id]
-                            save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+#                             del st.session_state.uploaded_templates[template_id]
+#                             save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
                             
                             
-                            st.query_params["user"] = st.session_state.logged_in_user
-                            st.success(f"Deleted: {template_data['name']}")
-                            st.rerun()
-        else:
-            st.markdown("""
-            <div class="no-resume-message">
-                <h3 style="color: #e87532;">No HTML Templates</h3>
-                <p>Upload your first HTML template to get started</p>
-            </div>
-            """, unsafe_allow_html=True)
+#                             st.query_params["user"] = st.session_state.logged_in_user
+#                             st.success(f"Deleted: {template_data['name']}")
+#                             st.rerun()
+#         else:
+#             st.markdown("""
+#             <div class="no-resume-message">
+#                 <h3 style="color: #e87532;">No HTML Templates</h3>
+#                 <p>Upload your first HTML template to get started</p>
+#             </div>
+#             """, unsafe_allow_html=True)
 
-    elif st.session_state.current_template_type == "word":
-        if st.session_state.doc_templates:
-            cols = st.columns(4)
-            for idx, (template_id, template_data) in enumerate(st.session_state.doc_templates.items()):
-                with cols[idx % 4]:
-                    st.markdown(f"""
-                    <div class="template-card-new">
-                        <div class="template-info">
-                            <div class="template-category">WORD</div>
-                            <div class="template-name">{template_data['name']}</div>
-                            <div class="template-description">{template_data['original_filename']}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+#     elif st.session_state.current_template_type == "word":
+#         if st.session_state.doc_templates:
+#             cols = st.columns(4)
+#             for idx, (template_id, template_data) in enumerate(st.session_state.doc_templates.items()):
+#                 with cols[idx % 4]:
+#                     st.markdown(f"""
+#                     <div class="template-card-new">
+#                         <div class="template-info">
+#                             <div class="template-category">WORD</div>
+#                             <div class="template-name">{template_data['name']}</div>
+#                             <div class="template-description">{template_data['original_filename']}</div>
+#                         </div>
+#                     </div>
+#                     """, unsafe_allow_html=True)
                     
-                    with stylable_container(
-                        f"use_doc_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #e87532 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 12px !important;
-                                padding: 12px 20px !important;
-                                font-weight: 600 !important;
-                                font-size: 0.95rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #d66629 !important;
-                                transform: translateY(-2px);
-                            }
-                        """
-                    ):
-                        if st.button("Preview", key=f"use_doc_{template_id}", use_container_width=True):
-                            try:
-                                import io
-                                from docx import Document
+#                     with stylable_container(
+#                         f"use_doc_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #e87532 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 12px !important;
+#                                 padding: 12px 20px !important;
+#                                 font-weight: 600 !important;
+#                                 font-size: 0.95rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #d66629 !important;
+#                                 transform: translateY(-2px);
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Preview", key=f"use_doc_{template_id}", use_container_width=True):
+#                             try:
+#                                 import io
+#                                 from docx import Document
                                 
-                                doc_stream = io.BytesIO(template_data['doc_data'])
-                                doc = Document(doc_stream)
-                                structure = template_data.get('structure', [])
-                                output, replaced, removed = replace_content(doc, structure, user_resume)
+#                                 doc_stream = io.BytesIO(template_data['doc_data'])
+#                                 doc = Document(doc_stream)
+#                                 structure = template_data.get('structure', [])
+#                                 output, replaced, removed = replace_content(doc, structure, user_resume)
                                 
-                                st.session_state.generated_doc = output.getvalue()
-                                st.session_state.selected_doc_template_id = template_id
-                                st.session_state.selected_doc_template = template_data
-                                st.session_state.template_source = 'doc_saved'
-                                st.session_state.selected_template = template_data['name']
-                                st.session_state.selected_template_config = template_data
+#                                 st.session_state.generated_doc = output.getvalue()
+#                                 st.session_state.selected_doc_template_id = template_id
+#                                 st.session_state.selected_doc_template = template_data
+#                                 st.session_state.template_source = 'doc_saved'
+#                                 st.session_state.selected_template = template_data['name']
+#                                 st.session_state.selected_template_config = template_data
                                 
                                 
-                                st.query_params["user"] = st.session_state.logged_in_user
-                                st.switch_page("pages/template_preview.py")
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
+#                                 st.query_params["user"] = st.session_state.logged_in_user
+#                                 st.switch_page("pages/template_preview.py")
+#                             except Exception as e:
+#                                 st.error(f"Error: {str(e)}")
 
-                    with stylable_container(
-                        f"delete_doc_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #dc3545 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 8px !important;
-                                padding: 8px 16px !important;
-                                font-weight: 500 !important;
-                                font-size: 0.85rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #c82333 !important;
-                            }
-                        """
-                    ):
-                        if st.button("Delete", key=f"delete_doc_{template_id}", use_container_width=True):
-                            if st.session_state.get('selected_doc_template_id') == template_id:
-                                st.session_state.pop('generated_doc', None)
-                                st.session_state.pop('selected_doc_template_id', None)
-                                st.session_state.pop('selected_doc_template', None)
-                                st.session_state.pop('doc_template_source', None)
+#                     with stylable_container(
+#                         f"delete_doc_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #dc3545 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 8px !important;
+#                                 padding: 8px 16px !important;
+#                                 font-weight: 500 !important;
+#                                 font-size: 0.85rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #c82333 !important;
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Delete", key=f"delete_doc_{template_id}", use_container_width=True):
+#                             if st.session_state.get('selected_doc_template_id') == template_id:
+#                                 st.session_state.pop('generated_doc', None)
+#                                 st.session_state.pop('selected_doc_template_id', None)
+#                                 st.session_state.pop('selected_doc_template', None)
+#                                 st.session_state.pop('doc_template_source', None)
                             
-                            del st.session_state.doc_templates[template_id]
-                            save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
+#                             del st.session_state.doc_templates[template_id]
+#                             save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
                             
                             
-                            st.query_params["user"] = st.session_state.logged_in_user
-                            st.success(f"Deleted: {template_data['name']}")
-                            st.rerun()
-        else:
-            st.markdown("""
-            <div class="no-resume-message">
-                <h3 style="color: #e87532;">No Word Templates</h3>
-                <p>Upload your first Word template to get started</p>
-            </div>
-            """, unsafe_allow_html=True)
+#                             st.query_params["user"] = st.session_state.logged_in_user
+#                             st.success(f"Deleted: {template_data['name']}")
+#                             st.rerun()
+#         else:
+#             st.markdown("""
+#             <div class="no-resume-message">
+#                 <h3 style="color: #e87532;">No Word Templates</h3>
+#                 <p>Upload your first Word template to get started</p>
+#             </div>
+#             """, unsafe_allow_html=True)
 
-    elif st.session_state.current_template_type == "ppt":
-        if st.session_state.ppt_templates:
-            cols = st.columns(4)
-            for idx, (template_id, template_data) in enumerate(st.session_state.ppt_templates.items()):
-                with cols[idx % 4]:
-                    st.markdown(f"""
-                    <div class="template-card-new">
-                        <div class="template-info">
-                            <div class="template-category">POWERPOINT</div>
-                            <div class="template-name">{template_data['name']}</div>
-                            <div class="template-description">{template_data['original_filename']}</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+#     elif st.session_state.current_template_type == "ppt":
+#         if st.session_state.ppt_templates:
+#             cols = st.columns(4)
+#             for idx, (template_id, template_data) in enumerate(st.session_state.ppt_templates.items()):
+#                 with cols[idx % 4]:
+#                     st.markdown(f"""
+#                     <div class="template-card-new">
+#                         <div class="template-info">
+#                             <div class="template-category">POWERPOINT</div>
+#                             <div class="template-name">{template_data['name']}</div>
+#                             <div class="template-description">{template_data['original_filename']}</div>
+#                         </div>
+#                     </div>
+#                     """, unsafe_allow_html=True)
                     
-                    with stylable_container(
-                        f"use_ppt_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #e87532 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 12px !important;
-                                padding: 12px 20px !important;
-                                font-weight: 600 !important;
-                                font-size: 0.95rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #d66629 !important;
-                                transform: translateY(-2px);
-                            }
-                        """
-                    ):
-                        if st.button("Preview", key=f"use_ppt_{template_id}", use_container_width=True):
-                            try:
-                                import io
-                                from pptx import Presentation
+#                     with stylable_container(
+#                         f"use_ppt_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #e87532 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 12px !important;
+#                                 padding: 12px 20px !important;
+#                                 font-weight: 600 !important;
+#                                 font-size: 0.95rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #d66629 !important;
+#                                 transform: translateY(-2px);
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Preview", key=f"use_ppt_{template_id}", use_container_width=True):
+#                             try:
+#                                 import io
+#                                 from pptx import Presentation
                                 
-                                working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
-                                prs = Presentation(io.BytesIO(template_data['ppt_data']))
+#                                 working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
+#                                 prs = Presentation(io.BytesIO(template_data['ppt_data']))
                                 
-                                slide_texts = []
-                                for slide_idx, slide in enumerate(prs.slides):
-                                    text_blocks = []
-                                    for shape_idx, shape in enumerate(slide.shapes):
-                                        if shape.has_text_frame and shape.text.strip():
-                                            text_blocks.append({
-                                                "index": shape_idx,
-                                                "text": shape.text.strip(),
-                                                "position": {"x": shape.left, "y": shape.top}
-                                            })
+#                                 slide_texts = []
+#                                 for slide_idx, slide in enumerate(prs.slides):
+#                                     text_blocks = []
+#                                     for shape_idx, shape in enumerate(slide.shapes):
+#                                         if shape.has_text_frame and shape.text.strip():
+#                                             text_blocks.append({
+#                                                 "index": shape_idx,
+#                                                 "text": shape.text.strip(),
+#                                                 "position": {"x": shape.left, "y": shape.top}
+#                                             })
                                     
-                                    if text_blocks:
-                                        text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
-                                        slide_texts.append({
-                                            "slide_number": slide_idx + 1,
-                                            "text_blocks": text_blocks
-                                        })
+#                                     if text_blocks:
+#                                         text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+#                                         slide_texts.append({
+#                                             "slide_number": slide_idx + 1,
+#                                             "text_blocks": text_blocks
+#                                         })
                                 
-                                structured_slides = analyze_slide_structure(slide_texts)
-                                generated_sections = generate_ppt_sections(user_resume, structured_slides)
+#                                 structured_slides = analyze_slide_structure(slide_texts)
+#                                 generated_sections = generate_ppt_sections(user_resume, structured_slides)
                                 
-                                text_elements = template_data['text_elements']
-                                content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
-                                    text_elements, generated_sections, prs)
+#                                 text_elements = template_data['text_elements']
+#                                 content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+#                                     text_elements, generated_sections, prs)
                                 
-                                edits = {}
-                                for element in text_elements:
-                                    key = f"{element['slide']}_{element['shape']}"
-                                    if key not in heading_shapes:
-                                        edits[key] = content_mapping.get(key, element['original_text'])
+#                                 edits = {}
+#                                 for element in text_elements:
+#                                     key = f"{element['slide']}_{element['shape']}"
+#                                     if key not in heading_shapes:
+#                                         edits[key] = content_mapping.get(key, element['original_text'])
                                 
-                                success_count = 0
-                                for element in text_elements:
-                                    key = f"{element['slide']}_{element['shape']}"
-                                    if key not in heading_shapes and key in edits:
-                                        slide_idx = element['slide'] - 1
-                                        shape_idx = element['shape']
+#                                 success_count = 0
+#                                 for element in text_elements:
+#                                     key = f"{element['slide']}_{element['shape']}"
+#                                     if key not in heading_shapes and key in edits:
+#                                         slide_idx = element['slide'] - 1
+#                                         shape_idx = element['shape']
                                         
-                                        if slide_idx < len(working_prs.slides):
-                                            slide = working_prs.slides[slide_idx]
-                                            if shape_idx < len(slide.shapes):
-                                                shape = slide.shapes[shape_idx]
-                                                if shape.has_text_frame:
-                                                    clear_and_replace_text(shape, edits[key])
-                                                    success_count += 1
+#                                         if slide_idx < len(working_prs.slides):
+#                                             slide = working_prs.slides[slide_idx]
+#                                             if shape_idx < len(slide.shapes):
+#                                                 shape = slide.shapes[shape_idx]
+#                                                 if shape.has_text_frame:
+#                                                     clear_and_replace_text(shape, edits[key])
+#                                                     success_count += 1
                                 
-                                output = io.BytesIO()
-                                working_prs.save(output)
-                                output.seek(0)
+#                                 output = io.BytesIO()
+#                                 working_prs.save(output)
+#                                 output.seek(0)
                                 
-                                st.session_state.generated_ppt = output.getvalue()
-                                st.session_state.selected_ppt_template_id = template_id
-                                st.session_state.selected_ppt_template = template_data
-                                st.session_state.template_source = 'ppt_saved'
-                                st.session_state.selected_template = template_data['name']
-                                st.session_state.selected_template_config = template_data
+#                                 st.session_state.generated_ppt = output.getvalue()
+#                                 st.session_state.selected_ppt_template_id = template_id
+#                                 st.session_state.selected_ppt_template = template_data
+#                                 st.session_state.template_source = 'ppt_saved'
+#                                 st.session_state.selected_template = template_data['name']
+#                                 st.session_state.selected_template_config = template_data
                                 
                                 
-                                st.query_params["user"] = st.session_state.logged_in_user
-                                st.switch_page("pages/template_preview.py")
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
+#                                 st.query_params["user"] = st.session_state.logged_in_user
+#                                 st.switch_page("pages/template_preview.py")
+#                             except Exception as e:
+#                                 st.error(f"Error: {str(e)}")
 
-                    with stylable_container(
-                        f"delete_ppt_{template_id}",
-                        css_styles="""
-                            button {
-                                background-color: #dc3545 !important;
-                                color: white !important;
-                                border: none !important;
-                                border-radius: 8px !important;
-                                padding: 8px 16px !important;
-                                font-weight: 500 !important;
-                                font-size: 0.85rem !important;
-                                margin-top: 0.5rem !important;
-                                width: 100% !important;
-                            }
-                            button:hover {
-                                background-color: #c82333 !important;
-                            }
-                        """
-                    ):
-                        if st.button("Delete", key=f"delete_ppt_{template_id}", use_container_width=True):
-                            if st.session_state.get('selected_ppt_template_id') == template_id:
-                                st.session_state.pop('generated_ppt', None)
-                                st.session_state.pop('selected_ppt_template_id', None)
-                                st.session_state.pop('selected_ppt_template', None)
-                                st.session_state.pop('ppt_template_source', None)
+#                     with stylable_container(
+#                         f"delete_ppt_{template_id}",
+#                         css_styles="""
+#                             button {
+#                                 background-color: #dc3545 !important;
+#                                 color: white !important;
+#                                 border: none !important;
+#                                 border-radius: 8px !important;
+#                                 padding: 8px 16px !important;
+#                                 font-weight: 500 !important;
+#                                 font-size: 0.85rem !important;
+#                                 margin-top: 0.5rem !important;
+#                                 width: 100% !important;
+#                             }
+#                             button:hover {
+#                                 background-color: #c82333 !important;
+#                             }
+#                         """
+#                     ):
+#                         if st.button("Delete", key=f"delete_ppt_{template_id}", use_container_width=True):
+#                             if st.session_state.get('selected_ppt_template_id') == template_id:
+#                                 st.session_state.pop('generated_ppt', None)
+#                                 st.session_state.pop('selected_ppt_template_id', None)
+#                                 st.session_state.pop('selected_ppt_template', None)
+#                                 st.session_state.pop('ppt_template_source', None)
                             
-                            del st.session_state.ppt_templates[template_id]
-                            save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+#                             del st.session_state.ppt_templates[template_id]
+#                             save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
                             
                             
-                            st.query_params["user"] = st.session_state.logged_in_user
-                            st.success(f"Deleted: {template_data['name']}")
-                            st.rerun()
-        else:
-            st.markdown("""
-            <div class="no-resume-message">
-                <h3 style="color: #e87532;">No PowerPoint Templates</h3>
-                <p>Upload your first PowerPoint template to get started</p>
-            </div>
-            """, unsafe_allow_html=True)
+#                             st.query_params["user"] = st.session_state.logged_in_user
+#                             st.success(f"Deleted: {template_data['name']}")
+#                             st.rerun()
+#         else:
+#             st.markdown("""
+#             <div class="no-resume-message">
+#                 <h3 style="color: #e87532;">No PowerPoint Templates</h3>
+#                 <p>Upload your first PowerPoint template to get started</p>
+#             </div>
+#             """, unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+#     st.markdown('</div>', unsafe_allow_html=True)
 
 
-elif st.session_state.template_view_mode == "system":
-    st.markdown('<div class="template-grid">', unsafe_allow_html=True)
+# elif st.session_state.template_view_mode == "system":
+#     st.markdown('<div class="template-grid">', unsafe_allow_html=True)
     
-    system_template_names = list(SYSTEM_TEMPLATES.keys())
-    cols = st.columns(4)
-    for idx, template_name in enumerate(system_template_names):
-        with cols[idx % 4]:
-            st.markdown(f"""
-            <div class="template-card-new">
-                <div class="template-info">
-                    <div class="template-category">SYSTEM</div>
-                    <div class="template-name">{template_name}</div>
-                    <div class="template-description">Professional template</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+#     system_template_names = list(SYSTEM_TEMPLATES.keys())
+#     cols = st.columns(4)
+#     for idx, template_name in enumerate(system_template_names):
+#         with cols[idx % 4]:
+#             st.markdown(f"""
+#             <div class="template-card-new">
+#                 <div class="template-info">
+#                     <div class="template-category">SYSTEM</div>
+#                     <div class="template-name">{template_name}</div>
+#                     <div class="template-description">Professional template</div>
+#                 </div>
+#             </div>
+#             """, unsafe_allow_html=True)
             
-            with stylable_container(
-                f"preview_sys_{idx}",
-                css_styles="""
-                    button {
-                        background-color: #e87532 !important;
-                        color: white !important;
-                        border: none !important;
-                        border-radius: 12px !important;
-                        padding: 12px 20px !important;
-                        font-weight: 600 !important;
-                        font-size: 0.95rem !important;
-                        margin-top: 0.5rem !important;
-                        width: 100% !important;
-                    }
-                    button:hover {
-                        background-color: #d66629 !important;
-                        transform: translateY(-2px);
-                    }
-                """
-            ):
-                if st.button("Preview", key=f"preview_sys_{idx}", use_container_width=True):
-                    st.session_state.selected_template = template_name
-                    st.session_state.selected_template_config = SYSTEM_TEMPLATES[template_name]
-                    st.session_state.template_source = 'system'
+#             with stylable_container(
+#                 f"preview_sys_{idx}",
+#                 css_styles="""
+#                     button {
+#                         background-color: #e87532 !important;
+#                         color: white !important;
+#                         border: none !important;
+#                         border-radius: 12px !important;
+#                         padding: 12px 20px !important;
+#                         font-weight: 600 !important;
+#                         font-size: 0.95rem !important;
+#                         margin-top: 0.5rem !important;
+#                         width: 100% !important;
+#                     }
+#                     button:hover {
+#                         background-color: #d66629 !important;
+#                         transform: translateY(-2px);
+#                     }
+#                 """
+#             ):
+#                 if st.button("Preview", key=f"preview_sys_{idx}", use_container_width=True):
+#                     st.session_state.selected_template = template_name
+#                     st.session_state.selected_template_config = SYSTEM_TEMPLATES[template_name]
+#                     st.session_state.template_source = 'system'
                     
                     
-                    st.query_params["user"] = st.session_state.logged_in_user
-                    st.switch_page("pages/template_preview.py")
+#                     st.query_params["user"] = st.session_state.logged_in_user
+#                     st.switch_page("pages/template_preview.py")
     
-    st.markdown('</div>', unsafe_allow_html=True)
+#     st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
+# st.markdown('</div>', unsafe_allow_html=True)
 
 
 

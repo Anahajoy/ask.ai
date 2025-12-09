@@ -1319,109 +1319,161 @@ if  st.session_state.logged_in_user :
 
 
         if uploaded_file:
-            with st.spinner("File processing..."):
-                if uploaded_file.type == "application/pdf":
-                    extracted_text = extract_text_from_pdf(uploaded_file)
-                else:
-                    extracted_text = extract_text_from_docx(uploaded_file)
+            with st.spinner("Reading file..."):
+                try:
+                    if uploaded_file.type == "application/pdf":
+                        extracted_text = extract_text_from_pdf(uploaded_file)
+                    else:  # DOCX
+                        # Reset file pointer to beginning
+                        uploaded_file.seek(0)
+                        extracted_text = extract_text_from_docx(uploaded_file)
+                    
+                    if not extracted_text or len(extracted_text.strip()) < 50:
+                        st.error("⚠️ Could not extract enough text from the file. Please ensure:")
+                        st.markdown("""
+                        - The file is not corrupted
+                        - The file contains actual text (not just images)
+                        - The file is a valid PDF or DOCX format
+                        """)
+                        st.stop()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error reading file: {str(e)}")
+                    st.info("💡 Try saving your resume as a different format or re-export it from your word processor.")
+                    st.stop()
 
             st.markdown('<h3>Extracted Text Preview</h3>', unsafe_allow_html=True)
             st.text_area(
                 "Extracted Content",
-                value=extracted_text,
+                value=extracted_text[:2000] + ("..." if len(extracted_text) > 2000 else ""),  # Preview first 2000 chars
                 height=300,
                 key="extracted_content_preview",
                 label_visibility="collapsed"
             )
+            
+            # Show full text length
+            st.caption(f"📊 Total characters extracted: {len(extracted_text)}")
 
             st.markdown("<br>", unsafe_allow_html=True)
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with stylable_container("process-resume-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
                     if st.button("Process Resume", key="re-btn", use_container_width=True):
-                        if extracted_text:
-                            if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
-                                st.error("⚠️ Session expired. Please login again.")
-                                st.switch_page("login.py")
+                        if not extracted_text or len(extracted_text.strip()) < 50:
+                            st.error("❌ Not enough text to process. Please upload a valid resume.")
+                            st.stop()
+                        
+                        if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+                            st.error("⚠️ Session expired. Please login again.")
+                            st.switch_page("app.py")
 
+                        parsed_data = None
+                        loading_placeholder = st.empty()
+                        loading_placeholder.markdown("""
+                            <div id="overlay-loader">
+                                <div class="loader-spinner"></div>
+                                <p>🤖 Analyzing your resume with AI...</p>
+                            </div>
+                            <style>
+                                #overlay-loader {
+                                    position: fixed;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100vw;
+                                    height: 100vh;
+                                    background: rgba(255, 255, 255, 0.95);
+                                    backdrop-filter: blur(10px);
+                                    display: flex;
+                                    flex-direction: column;
+                                    justify-content: center;
+                                    align-items: center;
+                                    z-index: 9999;
+                                    color: #e87532 !important;
+                                    font-size: 1.2rem;
+                                    font-weight: 500;
+                                }
+                                .loader-spinner {
+                                    border: 5px solid rgba(232, 117, 50, 0.2);
+                                    border-top: 5px solid #e87532;
+                                    border-radius: 50%;
+                                    width: 70px;
+                                    height: 70px;
+                                    animation: spin 1s linear infinite;
+                                    margin-bottom: 20px;
+                                }
+                                @keyframes spin {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                            </style>
+                        """, unsafe_allow_html=True)
+
+                        try:
+                            # Call your AI extraction function
+                            parsed_data = extract_details_from_text(extracted_text)
+                            
+                            if not parsed_data:
+                                raise ValueError("AI returned empty data")
+                            
+                        except Exception as e:
+                            loading_placeholder.empty()
+                            st.error(f"❌ Error during AI processing: {str(e)}")
+                            
+                            with st.expander("🔍 Debug Information"):
+                                st.code(f"Error type: {type(e).__name__}")
+                                st.code(f"Error message: {str(e)}")
+                                st.code(f"Text length: {len(extracted_text)} characters")
+                                st.code(f"First 500 chars:\n{extracted_text[:500]}")
+                            
+                            st.warning("💡 Try these solutions:")
+                            st.markdown("""
+                            1. **Use Manual Entry** - Click the Manual Entry option above
+                            2. **Simplify your resume** - Remove complex formatting, tables, or images
+                            3. **Try a different format** - Convert to plain text PDF
+                            4. **Contact support** - If the issue persists
+                            """)
                             parsed_data = None
-                            loading_placeholder = st.empty()
-                            loading_placeholder.markdown("""
-                                <div id="overlay-loader">
-                                    <div class="loader-spinner"></div>
-                                    <p>Analyzing your resume and parsing details</p>
-                                </div>
-                                <style>
-                                    #overlay-loader {
-                                        position: fixed;
-                                        top: 0;
-                                        left: 0;
-                                        width: 100vw;
-                                        height: 100vh;
-                                        background: rgba(255, 255, 255, 0.40);
-                                        backdrop-filter: blur(10px);
-                                        display: flex;
-                                        flex-direction: column;
-                                        justify-content: center;
-                                        align-items: center;
-                                        z-index: 9999;
-                                        color: #e87532 !important;
-                                        font-size: 1.2rem;
-                                        font-weight: 500;
-                                    }
-                                    .loader-spinner {
-                                        border: 5px solid rgba(96, 165, 250, 0.2);
-                                        border-top: 5px solid #3b82f6;
-                                        border-radius: 50%;
-                                        width: 70px;
-                                        height: 70px;
-                                        animation: spin 1s linear infinite;
-                                        margin-bottom: 20px;
-                                    }
-                                    @keyframes spin {
-                                        0% { transform: rotate(0deg); }
-                                        100% { transform: rotate(360deg); }
-                                    }
-                                    #overlay-loader p {
-                                        color: #e0f7ff;
-                                        font-size: 1.1rem;
-                                        letter-spacing: 0.5px;
-                                    }
-                                </style>
-                            """, unsafe_allow_html=True)
-
-                            try:
-                                parsed_data = extract_details_from_text(extracted_text)
-                            except Exception as e:
-                                st.error(f"Error during detail extraction: {e}")
-                                parsed_data = None
-                            finally:
-                                loading_placeholder.empty()
-                            if 'from_template_button' in st.session_state and st.session_state.from_template_button:
+                        
+                        finally:
+                            loading_placeholder.empty()
+                        
+                        if parsed_data:
+                            # Store in session state
+                            st.session_state.resume_source = parsed_data
+                            st.session_state.resume_processed = True
+                            st.session_state.input_method = "Upload Entry"
+                            
+                            # Check if coming from template button
+                            if st.session_state.get('from_template_button'):
                                 st.session_state.from_template_button = False
+                                
+                                # Set this so template_preview.py knows to use it
+                                st.session_state.final_resume_data = parsed_data
+                                
+                                # Navigate to template preview
+                                st.query_params.clear()
+                                st.query_params["user"] = st.session_state.logged_in_user
+                                st.success("✅ Resume processed! Redirecting to templates...")
+                                time.sleep(0.5)
                                 st.switch_page("pages/template_preview.py")
                             else:
-                                if parsed_data:
-                                    st.session_state.resume_source = parsed_data
-                                    st.session_state.resume_processed = True
-                                    st.session_state.input_method = "Upload Entry"
+                                # Normal flow - save and go to job page
+                                save_success = save_user_resume(
+                                    st.session_state.logged_in_user,
+                                    parsed_data,
+                                    input_method="Upload Entry"
+                                )
 
-                                    save_success = save_user_resume(
-                                        st.session_state.logged_in_user,
-                                        parsed_data,
-                                        input_method="Upload Entry"
-                                    )
-
-                                    if save_success:
-                                        st.success("✅ Resume processed and saved successfully! Redirecting...")
-                                        time.sleep(0.5)
-                                        st.switch_page("pages/job.py")
-                                    else:
-                                        st.error("❌ Failed to save resume. Please try again.")
+                                if save_success:
+                                    st.success("✅ Resume processed and saved successfully!")
+                                    st.balloons()
+                                    time.sleep(1)
+                                    st.query_params["user"] = st.session_state.logged_in_user
+                                    st.switch_page("pages/job.py")
                                 else:
-                                    st.error("Failed to process resume. Please ensure your file is clean or try manual entry.")
-                        else:
-                            st.error("Please upload your resume first")
+                                    st.error("❌ Failed to save resume. Please try again.")
+        else:
+            st.info("👆 Please upload your resume to continue")
 else:
     st.error("please login first")
 

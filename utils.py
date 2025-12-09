@@ -94,112 +94,190 @@ def extract_details_from_text(extracted_text: str) -> Dict[str, Any]:
     Captures all standard fields and any additional fields present in the resume.
     """
     
-    prompt = f"""
-   Extract structured information from the resume text below.
-Return ONLY valid JSON. Do NOT include explanations.
-
-RULES:
-1. Do NOT invent or infer any information that is not explicitly present. 
-2. If a field is missing, return null or an empty list.
-3. Preserve the exact wording of skills, titles, companies, and achievements.
-4. Follow the exact schema below. Do not add extra top-level keys.
-
-SCHEMA:
-{
-  "name": string|null,
-  "email": string|null,
-  "phone": string|null,
-  "summary": string|null,
-  "skills": [string],
+    # Define schema as a separate constant to avoid f-string formatting issues
+    SCHEMA_DEFINITION = """{
+  "name": "string or null",
+  "email": "string or null",
+  "phone": "string or null",
+  "location": "string or null",
+  "url": "string or null",
+  "summary": "string or null",
+  "skills": ["array of strings"],
   "experience": [
     {
-      "title": string|null,
-      "company": string|null,
-      "location": string|null,
-      "duration": string|null,
-      "overview": string|null,
-      "description": [string]
+      "company": "string or null",
+      "position": "string or null",
+      "location": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "exp_skills": ["array of strings"],
+      "description": ["array of strings - bullet points"]
     }
   ],
   "education": [
     {
-      "degree": string|null,
-      "institution": string|null,
-      "duration": string|null,
-      "overview": string|null
+      "course": "string or null (degree/program name)",
+      "university": "string or null (institution name)",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)"
     }
   ],
-  "projects": [
+  "certificate": [
     {
-      "name": string|null,
-      "overview": string|null,
-      "description": [string]
+      "certificate_name": "string or null",
+      "provider_name": "string or null",
+      "completed_date": "string or null (MM/YYYY format)"
     }
   ],
-  "certifications": [string],
-  "awards": [string],
-  "languages": [string],
-  "interests": [string],
-  "extras": {
-      "raw_sections_detected": [string]
+  "project": [
+    {
+      "projectname": "string or null",
+      "tools": "string or null (comma-separated)",
+      "decription": "string or null (key achievements)"
+    }
+  ],
+  "custom_sections": {
+    "section_title": "section content as string"
   }
-}
+}"""
 
-Resume text:
-{extracted_text}
-
-    """
+    # Build prompt without f-string formatting issues
+    prompt_parts = [
+        "Extract structured information from the resume text below.",
+        "Return ONLY valid JSON. Do NOT include explanations, markdown, or code blocks.",
+        "",
+        "CRITICAL RULES:",
+        "1. Do NOT invent or infer any information that is not explicitly present.",
+        "2. If a field is missing, return null or an empty array [].",
+        "3. Preserve exact wording of skills, titles, companies, and achievements.",
+        "4. For dates, use MM/YYYY format (e.g., '01/2020').",
+        "5. For current positions, use 'Present' as end_date.",
+        "6. Split multi-line descriptions into arrays of strings.",
+        "",
+        "SCHEMA TO FOLLOW:",
+        SCHEMA_DEFINITION,
+        "",
+        "IMPORTANT FIELD MAPPINGS:",
+        "- Use 'position' not 'title' for job roles",
+        "- Use 'company' not 'organization'",
+        "- Use 'course' for degree/program name",
+        "- Use 'university' for institution name",
+        "- Use 'exp_skills' for skills used in each job",
+        "- Use 'decription' (note spelling) for project descriptions",
+        "",
+        "Resume text:",
+        extracted_text
+    ]
+    
+    prompt = "\n".join(prompt_parts)
 
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
         "messages": [
-            {"role": "system", "content": "You are an expert at extracting structured information from resumes. Return JSON with all fields present, even if custom or unusual."},
-            {"role": "user", "content": prompt}
+            {
+                "role": "system", 
+                "content": "You are an expert resume parser. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
+            },
+            {
+                "role": "user", 
+                "content": prompt
+            }
         ],
         "temperature": 0.1,
         "max_tokens": 4000
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        # Make API request
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         response.raise_for_status()
         result = response.json()
-        response_text = result['choices'][0]['message']['content']
+        
+        if 'choices' not in result or not result['choices']:
+            raise ValueError("API returned empty response")
+        
+        response_text = result['choices'][0]['message']['content'].strip()
 
-        # Extract JSON
+        # Clean up response - remove markdown code blocks if present
+        response_text = response_text.replace('```json', '').replace('```', '').strip()
+
+        # Extract JSON from response
         json_start = response_text.find('{')
         json_end = response_text.rfind('}') + 1
+        
         if json_start == -1 or json_end <= json_start:
-            st.error("Could not find valid JSON in response")
-            return {}
+            raise ValueError("No valid JSON object found in API response")
 
-        data = json.loads(response_text[json_start:json_end])
+        json_str = response_text[json_start:json_end]
+        data = json.loads(json_str)
 
-        # Convert experience and project descriptions to lists
-        for exp in data.get("experience", []):
-            if isinstance(exp.get("description"), str):
-                exp["description"] = [line.strip() for line in exp["description"].split("\n") if line.strip()]
-        for proj in data.get("projects", []):
-            if isinstance(proj.get("description"), str):
-                proj["description"] = [line.strip() for line in proj["description"].split("\n") if line.strip()]
+        # Post-processing: Ensure data structure matches your app's expectations
+        
+        # 1. Convert experience descriptions to arrays
+        if "experience" in data and isinstance(data["experience"], list):
+            for exp in data["experience"]:
+                # Handle description field
+                desc = exp.get("description", [])
+                if isinstance(desc, str):
+                    exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                elif not isinstance(desc, list):
+                    exp["description"] = []
+                
+                # Ensure exp_skills is a list
+                if "exp_skills" not in exp or not isinstance(exp["exp_skills"], list):
+                    exp["exp_skills"] = []
 
-        # Ensure skills, certifications, education are lists
-        for key in ["skills", "certifications", "education"]:
-            if key in data and not isinstance(data[key], list):
-                data[key] = [data[key]]
+        # 2. Convert project descriptions to strings (matching your data model)
+        if "project" in data and isinstance(data["project"], list):
+            for proj in data["project"]:
+                desc = proj.get("decription", "")  # Note: your model uses 'decription'
+                if isinstance(desc, list):
+                    proj["decription"] = " ".join(desc)
+                elif not isinstance(desc, str):
+                    proj["decription"] = ""
+
+        # 3. Ensure all expected list fields exist and are lists
+        list_fields = ["skills", "experience", "education", "certificate", "project"]
+        for field in list_fields:
+            if field not in data:
+                data[field] = []
+            elif not isinstance(data[field], list):
+                data[field] = [data[field]] if data[field] else []
+
+        # 4. Ensure string fields exist
+        string_fields = ["name", "email", "phone", "location", "url", "summary"]
+        for field in string_fields:
+            if field not in data:
+                data[field] = ""
+            elif data[field] is None:
+                data[field] = ""
+
+        # 5. Handle custom_sections
+        if "custom_sections" not in data:
+            data["custom_sections"] = {}
+        elif not isinstance(data["custom_sections"], dict):
+            data["custom_sections"] = {}
+
+        # 6. Validate required personal info
+        if not data.get("name") or not data.get("email"):
+            raise ValueError("Resume must contain at least a name and email address")
 
         return data
 
+    except requests.exceptions.Timeout:
+        raise Exception("⏱️ API request timed out. Please try again.")
+    
     except requests.exceptions.RequestException as e:
-        st.error(f"API request failed: {str(e)}")
-        return {}
+        raise Exception(f"🌐 API request failed: {str(e)}")
+    
     except json.JSONDecodeError as e:
-        st.error(f"Failed to parse JSON response: {str(e)}")
-        return {}
+        raise Exception(f"📄 Failed to parse API response as JSON: {str(e)}")
+    
+    except ValueError as e:
+        raise Exception(f"⚠️ {str(e)}")
+    
     except Exception as e:
-        st.error(f"Error extracting details: {str(e)}")
-        return {}
-
+        raise Exception(f"❌ Unexpected error during resume parsing: {str(e)}")
 
 def call_llm(payload):
     response = requests.post(API_URL, json=payload, headers=headers)

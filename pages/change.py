@@ -554,7 +554,7 @@ st.markdown(f"""
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
+            <a class="nav-link" href="main?&user={current_user}" target="_self">Create New Resume</a>
         </div>
         <div class="nav-item">
             <a class="nav-link" data-section="ats" href="{ats_url}" target="_self">Check ATS Score</a>

@@ -493,6 +493,9 @@ st.markdown("""
 }
     </style>
     """, unsafe_allow_html=True)
+
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
 # Use f-string to properly interpolate the user variable
 st.markdown(f"""
 <div class="nav-wrapper">
@@ -506,6 +509,12 @@ st.markdown(f"""
         </div>
         <div class="nav-item">
              <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" href="{qu_url}" target="_self">Questionnaire</a>
         </div>
         <div class="nav-item">
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>

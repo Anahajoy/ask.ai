@@ -799,7 +799,7 @@ if template_clicked:
         st.session_state.show_login_modal = True
     else:
         st.session_state.from_template_button = True
-        st.switch_page("pages/main.py")
+        st.switch_page("pages/change.py")
 
 
 

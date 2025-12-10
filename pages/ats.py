@@ -22,11 +22,11 @@ is_logged_in = bool(current_user)
 if is_logged_in and current_user:
     home_url = f"/?user={current_user}"
     ats_url = f"ats?user={current_user}"
-    qu = f"#keyword"
+    qu_url = f"qu?user={current_user}"
 else:
     home_url = "/"
     ats_url = "#ats"
-    qu = "#qu"
+    qu_url = "#qu"
 
 
 if is_logged_in:
@@ -471,7 +471,7 @@ st.markdown(f"""
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="qu" href="{qu}">Questionnaire</a>
+            <a class="nav-link" data-section="qu" href="{qu_url}" target="_self">Questionnaire</a>
         </div>
         {auth_button}
     </div>

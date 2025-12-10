@@ -765,6 +765,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 """, unsafe_allow_html=True)
 
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
 # ----------------------------------
 # TOP NAVIGATION
 # ----------------------------------
@@ -773,9 +775,7 @@ nav_items = f"""
     <div class="nav-item">
         <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
     </div>
-    <div class="nav-item">
-        <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
-    </div>
+  
 """
 
 # Add Edit Content link only if final_resume_data exists
@@ -789,6 +789,12 @@ if st.session_state.get("final_resume_data"):
 nav_items += f"""
     <div class="nav-item">
         <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+    </div>
+    <div class="nav-item">
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+    </div>
+    <div class="nav-item">
+            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
     </div>
     <div class="nav-item">
         <a class="nav-link" href="?logout=true" target="_self">Logout</a>

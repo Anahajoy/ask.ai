@@ -486,16 +486,38 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+current_user = st.session_state.get('logged_in_user', '')
+is_logged_in = bool(current_user)
+
+# Build the URLs - only add user param if logged in
+if is_logged_in and current_user:
+    home_url = f"/?user={current_user}"
+    ats_url = f"ats?user={current_user}"  # Navigate to ats.py page
+    qu_url = f"qu?user={current_user}"    # Navigate to qu.py page
+else:
+    home_url = "#Home"
+    ats_url = "#ats"  # Fallback to anchor if not logged in
+    qu_url = "#qu"    # Fallback to anchor if not logged in
+
+if is_logged_in:
+    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
+else:
+    auth_button = '<div class="nav-item"><a class="nav-link" href="#Login">Login</a></div>'
+
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="logo">Resume Creator</div>
     <div class="nav-menu">
         <div class="nav-item">
-            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
+            <a class="nav-link" href="{home_url}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+            <a class="nav-link" href="{ats_url}" target="_self">Check ATS Score</a>
         </div>
+        <div class="nav-item">
+            <a class="nav-link" href="{qu_url}" target="_self">Questionnaire</a>
+        </div>
+        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -507,22 +529,28 @@ st.markdown(f"""
 #         st.query_params["user"] = st.session_state.logged_in_user
 #     st.switch_page("pages/job.py")
 
-if st.query_params.get("home") == "true":
-    st.query_params.clear()
-    if st.session_state.logged_in_user:
-        st.query_params["user"] = st.session_state.logged_in_user
-    st.switch_page("app.py")
+# if st.query_params.get("home") == "true":
+#     st.query_params.clear()
+#     if st.session_state.logged_in_user:
+#         st.query_params["user"] = st.session_state.logged_in_user
+#     st.switch_page("app.py")
+
+# if st.query_params.get("logout") == "true":
+#     # ONLY clear session on explicit logout
+#     st.session_state.logged_in_user = None
+#     for key in list(st.session_state.keys()):
+#         del st.session_state[key]
+#     st.query_params.clear()
+#     st.switch_page("app.py")
+
 
 if st.query_params.get("logout") == "true":
-    # ONLY clear session on explicit logout
     st.session_state.logged_in_user = None
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
-    st.switch_page("app.py")
-
-
-
+    st.rerun()
+# Page Content
 
 if  st.session_state.logged_in_user :
 

@@ -471,7 +471,7 @@ st.markdown(f"""
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" data-section="qu" href="{qu_url}" target="_self">Questionnaire</a>
+            <a class="nav-link" data-section="qu" href="{qu_url}" target="_self">Analysis Assistant</a>
         </div>
         {auth_button}
     </div>

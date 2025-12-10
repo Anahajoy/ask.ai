@@ -8,6 +8,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+
 
 # Get user info for navigation
 current_user = st.session_state.get('logged_in_user', '')
@@ -473,6 +478,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+
+if st.query_params.get("logout") == "true":
+    st.session_state.logged_in_user = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.query_params.clear()
+    st.rerun()
 # Page Content
 st.markdown("""
 <div class="ats-main-wrapper">

@@ -385,6 +385,8 @@ if current_user and 'resume_source' not in st.session_state:
     except Exception as e:
         pass  # Continue without stored data
 
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
 
 if st.session_state.logged_in_user:
     st.query_params["user"] = st.session_state.logged_in_user
@@ -398,6 +400,12 @@ st.markdown(f"""
         </div>
         <div class="nav-item">
             <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+        </div>
+        <div class="nav-item">
+            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
         </div>
         <div class="nav-item">
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>

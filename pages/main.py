@@ -515,7 +515,7 @@ st.markdown(f"""
             <a class="nav-link" href="{ats_url}" target="_self">Check ATS Score</a>
         </div>
         <div class="nav-item">
-            <a class="nav-link" href="{qu_url}" target="_self">Questionnaire</a>
+            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
         </div>
         {auth_button}
     </div>

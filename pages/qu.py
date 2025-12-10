@@ -149,9 +149,10 @@ st.markdown("""
         font-size: 1rem;
         color: #64748b;
         max-width: 600px;
-        margin-left: 300px !important;
+        margin: 0 auto;
         line-height: 1.6;
         font-weight: 400;
+        margin-left: 300px !important;
     }
     
     /* Main Content Container */
@@ -327,12 +328,69 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(255, 140, 66, 0.2);
     }
     
+    /* Chat container with fixed height and scroll */
+    .chat-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        height: 400px;
+        overflow-y: auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+        scroll-behavior: smooth;
+    }
+    
+    /* Custom scrollbar */
+    .chat-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .chat-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb {
+        background: #ff8c42;
+        border-radius: 10px;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb:hover {
+        background: #ff7a29;
+    }
+    
+    /* Quick actions section - always visible */
+    .quick-actions-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .quick-actions-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 1rem;
+        text-align: center;
+    }
+    
     /* Success/Error messages */
     .stSuccess {
         background: #f0fdf4 !important;
         border: 1px solid #86efac !important;
         border-radius: 8px !important;
         font-size: 0.9rem !important;
+    }
+    
+    /* Text input styling */
+    .stTextInput input {
+        border-radius: 10px !important;
+        border: 1.5px solid #e2e8f0 !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .stTextInput input:focus {
+        border-color: #ff8c42 !important;
+        box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.1) !important;
     }
     
     /* Responsive design */
@@ -360,9 +418,20 @@ st.markdown("""
         .ats-hero-description {
             font-size: 0.9rem;
         }
+        
+        .chat-container {
+            height: 300px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Initialize session state for chat history
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+
+if 'resume_text' not in st.session_state:
+    st.session_state.resume_text = None
 
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
@@ -428,8 +497,8 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# # Main Content
-# st.markdown('<div class="main-container">', unsafe_allow_html=True)
+# Main Content
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 # Two column layout using Streamlit columns
 col1, col2 = st.columns(2, gap="large")
@@ -451,7 +520,7 @@ with col1:
     )
 
 with col2:
-    st.markdown('<div class="features-card">', unsafe_allow_html=True)
+    # st.markdown('<div class="features-card">', unsafe_allow_html=True)
     st.markdown('<div class="features-title">What you\'ll get</div>', unsafe_allow_html=True)
     
     # Feature items
@@ -475,12 +544,15 @@ with col2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 if uploaded_file is not None:
+    # Extract text from file
     if uploaded_file.type == "application/pdf":
         extracted_text = extract_text_from_pdf(uploaded_file)
     else:  # DOCX
-        # Reset file pointer to beginning
         uploaded_file.seek(0)
         extracted_text = extract_text_from_docx(uploaded_file)
+    
+    # Store resume text in session state
+    st.session_state.resume_text = extracted_text
     
     # Hide the upload section and show chat interface
     st.markdown("""
@@ -511,58 +583,59 @@ if uploaded_file is not None:
     </div>
     """, unsafe_allow_html=True)
     
-    # Bot message - Welcome
-    st.markdown("""
-    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-        <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            🤖
-        </div>
-        <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; flex: 1; border-left: 3px solid #ff8c42;">
-            <div style="color: #2c3e50; line-height: 1.6;">
-                Great! I've received your resume. I can help you with:
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Quick Actions Section - Always visible
+    st.markdown('<div class="quick-actions-section">', unsafe_allow_html=True)
+    st.markdown('<div class="quick-actions-title">Quick Actions</div>', unsafe_allow_html=True)
     
-    # Option buttons
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("❓ Generate Interview Questions", use_container_width=True):
-            st.session_state.selected_option = "questions"
-            st.session_state.user_query = "Generate interview questions based on my resume"
+        if st.button("❓ Generate Interview Questions", use_container_width=True, key="btn_questions"):
+            st.session_state.pending_query = "Generate interview questions based on my resume"
             st.rerun()
-        if st.button("💡 Get Resume Tips", use_container_width=True):
-            st.session_state.selected_option = "tips"
-            st.session_state.user_query = "Give me tips to improve my resume"
+        if st.button("💡 Get Resume Tips", use_container_width=True, key="btn_tips"):
+            st.session_state.pending_query = "Give me tips to improve my resume"
             st.rerun()
-        if st.button("🎯 Points to Focus", use_container_width=True):
-            st.session_state.selected_option = "focus"
-            st.session_state.user_query = "What are the key points I should focus on in my resume?"
+        if st.button("🎯 Points to Focus", use_container_width=True, key="btn_focus"):
+            st.session_state.pending_query = "What are the key points I should focus on in my resume?"
             st.rerun()
     
     with col2:
-        if st.button("💪 Analyze My Strengths", use_container_width=True):
-            st.session_state.selected_option = "strengths"
-            st.session_state.user_query = "Analyze the strengths shown in my resume"
+        if st.button("💪 Analyze My Strengths", use_container_width=True, key="btn_strengths"):
+            st.session_state.pending_query = "Analyze the strengths shown in my resume"
             st.rerun()
-        if st.button("📈 How to Improve", use_container_width=True):
-            st.session_state.selected_option = "improve"
-            st.session_state.user_query = "How can I improve my resume?"
+        if st.button("📈 How to Improve", use_container_width=True, key="btn_improve"):
+            st.session_state.pending_query = "How can I improve my resume?"
             st.rerun()
     
-    # Show selected option response
-    if 'selected_option' in st.session_state and 'user_query' in st.session_state:
-        option = st.session_state.selected_option
-        query = st.session_state.user_query
-        
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # # Chat messages container with fixed height and scroll
+    # st.markdown('<div class="chat-container" id="chat-container">', unsafe_allow_html=True)
+    
+    # Display welcome message only if chat history is empty
+    if len(st.session_state.chat_history) == 0:
+        st.markdown("""
+        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                🤖
+            </div>
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; flex: 1; border-left: 3px solid #ff8c42;">
+                <div style="color: #2c3e50; line-height: 1.6;">
+                    Great! I've received your resume. Use the quick actions above or type your question below to get started.
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Display chat history
+    for chat in st.session_state.chat_history:
         # User message
         st.markdown(f"""
         <div style="display: flex; gap: 1rem; margin: 1.5rem 0; justify-content: flex-end;">
             <div style="background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); color: white; padding: 1rem; border-radius: 12px; max-width: 70%;">
                 <div style="line-height: 1.6;">
-                    {query}
+                    {chat['user']}
                 </div>
             </div>
             <div style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -571,37 +644,86 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
         
-        # Bot response with streaming
-        st.markdown("""
+        # Bot response
+        st.markdown(f"""
         <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
             <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 🤖
             </div>
             <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; flex: 1; border-left: 3px solid #ff8c42;">
-        """, unsafe_allow_html=True)
-        
-        # Stream the response from ask_llama
-        response_placeholder = st.empty()
-        full_response = ""
-        
-        try:
-            for token in ask_llama(query, extracted_text):
-                full_response += token
-                response_placeholder.markdown(f'<div style="color: #2c3e50; line-height: 1.8;">{full_response}</div>', unsafe_allow_html=True)
-        except Exception as e:
-            response_placeholder.error(f"Error: {str(e)}")
-        
-        st.markdown("""
+                <div style="color: #2c3e50; line-height: 1.8;">{chat['bot']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Input area at bottom
-    user_input = st.text_input("Ask me anything about your resume...", key="chat_input", label_visibility="collapsed", placeholder="Type your question here...")
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    if user_input and st.button("Send", key="send_btn"):
-        st.session_state.user_query = user_input
-        st.session_state.selected_option = "custom"
-        st.rerun()
+    # Process pending query from button clicks
+    if 'pending_query' in st.session_state:
+        query = st.session_state.pending_query
+        
+        # Create a container for new message
+        new_message_container = st.container()
+        
+        with new_message_container:
+            # Show user message
+            st.markdown(f"""
+            <div style="display: flex; gap: 1rem; margin: 1.5rem 0; justify-content: flex-end;">
+                <div style="background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); color: white; padding: 1rem; border-radius: 12px; max-width: 70%;">
+                    <div style="line-height: 1.6;">
+                        {query}
+                    </div>
+                </div>
+                <div style="width: 32px; height: 32px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    👤
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Bot response with streaming
+            st.markdown("""
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #ff8c42 0%, #ffa666 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    🤖
+                </div>
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; flex: 1; border-left: 3px solid #ff8c42;">
+            """, unsafe_allow_html=True)
+            
+            response_placeholder = st.empty()
+            full_response = ""
+            
+            try:
+                for token in ask_llama(query, st.session_state.resume_text):
+                    full_response += token
+                    response_placeholder.markdown(f'<div style="color: #2c3e50; line-height: 1.8;">{full_response}</div>', unsafe_allow_html=True)
+                
+                # Add to chat history
+                st.session_state.chat_history.append({
+                    'user': query,
+                    'bot': full_response
+                })
+                
+            except Exception as e:
+                response_placeholder.error(f"Error: {str(e)}")
+            
+            st.markdown("""
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Clear pending query
+        del st.session_state.pending_query
+    
+    # Input area at bottom
+    with st.form(key='chat_form', clear_on_submit=True):
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            user_input = st.text_input("Ask me anything about your resume...", key="chat_input", label_visibility="collapsed", placeholder="Type your question here...")
+        with col2:
+            submit_button = st.form_submit_button("Send", use_container_width=True)
+        
+        if submit_button and user_input:
+            st.session_state.pending_query = user_input
+            st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)

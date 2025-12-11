@@ -3287,10 +3287,17 @@ def render_generic_section(section_key, data_list, is_edit):
     section_title = format_section_title(section_key)
     if not data_list: 
         return
-
+    
+    # Convert data_list to a list if it's not already
+    if isinstance(data_list, str):
+        data_list = [data_list]
+        # Update the session state with the converted list
+        if 'enhanced_resume' in st.session_state:
+            st.session_state['enhanced_resume'][section_key] = data_list
+    
     st.markdown('<div class="resume-section">', unsafe_allow_html=True)
     st.markdown(f'<h2>{section_title}</h2>', unsafe_allow_html=True)
-
+    
     for i, item in enumerate(data_list):
         # Normalize all items to dictionaries
         if not isinstance(item, dict):
@@ -3298,8 +3305,8 @@ def render_generic_section(section_key, data_list, is_edit):
                 item = {"title": item}
             else:
                 item = {"title": str(item)}
-            data_list[i] = item  # Update the list with normalized item
-
+            data_list[i] = item  # Now safe because data_list is guaranteed to be a list
+        
         with st.container(border=False):
             # Build expander title from available fields
             expander_title_parts = [
@@ -4394,7 +4401,7 @@ def generate_generic_html(data, date_placement='right'):
                 title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course']
                 subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
                 duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
-                description_keys = ['description', 'achievement', 'details', 'overview']
+                description_keys = ['description', 'achievement', 'details', 'overview', 'responsibilities']
 
                 # Get main title (first available)
                 main_title = None
@@ -4469,14 +4476,103 @@ def generate_generic_html(data, date_placement='right'):
     # ========== ADD CUSTOM SECTIONS HERE ==========
     standard_keys = get_standard_keys()
     
-
     for key, value in data.items():
-        if key not in standard_keys and isinstance(value, str) and value.strip():
+        if key not in standard_keys and value:
             title = format_section_title(key)
             html += f'<div class="ats-section-title">{title}</div>'
-   
-            formatted_value = value.strip().replace('\n', '<br>')
-            html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
+            
+            # Handle string sections
+            if isinstance(value, str) and value.strip():
+                formatted_value = value.strip().replace('\n', '<br>')
+                html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
+            
+            # Handle list sections (like projects, achievements, etc.)
+            elif isinstance(value, list):
+                for item in value:
+                    # Normalize string items to dict
+                    if isinstance(item, str) and item.strip():
+                        # Simple bullet list for plain strings
+                        html += f'<ul class="ats-bullet-list"><li>{item}</li></ul>'
+                        continue
+                    
+                    if not isinstance(item, dict):
+                        continue
+
+                    # Define comprehensive field keys for dynamic handling
+                    title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course', 'project_name']
+                    subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university', 'technologies']
+                    duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date', 'year']
+                    description_keys = ['description', 'achievement', 'details', 'overview', 'responsibilities']
+
+                    # Get main title (first available)
+                    main_title = None
+                    for k in title_keys:
+                        if k in item and item[k]:
+                            main_title = item[k]
+                            break
+                    
+                    # Get subtitle (first available that's not the same as title)
+                    subtitle = None
+                    for k in subtitle_keys:
+                        if k in item and item[k] and item[k] != main_title:
+                            subtitle = item[k]
+                            break
+
+                    # Get duration with proper date formatting
+                    start = format_year_only(item.get('start_date', ''))
+                    end = format_year_only(item.get('end_date', ''))
+
+                    if start or end:
+                        duration = f"{start} - {end}" if start and end else start or end
+                    else:
+                        # Try other duration fields
+                        duration = None
+                        for k in duration_keys:
+                            if k in item and item[k]:
+                                duration = format_year_only(item[k])
+                                break
+                        duration = duration or ''
+
+                    # Skip completely empty items
+                    if not main_title and not subtitle and not duration:
+                        # Check if there's any description content
+                        has_description = False
+                        for desc_key in description_keys:
+                            if desc_key in item and item[desc_key]:
+                                has_description = True
+                                break
+                        if not has_description:
+                            continue
+
+                    # Build item HTML
+                    html += '<div class="ats-item-header">'
+                    if main_title or subtitle:
+                        html += '<div class="ats-item-title-group">'
+                        if main_title:
+                            html += f'<span class="ats-item-title">{main_title}'
+                            if subtitle:
+                                html += f' <span class="ats-item-subtitle">{subtitle}</span>'
+                            html += '</span>'
+                        html += '</div>'
+                    if duration:
+                        html += f'<div class="ats-item-duration">{duration}</div>'
+                    html += '</div>'
+
+                    # Description / Achievements - check all possible description fields
+                    description_list = None
+                    for desc_key in description_keys:
+                        if desc_key in item and item[desc_key]:
+                            description_list_raw = item[desc_key]
+                            if isinstance(description_list_raw, str):
+                                description_list = [description_list_raw]
+                            elif isinstance(description_list_raw, list):
+                                description_list = description_list_raw
+                            break
+
+                    if description_list:
+                        bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
+                        if bullet_html:
+                            html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
 
     return html
 

@@ -631,7 +631,7 @@ with col1:
             update_preview_cache()
 
 with col2:
-    st.markdown('<div class="panel-header">🎨 Colors</div>', unsafe_allow_html=True)
+    # st.markdown('<div class="panel-header">Colors</div>', unsafe_allow_html=True)
     
     # Get current color index
     current_color_list = list(ATS_COLORS.keys())
@@ -655,23 +655,24 @@ with col2:
         st.rerun()
     
     st.markdown(f"""
-    <div style="width: 50%; height: 30px; background: {new_color}; 
-        border-radius: 8px; margin-top: 10px;margin-left:50px;
+    <div style="width: 70px; height: 70px; background: {new_color}; 
+        border-radius: 50%; margin: 10px auto;
         border: 3px solid #333;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);"></div>
     """, unsafe_allow_html=True)
     
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="panel-header">📋 Template Selection</div>', unsafe_allow_html=True)
+    st.markdown('<br>', unsafe_allow_html=True)
+    # st.markdown('</div>', unsafe_allow_html=True)
+    # st.markdown('<div class="panel-header">📋 Template Selection</div>', unsafe_allow_html=True)
     
-    st.markdown(f"""
-    <div class="template-box">
-        <div class="template-name">{st.session_state.selected_template}</div>
-        <div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
-            {st.session_state.template_source.replace('_', ' ').title()}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # st.markdown(f"""
+    # <div class="template-box">
+    #     <div class="template-name">{st.session_state.selected_template}</div>
+    #     <div style="font-size: 0.8rem; color: #666; margin-top: 0.3rem;">
+    #         {st.session_state.template_source.replace('_', ' ').title()}
+    #     </div>
+    # </div>
+    # """, unsafe_allow_html=True)
     
     system_template_names = list(SYSTEM_TEMPLATES.keys())
     

@@ -598,6 +598,17 @@ st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
 col1, col2 = st.columns(2, gap="large")
 
+# Add to session state initialization section
+if 'uploaded_file_name' not in st.session_state:
+    st.session_state.uploaded_file_name = None
+
+if 'parsed_data' not in st.session_state:
+    st.session_state.parsed_data = None
+
+if 'resume_text' not in st.session_state:
+    st.session_state.resume_text = None
+
+# Replace the file upload section in col1:
 with col1:
     st.markdown("""
     <div class="upload-card">
@@ -613,28 +624,57 @@ with col1:
         label_visibility="collapsed"
     )
     
+    # Only process if file is new or different
     if uploaded_file is not None:
-        if uploaded_file.type == "application/pdf":
-            extracted_text = extract_text_from_pdf(uploaded_file)
-        else:
-            uploaded_file.seek(0)
-            extracted_text = extract_text_from_docx(uploaded_file)
+        current_file_name = uploaded_file.name
         
-        parsed_data = extract_details_from_text(extracted_text)
-        st.session_state.parsed_data = parsed_data
-        
-        if parsed_data:
-            # Check if user is logged in
-            if st.session_state.get('logged_in_user'):
-                st.query_params["user"] = st.session_state.logged_in_user
-                st.success("✅ Resume processed successfully!")
-                
-                # Update the preview cache
-                update_preview_cache()
-            else:
-                st.warning("⚠️ Please login first")
+        # Check if this is a new file (different from last uploaded)
+        if current_file_name != st.session_state.uploaded_file_name:
+            with st.spinner("Processing resume..."):
+                try:
+                    # Extract text based on file type
+                    if uploaded_file.type == "application/pdf":
+                        extracted_text = extract_text_from_pdf(uploaded_file)
+                    else:
+                        uploaded_file.seek(0)
+                        extracted_text = extract_text_from_docx(uploaded_file)
+                    
+                    # Parse the extracted text
+                    parsed_data = extract_details_from_text(extracted_text)
+                    
+                    # Update session state
+                    st.session_state.parsed_data = parsed_data
+                    st.session_state.resume_text = extracted_text
+                    st.session_state.uploaded_file_name = current_file_name
+                    
+                    if parsed_data:
+                        # Check if user is logged in
+                        if st.session_state.get('logged_in_user'):
+                            st.query_params["user"] = st.session_state.logged_in_user
+                            st.success("✅ Resume processed successfully!")
+                            
+                            # Update the preview cache
+                            update_preview_cache()
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ Please login first")
+                    else:
+                        st.error("❌ Failed to process resume")
+                        st.session_state.uploaded_file_name = None
+                        
+                except Exception as e:
+                    st.error(f"❌ Error processing file: {str(e)}")
+                    st.session_state.uploaded_file_name = None
         else:
-            st.error("❌ Failed to process resume")
+            # File already processed, show status
+            if st.session_state.parsed_data:
+                st.success(f"✅ Currently using: {current_file_name}")
+    else:
+        # No file uploaded, clear the session state
+        if st.session_state.uploaded_file_name is not None:
+            st.session_state.uploaded_file_name = None
+            st.session_state.parsed_data = None
+            st.session_state.resume_text = None
 
 with col2:
     # st.markdown('<div class="panel-header">Colors</div>', unsafe_allow_html=True)

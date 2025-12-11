@@ -624,11 +624,17 @@ with col1:
         st.session_state.parsed_data = parsed_data
         
         if parsed_data:
-            st.query_params["user"] = st.session_state.logged_in_user
-            st.success("✅ Resume processed successfully!")
-            
-            # Update the preview cache
-            update_preview_cache()
+            # Check if user is logged in
+            if st.session_state.get('logged_in_user'):
+                st.query_params["user"] = st.session_state.logged_in_user
+                st.success("✅ Resume processed successfully!")
+                
+                # Update the preview cache
+                update_preview_cache()
+            else:
+                st.warning("⚠️ Please login first")
+        else:
+            st.error("❌ Failed to process resume")
 
 with col2:
     # st.markdown('<div class="panel-header">Colors</div>', unsafe_allow_html=True)

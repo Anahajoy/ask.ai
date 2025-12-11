@@ -547,12 +547,18 @@ if st.query_params.get("logout") == "true":
     st.query_params.clear()
     st.switch_page("app.py")
 
-
-import time
-
 loading_placeholder = st.empty()
+import time
+enhanced_resume = st.session_state.get('enhanced_resume')
+is_currently_editing = st.session_state.get('edit_toggle', False)
 
-if should_regenerate_resume():
+should_generate = (
+    should_regenerate_resume() and 
+    not enhanced_resume and 
+    not is_currently_editing
+)
+
+if should_generate:
     loading_placeholder.markdown("""
         <div id="overlay-loader">
             <div class="loader-spinner"></div>

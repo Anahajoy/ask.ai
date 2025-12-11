@@ -1,4 +1,4 @@
-from utils import generate_generic_html
+from utils import generate_generic_html,generate_two_column_html
 from jinja2 import Environment, FileSystemLoader
 
 env = Environment(loader=FileSystemLoader("templates"))
@@ -60,4 +60,8 @@ SYSTEM_TEMPLATES = {
         "html_generator": lambda data: generate_generic_html(data, date_placement="right"),
         "css_template": "modern_minimal",
     },
+    "Two Coloumn": {
+    "html_generator": lambda data: generate_two_column_html(data),
+    "css_template": "two_coloumn",
+},
 }

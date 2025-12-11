@@ -5481,3 +5481,349 @@ def docx_to_html_preview(docx_bytes):
         </body>
         </html>
         """
+    
+
+
+
+def generate_two_column_html(data):
+    """Generates two-column HTML content based on resume data."""
+    if not data: 
+        return ""
+
+    job_title_for_header = data.get('job_title', '')
+    
+    # Build contact info for header
+    contacts = []
+    if data.get('phone'):
+        contacts.append(data.get('phone'))
+    if data.get('email'):
+        contacts.append(data.get('email'))
+    if data.get('location'):
+        contacts.append(data.get('location'))
+    contacts_html = " | ".join(contacts) if contacts else ""
+    
+    # Header
+    html = '<div class="ats-two-col-container">'
+    html += '<div class="ats-two-col-header">'
+    html += f'<h1>{data.get("name", "NAME MISSING")}</h1>'
+    if job_title_for_header:
+        html += f'<div class="ats-two-col-job-title">{job_title_for_header}</div>'
+    if contacts_html:
+        html += f'<div class="ats-two-col-contact-header">{contacts_html}</div>'
+    html += '</div>'
+
+    # Two-column body
+    html += '<div class="ats-two-col-body">'
+    
+    # LEFT COLUMN
+    html += '<div class="ats-left-column">'
+    
+    # Objective/Summary
+    summary = data.get('summary') or data.get('objective')
+    if summary:
+        html += '<div class="ats-two-col-section-title">Objective</div>'
+        html += f'<div class="ats-objective-text">{summary}</div>'
+    
+    # Skills - Handle different formats
+    if data.get('skills'):
+        html += '<div class="ats-two-col-section-title">Skills</div>'
+        skills_data = data.get('skills')
+        html += '<ul class="ats-skills-list">'
+        
+        if isinstance(skills_data, dict):
+            # Handle categorized skills
+            for skill_type, skill_list in skills_data.items():
+                if skill_list:
+                    if isinstance(skill_list, list):
+                        for skill in skill_list:
+                            if skill and str(skill).strip():
+                                html += f'<li>{skill}</li>'
+                    elif isinstance(skill_list, str):
+                        # Split by comma if it's a string
+                        for skill in skill_list.split(','):
+                            if skill.strip():
+                                html += f'<li>{skill.strip()}</li>'
+        elif isinstance(skills_data, list):
+            # Handle flat list of skills
+            for skill in skills_data:
+                if skill and str(skill).strip():
+                    html += f'<li>{skill}</li>'
+        elif isinstance(skills_data, str):
+            # Handle comma-separated string
+            for skill in skills_data.split(','):
+                if skill.strip():
+                    html += f'<li>{skill.strip()}</li>'
+        
+        html += '</ul>'
+    
+    html += '</div>'  # End left column
+    
+    # RIGHT COLUMN
+    html += '<div class="ats-right-column">'
+    
+    # Experience
+    if data.get('experience'):
+        html += '<div class="ats-two-col-section-title">Experience</div>'
+        for item in data.get('experience', []):
+            if isinstance(item, str):
+                item = {"title": item}
+            if not isinstance(item, dict):
+                continue
+                
+            position = item.get('position') or item.get('title') or item.get('role')
+            company = item.get('company') or item.get('organization')
+            start = format_year_only(item.get('start_date', ''))
+            end = format_year_only(item.get('end_date', ''))
+            
+            # Handle duration
+            if start and end:
+                duration = f"{start} - {end}"
+            elif start:
+                duration = start
+            elif end:
+                duration = end
+            elif item.get('duration'):
+                duration = item.get('duration')
+            else:
+                duration = ""
+            
+            if not position and not company and not duration:
+                continue
+            
+            html += '<div class="ats-two-col-item-header">'
+            html += '<div class="ats-two-col-item-title-row">'
+            if position:
+                html += f'<span class="ats-two-col-item-title">{position}</span>'
+            if duration:
+                html += f'<span class="ats-two-col-item-duration">{duration}</span>'
+            html += '</div>'
+            if company:
+                html += f'<div class="ats-two-col-item-company">{company}</div>'
+            html += '</div>'
+            
+            # Description
+            description = item.get('description') or item.get('achievement') or item.get('details') or item.get('responsibilities')
+            if description:
+                if isinstance(description, str):
+                    html += f'<div class="ats-two-col-item-description">{description}</div>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-two-col-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
+    
+    # Education
+    if data.get('education'):
+        html += '<div class="ats-two-col-section-title">Education</div>'
+        for item in data.get('education', []):
+            if isinstance(item, str):
+                # Parse string format like "MBA with Data Science, Amity University"
+                parts = item.split(',')
+                item = {}
+                if len(parts) >= 1:
+                    item['degree'] = parts[0].strip()
+                if len(parts) >= 2:
+                    item['institution'] = parts[1].strip()
+                    
+            if not isinstance(item, dict):
+                continue
+                
+            degree = item.get('degree') or item.get('title') or item.get('name')
+            institution = item.get('institution') or item.get('university') or item.get('school')
+            start = format_year_only(item.get('start_date', ''))
+            end = format_year_only(item.get('end_date', ''))
+            
+            # Handle duration
+            if start and end:
+                duration = f"{start} - {end}"
+            elif start:
+                duration = start
+            elif end:
+                duration = end
+            elif item.get('duration'):
+                duration = item.get('duration')
+            else:
+                duration = ""
+            
+            # Skip completely empty items
+            if not degree and not institution and not duration:
+                continue
+            
+            html += '<div class="ats-two-col-item-header">'
+            html += '<div class="ats-two-col-item-title-row">'
+            
+            if degree or institution:
+                html += '<span class="ats-two-col-item-title">'
+                if degree:
+                    html += f'<span class="ats-degree-name">{degree}</span>'
+                if institution:
+                    if degree:
+                        html += ' <span class="ats-two-col-item-subtitle">/ <span class="ats-institution-name">{}</span></span>'.format(institution)
+                    else:
+                        html += f'<span class="ats-institution-name">{institution}</span>'
+                html += '</span>'
+            
+            if duration:
+                html += f'<span class="ats-two-col-item-duration">{duration}</span>'
+            html += '</div>'
+            html += '</div>'
+            
+            # Description
+            description = item.get('description') or item.get('details') or item.get('gpa')
+            if description:
+                if isinstance(description, str):
+                    html += f'<div class="ats-education-details">{description}</div>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-two-col-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
+    
+    # Certifications
+    if data.get('certifications'):
+        html += '<div class="ats-two-col-section-title">Certifications</div>'
+        for item in data.get('certifications', []):
+            if isinstance(item, str):
+                # Parse string format
+                parts = item.split(',')
+                item = {}
+                if len(parts) >= 1:
+                    item['certificate_name'] = parts[0].strip()
+                if len(parts) >= 2:
+                    item['issuer'] = parts[1].strip()
+                    
+            if not isinstance(item, dict):
+                continue
+                
+            cert_name = item.get('certificate_name') or item.get('name') or item.get('title')
+            issuer = item.get('issuer') or item.get('organization') or item.get('provider')
+            date = format_year_only(item.get('completed_date') or item.get('date') or item.get('year', ''))
+            
+            if not cert_name and not issuer and not date:
+                continue
+            
+            html += '<div class="ats-two-col-item-header">'
+            html += '<div class="ats-two-col-item-title-row">'
+            if cert_name:
+                html += f'<span class="ats-two-col-item-title">{cert_name}'
+                if issuer:
+                    html += f' <span class="ats-two-col-item-subtitle">/ {issuer}</span>'
+                html += '</span>'
+            if date:
+                html += f'<span class="ats-two-col-item-duration">{date}</span>'
+            html += '</div>'
+            html += '</div>'
+    
+    # Projects
+    if data.get('projects'):
+        html += '<div class="ats-two-col-section-title">Projects</div>'
+        for item in data.get('projects', []):
+            if isinstance(item, str):
+                item = {"title": item}
+            if not isinstance(item, dict):
+                continue
+                
+            project_name = item.get('name') or item.get('title')
+            date = format_year_only(item.get('date') or item.get('duration') or item.get('year', ''))
+            
+            if not project_name and not date:
+                continue
+            
+            html += '<div class="ats-two-col-item-header">'
+            html += '<div class="ats-two-col-item-title-row">'
+            if project_name:
+                html += f'<span class="ats-two-col-item-title">{project_name}</span>'
+            if date:
+                html += f'<span class="ats-two-col-item-duration">{date}</span>'
+            html += '</div>'
+            html += '</div>'
+            
+            description = item.get('description') or item.get('details')
+            if description:
+                if isinstance(description, str):
+                    html += f'<div class="ats-two-col-item-description">{description}</div>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-two-col-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
+    
+    # Achievements/Awards
+    if data.get('achievements') or data.get('awards'):
+        achievements = data.get('achievements') or data.get('awards')
+        html += '<div class="ats-two-col-section-title">Achievements</div>'
+        
+        if isinstance(achievements, list):
+            html += '<ul class="ats-two-col-bullet-list">'
+            for item in achievements:
+                if isinstance(item, str):
+                    html += f'<li>{item}</li>'
+                elif isinstance(item, dict):
+                    title = item.get('title') or item.get('name') or item.get('achievement')
+                    if title:
+                        html += f'<li>{title}</li>'
+            html += '</ul>'
+        elif isinstance(achievements, str):
+            html += f'<div class="ats-two-col-item-description">{achievements}</div>'
+    
+    # Custom sections - Add BEFORE closing right column
+    standard_keys = get_standard_keys()
+    for key, value in data.items():
+        if key not in standard_keys and value:
+            if isinstance(value, str) and value.strip():
+                title = format_section_title(key)
+                html += f'<div class="ats-two-col-section-title">{title}</div>'
+                formatted_value = value.strip().replace('\n', '<br>')
+                html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
+            elif isinstance(value, list) and value:
+                title = format_section_title(key)
+                html += f'<div class="ats-two-col-section-title">{title}</div>'
+                html += '<ul class="ats-two-col-bullet-list">'
+                for item in value:
+                    if isinstance(item, str) and item.strip():
+                        html += f'<li>{item}</li>'
+                    elif isinstance(item, dict):
+                        # Handle dict items in custom sections
+                        item_str = ", ".join([str(v) for v in item.values() if v])
+                        if item_str:
+                            html += f'<li>{item_str}</li>'
+                html += '</ul>'
+    
+    html += '</div>'  # End right column
+    html += '</div>'  # End two-col-body
+    html += '</div>'  # End container
+    return html
+
+
+def format_year_only(date_str):
+    """Extract only the year from a date string."""
+    if not date_str:
+        return ""
+    date_str = str(date_str).strip()
+    if not date_str or date_str.lower() in ['present', 'current', 'now']:
+        return 'Present' if date_str.lower() in ['present', 'current', 'now'] else date_str
+    
+    # Try to extract year (4 digits)
+    import re
+    year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+    if year_match:
+        return year_match.group(0)
+    return date_str
+
+
+def get_standard_keys():
+    """Returns set of standard resume keys."""
+    return {
+        'name', 'email', 'phone', 'location', 'linkedin', 'website', 'github',
+        'job_title', 'summary', 'objective', 'skills', 'experience', 'education',
+        'certifications', 'projects', 'awards', 'achievements', 'publications', 
+        'languages', 'volunteer', 'interests', 'references', 'input_method'
+    }
+
+
+def format_section_title(key):
+    """Format section key into readable title."""
+    return key.replace('_', ' ').title()

@@ -732,7 +732,7 @@ with st.container():
     with col2:
         try:
             img = Image.open(r"C:\\ask.ai\\image\\image.png")
-            st.image(img, use_container_width=True)
+            st.image(img, width='stretch')
         except:
             st.info("Image not found. Check the path.")
 

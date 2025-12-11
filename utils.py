@@ -4356,6 +4356,14 @@ def generate_generic_html(data, date_placement='right'):
     """Generates clean HTML content based on resume data, showing only years for all dates."""
     if not data: 
         return ""
+    
+    # Normalize singular/plural variations
+    if 'project' in data and 'projects' not in data:
+        data['projects'] = data['project']
+    if 'certificate' in data and 'certifications' not in data:
+        data['certifications'] = data['certificate']
+    if 'achievement' in data and 'achievements' not in data:
+        data['achievements'] = data['achievement']
 
     job_title_for_header = data.get('job_title', '')
     contacts = [data.get('phone'), data.get('email'), data.get('location')]
@@ -4369,210 +4377,240 @@ def generate_generic_html(data, date_placement='right'):
         html += f'<div class="ats-contact">{contacts_html}</div>'
     html += '</div>'
 
-    # Standard sections first
-    for key in RESUME_ORDER:
-        section_data = data.get(key)
-        if not section_data or (isinstance(section_data, list) and not section_data):
-            continue
+    # Summary
+    if data.get('summary'):
+        html += '<div class="ats-section-title">Summary</div>'
+        html += f'<p style="margin-top:0;margin-bottom:5px;">{data.get("summary")}</p>'
 
-        title = format_section_title(key)
-        html += f'<div class="ats-section-title">{title}</div>'
+    # Experience
+    if data.get('experience'):
+        html += '<div class="ats-section-title">Experience</div>'
+        for item in data.get('experience', []):
+            if isinstance(item, str):
+                item = {"title": item}
+            if not isinstance(item, dict):
+                continue
+                
+            position = item.get('position') or item.get('title') or item.get('role')
+            company = item.get('company') or item.get('organization')
+            start = format_year_only(item.get('start_date', ''))
+            end = format_year_only(item.get('end_date', ''))
+            
+            if start or end:
+                duration = f"{start} - {end}" if start and end else start or end
+            elif item.get('duration'):
+                duration = item.get('duration')
+            else:
+                duration = ""
+            
+            if not position and not company and not duration:
+                continue
+            
+            html += '<div class="ats-item-header">'
+            if position or company:
+                html += '<div class="ats-item-title-group">'
+                if position:
+                    html += f'<span class="ats-item-title">{position}'
+                    if company:
+                        html += f' <span class="ats-item-subtitle">{company}</span>'
+                    html += '</span>'
+                html += '</div>'
+            if duration:
+                html += f'<div class="ats-item-duration">{duration}</div>'
+            html += '</div>'
+            
+            description = item.get('description') or item.get('achievement') or item.get('details') or item.get('responsibilities')
+            if description:
+                if isinstance(description, str):
+                    html += f'<p style="margin:3px 0;">{description}</p>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
+    
+    # Education
+    if data.get('education'):
+        html += '<div class="ats-section-title">Education</div>'
+        for item in data.get('education', []):
+            if isinstance(item, str):
+                parts = item.split(',')
+                item = {}
+                if len(parts) >= 1:
+                    item['degree'] = parts[0].strip()
+                if len(parts) >= 2:
+                    item['institution'] = parts[1].strip()
+                    
+            if not isinstance(item, dict):
+                continue
+                
+            degree = item.get('degree') or item.get('title') or item.get('name')
+            institution = item.get('institution') or item.get('university') or item.get('school')
+            start = format_year_only(item.get('start_date', ''))
+            end = format_year_only(item.get('end_date', ''))
+            
+            if start or end:
+                duration = f"{start} - {end}" if start and end else start or end
+            elif item.get('duration'):
+                duration = item.get('duration')
+            else:
+                duration = ""
+            
+            if not degree and not institution and not duration:
+                continue
+            
+            html += '<div class="ats-item-header">'
+            if degree or institution:
+                html += '<div class="ats-item-title-group">'
+                if degree:
+                    html += f'<span class="ats-item-title">{degree}'
+                    if institution:
+                        html += f' <span class="ats-item-subtitle">{institution}</span>'
+                    html += '</span>'
+                elif institution:
+                    html += f'<span class="ats-item-title">{institution}</span>'
+                html += '</div>'
+            if duration:
+                html += f'<div class="ats-item-duration">{duration}</div>'
+            html += '</div>'
+            
+            description = item.get('description') or item.get('details') or item.get('gpa')
+            if description:
+                if isinstance(description, str):
+                    html += f'<p style="margin:3px 0;">{description}</p>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
 
-        # Summary
-        if key == 'summary' and isinstance(section_data, str) and section_data.strip():
-            html += f'<p style="margin-top:0;margin-bottom:5px;">{section_data}</p>'
-
-        # Skills
-        elif key == 'skills' and isinstance(section_data, dict):
-            for skill_type, skill_list in section_data.items():
+    # Skills
+    if data.get('skills'):
+        html += '<div class="ats-section-title">Skills</div>'
+        skills_data = data.get('skills')
+        
+        if isinstance(skills_data, dict):
+            for skill_type, skill_list in skills_data.items():
                 if skill_list:
                     html += f'<div class="ats-skills-group"><strong>{format_section_title(skill_type)}:</strong> {", ".join(skill_list)}</div>'
+        elif isinstance(skills_data, list):
+            html += '<ul class="ats-bullet-list">'
+            for skill in skills_data:
+                if skill and str(skill).strip():
+                    html += f'<li>{skill}</li>'
+            html += '</ul>'
+        elif isinstance(skills_data, str):
+            html += f'<p style="margin:3px 0;">{skills_data}</p>'
 
-        elif isinstance(section_data, list):
-            for item in section_data:
-                # Normalize string items to dict
-                if isinstance(item, str) and item.strip():
-                    item = {"title": item}
+    # Projects
+    if data.get('projects'):
+        html += '<div class="ats-section-title">Projects</div>'
+        for item in data.get('projects', []):
+            if isinstance(item, str):
+                item = {"title": item}
+            if not isinstance(item, dict):
+                continue
                 
-                if not isinstance(item, dict):
-                    continue
-
-                # Define comprehensive field keys for dynamic handling
-                title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course']
-                subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university']
-                duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date']
-                description_keys = ['description', 'achievement', 'details', 'overview', 'responsibilities']
-
-                # Get main title (first available)
-                main_title = None
-                for k in title_keys:
-                    if k in item and item[k]:
-                        main_title = item[k]
-                        break
-                
-                # Get subtitle (first available that's not the same as title)
-                subtitle = None
-                for k in subtitle_keys:
-                    if k in item and item[k] and item[k] != main_title:
-                        subtitle = item[k]
-                        break
-
-                # Get duration with proper date formatting
-                start = format_year_only(item.get('start_date', ''))
-                end = format_year_only(item.get('end_date', ''))
-
-                if start or end:
-                    duration = f"{start} - {end}" if start and end else start or end
-                else:
-                    # Try other duration fields
-                    duration = None
-                    for k in duration_keys:
-                        if k in item and item[k]:
-                            duration = format_year_only(item[k])
-                            break
-                    duration = duration or ''
-
-                # Skip completely empty items
-                if not main_title and not subtitle and not duration:
-                    # Check if there's any description content
-                    has_description = False
-                    for desc_key in description_keys:
-                        if desc_key in item and item[desc_key]:
-                            has_description = True
-                            break
-                    if not has_description:
-                        continue
-
-                # Build item HTML
-                html += '<div class="ats-item-header">'
-                if main_title or subtitle:
-                    html += '<div class="ats-item-title-group">'
-                    if main_title:
-                        html += f'<span class="ats-item-title">{main_title}'
-                        if subtitle:
-                            html += f' <span class="ats-item-subtitle">{subtitle}</span>'
-                        html += '</span>'
-                    html += '</div>'
-                if duration:
-                    html += f'<div class="ats-item-duration">{duration}</div>'
+            project_name = item.get('name') or item.get('title')
+            date = format_year_only(item.get('date') or item.get('duration') or item.get('year', ''))
+            
+            if not project_name and not date:
+                continue
+            
+            html += '<div class="ats-item-header">'
+            if project_name:
+                html += '<div class="ats-item-title-group">'
+                html += f'<span class="ats-item-title">{project_name}</span>'
                 html += '</div>'
+            if date:
+                html += f'<div class="ats-item-duration">{date}</div>'
+            html += '</div>'
+            
+            description = item.get('description') or item.get('details')
+            if description:
+                if isinstance(description, str):
+                    html += f'<p style="margin:3px 0;">{description}</p>'
+                elif isinstance(description, list):
+                    html += '<ul class="ats-bullet-list">'
+                    for line in description:
+                        if line and str(line).strip():
+                            html += f'<li>{line}</li>'
+                    html += '</ul>'
 
-                # Description / Achievements - check all possible description fields
-                description_list = None
-                for desc_key in description_keys:
-                    if desc_key in item and item[desc_key]:
-                        description_list_raw = item[desc_key]
-                        if isinstance(description_list_raw, str):
-                            description_list = [description_list_raw]
-                        elif isinstance(description_list_raw, list):
-                            description_list = description_list_raw
-                        break
+    # Certifications
+    if data.get('certifications'):
+        html += '<div class="ats-section-title">Certifications</div>'
+        for item in data.get('certifications', []):
+            if isinstance(item, str):
+                parts = item.split(',')
+                item = {}
+                if len(parts) >= 1:
+                    item['certificate_name'] = parts[0].strip()
+                if len(parts) >= 2:
+                    item['issuer'] = parts[1].strip()
+                    
+            if not isinstance(item, dict):
+                continue
+                
+            cert_name = item.get('certificate_name') or item.get('name') or item.get('title')
+            issuer = item.get('issuer') or item.get('organization') or item.get('provider')
+            date = format_year_only(item.get('completed_date') or item.get('date') or item.get('year', ''))
+            
+            if not cert_name and not issuer and not date:
+                continue
+            
+            html += '<div class="ats-item-header">'
+            if cert_name:
+                html += '<div class="ats-item-title-group">'
+                html += f'<span class="ats-item-title">{cert_name}'
+                if issuer:
+                    html += f' <span class="ats-item-subtitle">{issuer}</span>'
+                html += '</span>'
+                html += '</div>'
+            if date:
+                html += f'<div class="ats-item-duration">{date}</div>'
+            html += '</div>'
 
-                if description_list:
-                    bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
-                    if bullet_html:
-                        html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+    # Achievements/Awards
+    if data.get('achievements') or data.get('awards'):
+        achievements = data.get('achievements') or data.get('awards')
+        html += '<div class="ats-section-title">Achievements</div>'
+        
+        if isinstance(achievements, list):
+            html += '<ul class="ats-bullet-list">'
+            for item in achievements:
+                if isinstance(item, str):
+                    html += f'<li>{item}</li>'
+                elif isinstance(item, dict):
+                    title = item.get('title') or item.get('name') or item.get('achievement')
+                    if title:
+                        html += f'<li>{title}</li>'
+            html += '</ul>'
+        elif isinstance(achievements, str):
+            html += f'<p style="margin:3px 0;">{achievements}</p>'
 
-    # ========== ADD CUSTOM SECTIONS HERE ==========
+    # Custom sections
     standard_keys = get_standard_keys()
-    
     for key, value in data.items():
         if key not in standard_keys and value:
             title = format_section_title(key)
             html += f'<div class="ats-section-title">{title}</div>'
             
-            # Handle string sections
             if isinstance(value, str) and value.strip():
                 formatted_value = value.strip().replace('\n', '<br>')
                 html += f'<p style="margin-top:0;margin-bottom:10px;line-height:1.6;">{formatted_value}</p>'
-            
-            # Handle list sections (like projects, achievements, etc.)
-            elif isinstance(value, list):
+            elif isinstance(value, list) and value:
+                html += '<ul class="ats-bullet-list">'
                 for item in value:
-                    # Normalize string items to dict
                     if isinstance(item, str) and item.strip():
-                        # Simple bullet list for plain strings
-                        html += f'<ul class="ats-bullet-list"><li>{item}</li></ul>'
-                        continue
-                    
-                    if not isinstance(item, dict):
-                        continue
-
-                    # Define comprehensive field keys for dynamic handling
-                    title_keys = ['position', 'title', 'name', 'degree', 'certificate_name', 'course', 'project_name']
-                    subtitle_keys = ['company', 'institution', 'issuer', 'organization', 'provider_name', 'university', 'technologies']
-                    duration_keys = ['duration', 'date', 'period', 'completed_date', 'start_date', 'end_date', 'year']
-                    description_keys = ['description', 'achievement', 'details', 'overview', 'responsibilities']
-
-                    # Get main title (first available)
-                    main_title = None
-                    for k in title_keys:
-                        if k in item and item[k]:
-                            main_title = item[k]
-                            break
-                    
-                    # Get subtitle (first available that's not the same as title)
-                    subtitle = None
-                    for k in subtitle_keys:
-                        if k in item and item[k] and item[k] != main_title:
-                            subtitle = item[k]
-                            break
-
-                    # Get duration with proper date formatting
-                    start = format_year_only(item.get('start_date', ''))
-                    end = format_year_only(item.get('end_date', ''))
-
-                    if start or end:
-                        duration = f"{start} - {end}" if start and end else start or end
-                    else:
-                        # Try other duration fields
-                        duration = None
-                        for k in duration_keys:
-                            if k in item and item[k]:
-                                duration = format_year_only(item[k])
-                                break
-                        duration = duration or ''
-
-                    # Skip completely empty items
-                    if not main_title and not subtitle and not duration:
-                        # Check if there's any description content
-                        has_description = False
-                        for desc_key in description_keys:
-                            if desc_key in item and item[desc_key]:
-                                has_description = True
-                                break
-                        if not has_description:
-                            continue
-
-                    # Build item HTML
-                    html += '<div class="ats-item-header">'
-                    if main_title or subtitle:
-                        html += '<div class="ats-item-title-group">'
-                        if main_title:
-                            html += f'<span class="ats-item-title">{main_title}'
-                            if subtitle:
-                                html += f' <span class="ats-item-subtitle">{subtitle}</span>'
-                            html += '</span>'
-                        html += '</div>'
-                    if duration:
-                        html += f'<div class="ats-item-duration">{duration}</div>'
-                    html += '</div>'
-
-                    # Description / Achievements - check all possible description fields
-                    description_list = None
-                    for desc_key in description_keys:
-                        if desc_key in item and item[desc_key]:
-                            description_list_raw = item[desc_key]
-                            if isinstance(description_list_raw, str):
-                                description_list = [description_list_raw]
-                            elif isinstance(description_list_raw, list):
-                                description_list = description_list_raw
-                            break
-
-                    if description_list:
-                        bullet_html = "".join([f"<li>{line}</li>" for line in description_list if line and str(line).strip()])
-                        if bullet_html:
-                            html += f'<ul class="ats-bullet-list">{bullet_html}</ul>'
+                        html += f'<li>{item}</li>'
+                    elif isinstance(item, dict):
+                        item_str = ", ".join([str(v) for v in item.values() if v])
+                        if item_str:
+                            html += f'<li>{item_str}</li>'
+                html += '</ul>'
 
     return html
 

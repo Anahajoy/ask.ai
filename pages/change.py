@@ -764,7 +764,7 @@ with col2:
                 data=download_files['html']['data'].encode('utf-8'),
                 file_name=download_files['html']['filename'],
                 mime=download_files['html']['mime'],
-                width=True,
+                width='stretch',
                 key="download_html"
             )
             
@@ -774,7 +774,7 @@ with col2:
                 data=download_files['doc']['data'].encode('utf-8'),
                 file_name=download_files['doc']['filename'],
                 mime=download_files['doc']['mime'],
-                width=True,
+                width='stretch',
                 key="download_doc"
             )
             

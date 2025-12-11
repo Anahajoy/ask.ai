@@ -659,7 +659,7 @@ if  st.session_state.logged_in_user :
                 if st.button(
                     f"{tab['icon']}  {tab['label']}", 
                     key=f"tab_{tab['id']}",
-                    width=True,
+                    width='stretch',
                     type="secondary" if active_class == "" else "primary"
                 ):
                     change_tab(tab["id"])
@@ -728,7 +728,7 @@ if  st.session_state.logged_in_user :
             col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
                 with stylable_container("save-personal-btn", css_styles=SAVEPER_STYLE):
-                    if st.button("Save & Continue", key="save_personal_tab", width=True):
+                    if st.button("Save & Continue", key="save_personal_tab", width='stretch'):
                         if name and skills and experience and phone and email and location:
                             if not is_valid_email(email):
                                 st.error("Please enter a valid email address")
@@ -801,12 +801,12 @@ if  st.session_state.logged_in_user :
                 col_save, col_remove = st.columns(2)
                 with col_remove:
                     with stylable_container(f"remove-exp-{i}", css_styles=REMOVE_STYLE):
-                        if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", width=True):
+                        if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", width='stretch'):
                             remove_index = i
 
                 with col_save:
                     with stylable_container(f"save-exp-{i}", css_styles=SAVE_STYLE):
-                        if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", width=True):
+                        if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", width='stretch'):
                             if company_name and position_name:
                                 st.session_state.saved_experiences[i] = {
                                     "company": company_name,
@@ -838,7 +838,7 @@ if  st.session_state.logged_in_user :
                 with stylable_container("add-exp-btn", css_styles=ADD_STYLE):
                     st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                    if st.button("+ Add More Experience", key="add_exp", width=True):
+                    if st.button("+ Add More Experience", key="add_exp", width='stretch'):
                         new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
                         st.session_state.exp_indices.append(new_idx)
                         st.rerun()
@@ -846,11 +846,11 @@ if  st.session_state.logged_in_user :
             st.markdown("<br>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Previous", key="exp_prev", width=True):
+                if st.button("← Previous", key="exp_prev", width='stretch'):
                     change_tab("personal")
                     st.rerun()
             with col2:
-                if st.button("Next →", key="exp_next", width=True):
+                if st.button("Next →", key="exp_next", width='stretch'):
                     change_tab("education")
                     st.rerun()
         
@@ -906,12 +906,12 @@ if  st.session_state.logged_in_user :
                 col_save, col_remove = st.columns(2)
                 with col_remove:
                     with stylable_container(f"remove-edu-{i}", css_styles=REMOVE_STYLE):
-                        if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", width=True):
+                        if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", width='stretch'):
                             remove_index_edu = i
 
                 with col_save:
                     with stylable_container(f"save-edu-{i}", css_styles=SAVE_STYLE):
-                        if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", width=True):
+                        if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", width='stretch'):
                             if course and university:
                                 st.session_state.saved_education[i] = {
                                     "course": course,
@@ -939,17 +939,17 @@ if  st.session_state.logged_in_user :
                 with stylable_container("add-edu-btn", css_styles=ADD_STYLE):
                     st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                    if st.button("+ Add More Education", key="add_edu", width=True):
+                    if st.button("+ Add More Education", key="add_edu", width='stretch'):
                         new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
                         st.session_state.edu_indices.append(new_idx)
                         st.rerun()
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Previous", key="eud_prev", width=True):
+                if st.button("← Previous", key="eud_prev", width='stretch'):
                     change_tab("experience")
                     st.rerun()
             with col2:
-                if st.button("Next →", key="eud_next", width=True):
+                if st.button("Next →", key="eud_next", width='stretch'):
                     change_tab("certifications")
                     st.rerun()
             st.markdown("---")
@@ -989,12 +989,12 @@ if  st.session_state.logged_in_user :
                 col_save, col_remove = st.columns(2)
                 with col_remove:
                     with stylable_container(f"remove-cert-{i}", css_styles=REMOVE_STYLE):
-                        if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", width=True):
+                        if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", width='stretch'):
                             remove_index_cert = i
 
                 with col_save:
                     with stylable_container(f"save-cert-{i}", css_styles=SAVE_STYLE):
-                        if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", width=True):
+                        if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", width='stretch'):
                             if certificate_name and provider:
                                 st.session_state.saved_certificates[i] = {
                                     "certificate_name": certificate_name,
@@ -1020,17 +1020,17 @@ if  st.session_state.logged_in_user :
                 with stylable_container("add-cert-btn", css_styles=ADD_STYLE):
                     st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                    if st.button("+ Add More Certification", key="add_cert", width=True):
+                    if st.button("+ Add More Certification", key="add_cert", width='stretch'):
                         new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
                         st.session_state.cert_indices.append(new_idx)
                         st.rerun()
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Previous", key="cert_prev", width=True):
+                if st.button("← Previous", key="cert_prev", width='stretch'):
                     change_tab("education")
                     st.rerun()
             with col2:
-                if st.button("Next →", key="cert_next", width=True):
+                if st.button("Next →", key="cert_next", width='stretch'):
                     change_tab("projects")
                     st.rerun()
             st.markdown("---")
@@ -1071,12 +1071,12 @@ if  st.session_state.logged_in_user :
                 col_save, col_remove = st.columns(2)
                 with col_remove:
                     with stylable_container(f"remove-proj-{i}", css_styles=REMOVE_STYLE):
-                        if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", width=True):
+                        if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", width='stretch'):
                             remove_index_project = i
 
                 with col_save:
                     with stylable_container(f"save-proj-{i}", css_styles=SAVE_STYLE):
-                        if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", width=True):
+                        if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", width='stretch'):
                             if projectname:
                                 st.session_state.saved_projects[i] = {
                                     "projectname": projectname,
@@ -1102,17 +1102,17 @@ if  st.session_state.logged_in_user :
                 with stylable_container("add-proj-btn", css_styles=ADD_STYLE):
                     st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                    if st.button("+ Add More Projects", key="add_project", width=True):
+                    if st.button("+ Add More Projects", key="add_project", width='stretch'):
                         new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
                         st.session_state.project_indices.append(new_idx)
                         st.rerun()
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("← Previous", key="pro_prev", width=True):
+                if st.button("← Previous", key="pro_prev", width='stretch'):
                     change_tab("certifications")
                     st.rerun()
             with col2:
-                if st.button("Next →", key="pro_next", width=True):
+                if st.button("Next →", key="pro_next", width='stretch'):
                     change_tab("custom")
                     st.rerun()
             st.markdown("---")
@@ -1152,12 +1152,12 @@ if  st.session_state.logged_in_user :
                 col_save, col_remove = st.columns(2)
                 with col_remove:
                     with stylable_container(f"remove-custom-{i}", css_styles=REMOVE_STYLE):
-                        if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", width=True):
+                        if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", width='stretch'):
                             remove_index_custom = i
 
                 with col_save:
                     with stylable_container(f"save-custom-{i}", css_styles=SAVE_STYLE):
-                        if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", width=True):
+                        if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", width='stretch'):
                             if section_title and section_description:
                                 st.session_state.saved_custom_sections[i] = {
                                     "title": section_title,
@@ -1181,11 +1181,11 @@ if  st.session_state.logged_in_user :
                 with stylable_container("add-custom-btn", css_styles=ADD_STYLE):
                     st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
 
-                    if st.button("+ Add Custom Section", key="add_custom", width=True):
+                    if st.button("+ Add Custom Section", key="add_custom", width='stretch'):
                         new_idx = max(st.session_state.custom_indices) + 1 if st.session_state.custom_indices else 0
                         st.session_state.custom_indices.append(new_idx)
                         st.rerun()
-            if st.button("← Previous", key="cust_prev", width=True):
+            if st.button("← Previous", key="cust_prev", width='stretch'):
                     change_tab("projects")
                     st.rerun()
            
@@ -1201,7 +1201,7 @@ if  st.session_state.logged_in_user :
         #     col1, col2, col3 = st.columns([1, 2, 1])
         #     with col2:
         #         with stylable_container("final-submit-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
-        #             if st.button("Complete & Generate Resume", key="final_submit", width=True):
+        #             if st.button("Complete & Generate Resume", key="final_submit", width='stretch'):
         #                 # Your existing submit logic here
         #                 st.balloons()
         #                 st.switch_page("pages/job.py")
@@ -1211,7 +1211,7 @@ if  st.session_state.logged_in_user :
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             with stylable_container("continue-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
-                if st.button("Complete & Generate Resume", key="final_submit", width=True):
+                if st.button("Complete & Generate Resume", key="final_submit", width='stretch'):
                     # Get values from saved session state
                     name = st.session_state.saved_personal_info.get("name", "")
                     skills = st.session_state.saved_personal_info.get("skills", [])
@@ -1386,7 +1386,7 @@ if  st.session_state.logged_in_user :
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 with stylable_container("process-resume-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
-                    if st.button("Process Resume", key="re-btn", width=True):
+                    if st.button("Process Resume", key="re-btn", width='stretch'):
                         if not extracted_text or len(extracted_text.strip()) < 50:
                             st.error("❌ Not enough text to process. Please upload a valid resume.")
                             st.stop()

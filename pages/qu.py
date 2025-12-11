@@ -593,21 +593,21 @@ if uploaded_file is not None:
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("❓ Generate Interview Questions", width=True, key="btn_questions"):
+        if st.button("❓ Generate Interview Questions", width='stretch', key="btn_questions"):
             st.session_state.pending_query = "Generate interview questions based on my resume"
             st.rerun()
-        if st.button("💡 Get Resume Tips", width=True, key="btn_tips"):
+        if st.button("💡 Get Resume Tips", width='stretch', key="btn_tips"):
             st.session_state.pending_query = "Give me tips to improve my resume"
             st.rerun()
-        if st.button("🎯 Points to Focus", width=True, key="btn_focus"):
+        if st.button("🎯 Points to Focus", width='stretch', key="btn_focus"):
             st.session_state.pending_query = "What are the key points I should focus on in my resume?"
             st.rerun()
     
     with col2:
-        if st.button("💪 Analyze My Strengths", width=True, key="btn_strengths"):
+        if st.button("💪 Analyze My Strengths", width='stretch', key="btn_strengths"):
             st.session_state.pending_query = "Analyze the strengths shown in my resume"
             st.rerun()
-        if st.button("📈 How to Improve", width=True, key="btn_improve"):
+        if st.button("📈 How to Improve", width='stretch', key="btn_improve"):
             st.session_state.pending_query = "How can I improve my resume?"
             st.rerun()
     
@@ -723,7 +723,7 @@ if uploaded_file is not None:
         with col1:
             user_input = st.text_input("Ask me anything about your resume...", key="chat_input", label_visibility="collapsed", placeholder="Type your question here...")
         with col2:
-            submit_button = st.form_submit_button("Send", width=True)
+            submit_button = st.form_submit_button("Send", width='stretch')
         
         if submit_button and user_input:
             st.session_state.pending_query = user_input

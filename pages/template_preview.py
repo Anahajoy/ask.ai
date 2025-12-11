@@ -970,7 +970,7 @@ with col1:
                     
                     col1, col2 = st.columns([2, 1])
                     with col1:
-                        if st.button("Use", key=f"use_html_{template_id}", type="primary", width=True):
+                        if st.button("Use", key=f"use_html_{template_id}", type="primary", width='stretch'):
                             if 'temp_upload_config' in st.session_state:
                                 del st.session_state.temp_upload_config
                             
@@ -985,7 +985,7 @@ with col1:
                             st.rerun()
                     
                     with col2:
-                        if st.button("🗑️", key=f"delete_html_{template_id}", width=True):
+                        if st.button("🗑️", key=f"delete_html_{template_id}", width='stretch'):
                             if st.session_state.get('current_upload_id') == template_id:
                                 st.session_state.pop('selected_template_preview', None)
                                 st.session_state.pop('selected_template', None)
@@ -1029,7 +1029,7 @@ with col1:
                     
                     col1, col2 = st.columns([2, 1])
                     with col1:
-                        if st.button("Use", key=f"use_doc_{template_id}", type="primary", width=True):
+                        if st.button("Use", key=f"use_doc_{template_id}", type="primary", width='stretch'):
                             try:
                                 import io
                                 
@@ -1077,7 +1077,7 @@ with col1:
                                 st.exception(e)
                     
                     with col2:
-                        if st.button("🗑️", key=f"delete_doc_{template_id}", width=True):
+                        if st.button("🗑️", key=f"delete_doc_{template_id}", width='stretch'):
                             # Clear session state if this template is active
                             if st.session_state.get('selected_doc_template_id') == template_id:
                                 st.session_state.pop('generated_docx', None)
@@ -1124,7 +1124,7 @@ with col1:
                     
                     col1, col2 = st.columns([2, 1])
                     with col1:
-                        if st.button("Use", key=f"use_ppt_{template_id}", type="primary", width=True):
+                        if st.button("Use", key=f"use_ppt_{template_id}", type="primary", width='stretch'):
                             try:
                                 import io
                                 from pptx import Presentation
@@ -1193,7 +1193,7 @@ with col1:
                                 st.error(f"Error loading template: {str(e)}")
                     
                     with col2:
-                        if st.button("🗑️", key=f"delete_ppt_{template_id}", width=True):
+                        if st.button("🗑️", key=f"delete_ppt_{template_id}", width='stretch'):
                             if st.session_state.get('selected_ppt_template_id') == template_id:
                                 st.session_state.pop('generated_ppt', None)
                                 st.session_state.pop('selected_ppt_template_id', None)
@@ -1242,7 +1242,7 @@ with col1:
                 data=full_doc.encode('utf-8'),
                 file_name=html_filename,
                 mime="text/html",
-                width=True,
+                width='stretch',
                 key="download_html"
             )
             
@@ -1269,7 +1269,7 @@ with col1:
                 data=word_doc.encode('utf-8'),
                 file_name=doc_filename,
                 mime="application/msword",
-                width=True,
+                width='stretch',
                 key="download_doc"
             )
             
@@ -1281,7 +1281,7 @@ with col1:
                 data=txt_content.encode('utf-8'),
                 file_name=txt_filename,
                 mime="text/plain",
-                width=True,
+                width='stretch',
                 key="download_txt"
             )
         
@@ -1296,7 +1296,7 @@ with col1:
                 data=full_doc.encode('utf-8'),
                 file_name=html_filename,
                 mime="text/html",
-                width=True,
+                width='stretch',
                 key="download_html_custom"
             )
         
@@ -1307,7 +1307,7 @@ with col1:
                 data=st.session_state.generated_doc,
                 file_name=doc_filename,
                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                width=True,
+                width='stretch',
                 key="download_docx"
             )
         
@@ -1318,7 +1318,7 @@ with col1:
                 data=st.session_state.generated_ppt,
                 file_name=ppt_filename,
                 mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                width=True,
+                width='stretch',
                 key="download_pptx"
             )
         
@@ -1366,7 +1366,7 @@ with col1:
                     )
                 
                 with col2:
-                    if st.button("💾 Save Template", width=True):
+                    if st.button("💾 Save Template", width='stretch'):
                         if 'uploaded_templates' not in st.session_state:
                             st.session_state.uploaded_templates = load_user_templates(current_user)
                         
@@ -1394,7 +1394,7 @@ with col1:
                         st.rerun()
                 
                 # Apply button for immediate preview without saving
-                if st.button("👁️ Apply Template Preview", width=True, type="secondary"):
+                if st.button("👁️ Apply Template Preview", width='stretch', type="secondary"):
                     st.session_state.selected_template_config = st.session_state.temp_upload_config
                     st.session_state.selected_template = f"Temp_{uploaded_file.name.split('.')[0]}"
                     st.session_state.template_source = 'temp_upload'
@@ -1466,7 +1466,7 @@ with col1:
                     with col2:
                         st.write("")  # Spacing
                         st.write("")
-                        if st.button("💾 Save Template", width=True, type="primary", key="save_doc_template_btn"):
+                        if st.button("💾 Save Template", width='stretch', type="primary", key="save_doc_template_btn"):
                             if 'doc_templates' not in st.session_state:
                                 st.session_state.doc_templates = load_user_doc_templates(current_user)
 
@@ -1511,7 +1511,7 @@ with col1:
                         data=st.session_state['generated_docx'],
                         file_name=f"Resume_{user_resume.get('name', 'User').replace(' ', '_')}.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        width=True,
+                        width='stretch',
                         key="download_doc_from_upload"
                     )
 
@@ -1609,7 +1609,7 @@ with col1:
                         with col2:
                             st.write("")
                             st.write("")
-                            if st.button("💾 Save Template", width=True, type="primary"):
+                            if st.button("💾 Save Template", width='stretch', type="primary"):
                                 if 'ppt_templates' not in st.session_state:
                                     st.session_state.ppt_templates = load_user_ppt_templates(current_user)
                                 
@@ -1637,7 +1637,7 @@ with col1:
                                     st.error("Failed to save template. Please try again.")
                         
                         # Apply button for immediate preview
-                        if st.button("👁️ Apply Template Preview", width=True, type="secondary"):
+                        if st.button("👁️ Apply Template Preview", width='stretch', type="secondary"):
                             st.session_state.selected_ppt_template = {
                                 'name': f"Temp_PPT_{uploaded_file.name.split('.')[0]}",
                                 'ppt_data': st.session_state.ppt_uploaded_file

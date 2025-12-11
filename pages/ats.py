@@ -607,7 +607,7 @@ with btn_col1:
             }
         """
     ):
-        analyze_btn = st.button("🎯 Analyze ATS Score", width=True)
+        analyze_btn = st.button("🎯 Analyze ATS Score", width='stretch')
 
 with btn_col2:
     with stylable_container(
@@ -636,7 +636,7 @@ with btn_col2:
             }
         """
     ):
-        clear_btn = st.button("🗑️ Clear All", width=True)
+        clear_btn = st.button("🗑️ Clear All", width='stretch')
 
 st.markdown('</div></div>', unsafe_allow_html=True)
 

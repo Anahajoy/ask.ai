@@ -761,7 +761,7 @@ def main():
                         st.write("None")
 
 
-            if st.button("✨ **Save & Auto-Improve**", type="primary", use_container_width=True):
+            if st.button("✨ **Save & Auto-Improve**", type="primary", width=True):
                 loading_placeholder.markdown("""
                     <div id="overlay-loader">
                         <div class="loader-spinner"></div>
@@ -812,7 +812,7 @@ def main():
                 save_and_improve()
                 loading_placeholder.empty()
                 
-            if st.button("📄 **GENERATE RESUME**", type="primary", use_container_width=True):
+            if st.button("📄 **GENERATE RESUME**", type="primary", width=True):
                 loading_placeholder.markdown("""
                     <div id="overlay-loader">
                         <div class="loader-spinner"></div>

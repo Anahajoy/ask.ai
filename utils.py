@@ -4004,6 +4004,8 @@ def ask_llama(message, resume_data=None):
     """
     Stream tokens live + fallback model + optional resume context
     """
+    print(f"🔍 DEBUG: ask_llama called with message: {message[:50]}...")  # Debug log
+    
     context = f"\nHere is the user's resume:\n{resume_data}\n" if resume_data else ""
     prompt = f"{RESUME_ASSISTANT_PROMPT}{context}\nUser: {message}\nAI:"
 
@@ -4023,23 +4025,53 @@ def ask_llama(message, resume_data=None):
         "Content-Type": "application/json"
     }
 
+    print(f"🔍 DEBUG: Making API request to {API_URL}")  # Debug log
+    print(f"🔍 DEBUG: Using model: {HEAVY_MODEL}")  # Debug log
+
     try:
         response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
-    except Exception:
+        print(f"🔍 DEBUG: Response status code: {response.status_code}")  # Debug log
+        
+        if response.status_code != 200:
+            print(f"❌ DEBUG: API Error - {response.text}")  # Debug log
+            raise Exception(f"API returned {response.status_code}")
+            
+    except Exception as e:
+        print(f"⚠️ DEBUG: Primary model failed ({e}), trying fallback...")  # Debug log
         # Fallback to fast 8B model automatically 👍
         payload["model"] = FAST_MODEL
+        print(f"🔍 DEBUG: Using fallback model: {FAST_MODEL}")  # Debug log
         response = requests.post(API_URL, headers=headers, json=payload, stream=True, timeout=35)
+        print(f"🔍 DEBUG: Fallback response status: {response.status_code}")  # Debug log
 
     # Streaming the reply token by token
+    token_count = 0
     for line in response.iter_lines():
         if line:
             try:
-                data = json.loads(line.decode("utf-8").replace("data:", ""))
+                decoded = line.decode("utf-8").replace("data:", "").strip()
+                
+                # Skip [DONE] marker
+                if decoded == "[DONE]":
+                    print(f"✅ DEBUG: Stream complete. Total tokens: {token_count}")  # Debug log
+                    continue
+                    
+                data = json.loads(decoded)
                 token = data["choices"][0]["delta"].get("content", "")
                 if token:
+                    token_count += 1
+                    if token_count == 1:
+                        print(f"✅ DEBUG: First token received!")  # Debug log
                     yield token
-            except:
+            except json.JSONDecodeError as e:
+                print(f"⚠️ DEBUG: JSON decode error: {e} | Line: {line}")  # Debug log
                 pass
+            except Exception as e:
+                print(f"⚠️ DEBUG: Stream error: {e}")  # Debug log
+                pass
+    
+    if token_count == 0:
+        print(f"❌ DEBUG: No tokens received from API!")  # Debug log
 
     
 def chatbot(user_resume):

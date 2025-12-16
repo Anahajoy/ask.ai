@@ -1,12 +1,8 @@
 import streamlit as st
 from PIL import Image
-from utils import chatbot,show_login_modal, get_user_resume, load_users, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
+from utils import chatbot, show_login_modal, get_user_resume, load_users, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
 from streamlit_extras.stylable_container import stylable_container
-from templates.templateconfig import SYSTEM_TEMPLATES,ATS_COLORS,load_css_template
-# from pages.download import SYSTEM_TEMPLATES, generate_generic_html
-
-
-
+from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 
 st.set_page_config(
     page_title="Resume Creator",
@@ -15,25 +11,17 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
-
-
-
+# Session State Initialization
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:
         st.session_state.logged_in_user = logged_user
-        
         st.query_params["user"] = logged_user
     else:
         st.session_state.logged_in_user = None
 else:
-    
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
-
-
-
 
 if "show_login_modal" not in st.session_state:
     st.session_state.show_login_modal = False
@@ -50,548 +38,727 @@ if "template_view_mode" not in st.session_state:
 if 'current_template_type' not in st.session_state:
     st.session_state.current_template_type = "html"
 
-
-
-
+# CSS Styling
 st.markdown("""
-<style>
-#MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
-.stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
-    padding-top: 0rem !important;
-    margin-top: 0rem !important;
-}
-
-.nav-wrapper {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
-    z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 50px;
-}
-
-.logo {
-    font-size: 24px;
-    font-weight: 400;
-    color: #2c3e50;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: -0.5px;
-}
-
-.nav-menu {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
-}
-
-.nav-item { position: relative; }
-
-.nav-link {
-    color: #000000 !important;
-    text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.nav-link:visited {
-    color: #000000 !important;
-}
-
-.nav-link:hover {
-    background-color: #fff5f0;
-    color: #ff8c42 !important;
-}
-
-.hero-title {
-    font-size: 3rem;
-    font-weight: 500;
-    color: #0a0f14;
-    margin-bottom: 1rem;
-    margin-top: 1rem !important;
-    font-family: 'Nunito Sans', sans-serif !important;
-    margin-left: 1rem !important;
-}
-
-.hero-subtitle {
-    font-size: 1.2rem;
-    color: #64748b;
-    margin-top: 2rem;
-    font-family: 'Nunito Sans', sans-serif !important;
-    margin-left: 1rem !important;
-}
-
-.about-image-container {
-    height: 650px;
-    overflow: hidden;
-    border-radius: 16px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    margin-top:-100px !important;
-}
-
-.about-image-container img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-}
-
-.about-card {
-    background: white;
-    border-radius: 16px;
-    padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    max-width: 800px;
-}
-
-.about-header {
-    color: #ff7043;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.about-title {
-    color: #0a0f14;
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.about-description {
-    color: #64748b;
-    font-size: 1rem;
-    line-height: 1.6;
-    font-family: 'Nunito Sans', sans-serif;
-    margin-bottom: 1.2rem;
-}
-
-.about-description:only-child {
-    margin-bottom: 0 !important;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-    background: #f8fafc;
-    padding: 1.5rem;
-    border-radius: 12px;
-}
-
-.info-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.info-label {
-    color: #64748b;
-    font-size: 0.9rem;
-    margin-bottom: 0.3rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.info-value {
-    color: #0a0f14;
-    font-size: 1.1rem;
-    font-weight: 600;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.resume-container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.section-header {
-    text-align: center;
-    color: #8b6f47;
-    font-size: 2.5rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    font-family: 'Playfair Display', serif !important;
-    letter-spacing: 0.5px;
-}
-
-.section-divider-wave {
-    width: 200px;
-    height: 20px;
-    margin: 0.5rem auto 2rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10 T150,10 T200,10' stroke='%23c89665' stroke-width='3' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-}
-
-.section-subtitle {
-    text-align: center;
-    color: #64748b;
-    font-size: 1rem;
-    margin-bottom: 3rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.work-experience-section {
-    margin-top: 3rem;
-}
-
-.work-experience-title {
-    color: #1e3a5f;
-    font-size: 1.8rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.work-experience-subtitle {
-    color: #64748b;
-    font-size: 1rem;
-    margin-bottom: 2rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.experience-item {
-    display: flex;
-    gap: 2rem;
-    margin-bottom: 2rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.experience-timeline {
-    flex-shrink: 0;
-}
-
-.company-name {
-    color: #1e3a5f;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.3rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.experience-date {
-    color: #ff7043;
-    font-size: 0.9rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.experience-content {
-    flex: 1;
-}
-
-.experience-role {
-    color: #1e3a5f;
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 0.8rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.experience-description {
-    color: #64748b;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.timeline-dot {
-    width: 12px;
-    height: 12px;
-    background: #ff7043;
-    border-radius: 50%;
-    margin-top: 6px;
-}
-
-.no-resume-message {
-    text-align: center;
-    color: #64748b;
-    font-size: 1.1rem;
-    padding: 3rem;
-    background: #f8fafc;
-    border-radius: 12px;
-    margin: 2rem auto;
-    max-width: 600px;
-}
-
-.template-section {
-    padding: 100px 0;
-    min-height: 100vh;
-    background: #f8fafc;
-}
-
-.template-header {
-    text-align: center;
-    margin-bottom: 3rem;
-}
-
-.template-title {
-    font-size: 2.5rem;
-    font-weight: 600;
-    color: #0a0f14;
-    font-family: 'Nunito Sans', sans-serif;
-    margin-bottom: 1rem;
-}
-
-.template-subtitle {
-    font-size: 1.1rem;
-    color: #64748b;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.template-toggle-container {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin: 3rem auto;
-    max-width: 500px;
-}
-
-.template-toggle-btn {
-    padding: 12px 40px;
-    border-radius: 50px;
-    font-size: 1rem;
-    font-weight: 600;
-    font-family: 'Nunito Sans', sans-serif;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid #e2e8f0;
-    background: white;
-    color: #64748b;
-}
-
-.template-toggle-btn.active {
-    background: #e87532;
-    color: white;
-    border-color: #e87532;
-}
-
-.template-toggle-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 74, 0.25);
-    border-color: #e87532;
-    color: #e87532;
-}
-
-.template-toggle-btn.active:hover {
-    color: white;
-}
-
-.template-type-tabs {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin: 2rem auto;
-    flex-wrap: wrap;
-    max-width: 800px;
-}
-
-.template-type-btn {
-    padding: 10px 30px;
-    border-radius: 50px;
-    font-size: 0.95rem;
-    font-weight: 500;
-    font-family: 'Nunito Sans', sans-serif;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid #e2e8f0;
-    background: white;
-    color: #64748b;
-}
-
-.template-type-btn.active {
-    background: #e87532;
-    color: white;
-    border-color: #e87532;
-}
-
-.template-type-btn:hover {
-    border-color: #e87532;
-    color: #e87532;
-    background: #fff5f2;
-}
-
-.template-type-btn.active:hover {
-    color: white;
-    background: #e87532;
-}
-
-.template-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.template-card-new {
-    background: white;
-    border-radius: 16px;
-    overflow: visible;
-    box-shadow: none;
-    transition: all 0.3s ease;
-    border: 3px solid #e87532;
-    display: flex;
-    flex-direction: column;
-}
-
-.template-card-new:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(232, 117, 50, 0.25);
-    border-color: #d66629;
-}
-
-.template-image {
-    display: none;
-}
-
-.template-info {
-    padding: 2rem 1.5rem;
-    background: white;
-    text-align: center;
-    min-height: 140px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-radius: 13px 13px 0 0;
-}
-
-.template-category {
-    color: #e87532;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 0.5rem;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.template-name {
-    color: #0a0f14;
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    font-family: 'Nunito Sans', sans-serif;
-    line-height: 1.4;
-}
-
-.template-description {
-    color: #64748b;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    margin-bottom: 0;
-    font-family: 'Nunito Sans', sans-serif;
-}
-
-.template-meta {
-    display: none;
-}
-
-.template-actions {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0 1.5rem 1.5rem;
-}
-
-.template-action-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f8fafc;
-    color: #64748b;
-    transition: all 0.3s ease;
-    cursor: pointer;
-}
-
-.template-action-icon:hover {
-    background: #e87532;
-    color: white;
-}
-
-.template-action-icon.primary {
-    background: #e87532;
-    color: white;
-}
-
-.template-action-icon.primary:hover {
-    background: #ff5733;
-}
-
-div[data-testid="stButton"] > button:hover,
-.stButton > button:hover {
-    background-color: white !important;
-    color: #ff8c42 !important;
-    border: 2px solid #ff8c42 !important;
-}
-
-/* Template Toggle Buttons - Default State (Not Selected) */
-div[data-testid="stButton"] > button {
-    border: 2px solid #e87532 !important;
-}
-
-/* Scroll to Top Button */
-.scroll-to-top {
-    bottom: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
-    background: #e87532;
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(232, 117, 50, 0.4);
-    transition: all 0.3s ease;
-    opacity: 0;
-    visibility: hidden;
-    z-index: 9998;
-    font-size: 24px;
-    border: none;
-}
-
-.scroll-to-top.show {
-    opacity: 1;
-    visibility: visible;
-}
-
-.scroll-to-top:hover {
-    background: white !important;
-    color: #ff8c42 !important;
-    border: 2px solid #ff8c42 !important;
-    transform: translateY(-5px);
-    box-shadow: 0 6px 16px rgba(232, 117, 50, 0.6);
-}
-
-.scroll-to-top:active {
-    transform: translateY(-2px);
-}
-</style>
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+    /* ==================== RESET ==================== */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+    }
+
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
+
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-link:hover {
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    .nav-link.btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white !important;
+        font-weight: 600;
+        padding: 12px 28px;
+        box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .nav-link.btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px var(--shadow);
+    }
+
+    /* ==================== HERO SECTION ==================== */
+    .hero-section {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 120px 3rem 80px;
+        background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(255, 107, 53, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: float 20s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0); }
+        50% { transform: translate(-50px, -50px); }
+    }
+
+    .hero-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-content {
+        animation: fadeInLeft 1s ease-out;
+    }
+
+    @keyframes fadeInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .hero-badge::before {
+        content: '✨';
+        font-size: 16px;
+    }
+
+    .hero-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 64px;
+        font-weight: 900;
+        line-height: 1.1;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        letter-spacing: -2px;
+    }
+
+    .hero-title .gradient-text {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .hero-subtitle {
+        font-size: 20px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+        margin-bottom: 3rem;
+        max-width: 500px;
+    }
+
+    .hero-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        align-items: center;
+    }
+
+    .hero-buttons .btn,
+    .hero-buttons button {
+        min-width: 200px !important;
+        flex: 0 1 auto;
+    }
+
+    /* Ensure hero buttons container is centered when empty */
+    #hero-btn-container {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 60px;
+    }
+
+    .hero-image {
+        position: relative;
+        animation: fadeInRight 1s ease-out;
+    }
+
+    @keyframes fadeInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .hero-image img {
+        width: 100%;
+        height: auto;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ==================== FEATURES SECTION ==================== */
+    .features-section {
+        padding: 120px 3rem;
+        background: var(--bg-secondary);
+    }
+
+    .features-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .section-badge {
+        display: inline-block;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .section-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 48px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .section-subtitle {
+        font-size: 18px;
+        color: var(--text-secondary);
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.7;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+    }
+
+    .feature-card {
+        background: var(--bg-primary);
+        padding: 3rem;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary);
+    }
+
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .feature-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .feature-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .feature-description {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== HOW IT WORKS ==================== */
+    .steps-section {
+        padding: 120px 3rem;
+        background: var(--bg-primary);
+    }
+
+    .steps-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 3rem;
+        margin-top: 4rem;
+    }
+
+    .step-card {
+        text-align: center;
+        position: relative;
+    }
+
+    .step-number {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Archivo', sans-serif;
+        font-size: 32px;
+        font-weight: 900;
+        color: white;
+        margin: 0 auto 1.5rem;
+        box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .step-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .step-description {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== CTA SECTION ==================== */
+    .cta-section {
+        padding: 120px 3rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -20%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .cta-container {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .cta-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 48px;
+        font-weight: 900;
+        color: white;
+        margin-bottom: 1.5rem;
+        letter-spacing: -1px;
+    }
+
+    .cta-subtitle {
+        font-size: 20px;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 3rem;
+        line-height: 1.7;
+    }
+
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* ==================== BUTTONS ==================== */
+/* ==================== BUTTONS ==================== */
+    .btn {
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white !important;
+        box-shadow: 0 6px 20px var(--shadow);
+        border: 2px solid var(--primary);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px var(--shadow);
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--primary) !important;
+        border: 2px solid var(--primary);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary:hover {
+        background: var(--primary);
+        color: white !important;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px var(--shadow);
+    }
+
+    .btn-white {
+        background: white;
+        color: var(--primary) !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        border: 2px solid white;
+    }
+
+    .btn-white:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: white !important;
+        border: 2px solid white;
+    }
+
+    .btn-outline:hover {
+        background: white;
+        color: var(--primary) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+    }
+
+    /* Streamlit Button Overrides */
+    [data-testid="stButton"] > button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+        color: white !important;
+        border: 2px solid var(--primary) !important;
+        border-radius: 12px !important;
+        padding: 16px 40px !important;
+        font-weight: 700 !important;
+        font-size: 16px !important;
+        font-family: 'Inter', sans-serif !important;
+        box-shadow: 0 6px 20px var(--shadow) !important;
+        transition: all 0.3s ease !important;
+        min-width: 200px !important;
+        white-space: nowrap !important;
+    }
+
+    [data-testid="stButton"] > button:hover {
+        transform: translateY(-3px) !important;
+        box-shadow: 0 10px 30px var(--shadow) !important;
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
+    }
+
+    /* Make sure buttons in columns are visible */
+    [data-testid="column"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    [data-testid="column"] [data-testid="stButton"] {
+        width: 100% !important;
+    }
+
+    [data-testid="column"] [data-testid="stButton"] > button {
+        width: 100% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* ==================== FOOTER ==================== */
+    .footer {
+        background: var(--text-primary);
+        color: white;
+        padding: 3rem 3rem 2rem;
+    }
+
+    .footer-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .footer-logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+    }
+
+    .footer-text {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 14px;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Hide Streamlit Buttons */
+    .stButton {
+        display: block !important;
+        visibility: visible !important;
+        margin: 0.5rem 0 !important;
+    }
+    
+    /* Ensure buttons show in columns before JavaScript moves them */
+    [data-testid="column"] .stButton {
+        margin: 0.5rem auto !important;
+        text-align: center !important;
+    }
+
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 1024px) {
+        .hero-container {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-title {
+            font-size: 48px;
+        }
+
+        .hero-subtitle {
+            max-width: 100%;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .steps-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
+
+        .nav-menu {
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .hero-section {
+            padding: 100px 1.5rem 60px;
+        }
+
+        .hero-title {
+            font-size: 36px;
+        }
+
+        .section-title {
+            font-size: 36px;
+        }
+
+        .cta-title {
+            font-size: 36px;
+        }
+
+        .hero-buttons,
+        .cta-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    </style>
 """, unsafe_allow_html=True)
 
-
-
-
-
+# Handle Logout
 if st.query_params.get("logout") == "true":
     st.session_state.logged_in_user = None
     for key in list(st.session_state.keys()):
@@ -599,147 +766,376 @@ if st.query_params.get("logout") == "true":
     st.query_params.clear()
     st.rerun()
 
-
+# Handle Home Navigation
 if st.query_params.get("home") == "true":
     if "home" in st.query_params:
         del st.query_params["home"]
-    
     if st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
     st.rerun()
 
-
-
-if st.session_state.get('logged_in_user') and not st.query_params.get("user"):
-    st.query_params["user"] = st.session_state.logged_in_user
-
-# Replace the navigation bar section with this updated code:
+# Get Current User
 current_user = st.session_state.get('logged_in_user', '')
 is_logged_in = bool(current_user)
 
-# Build the URLs - only add user param if logged in
+# Build URLs
 if is_logged_in and current_user:
-    home_url = f"?home=true&user={current_user}"
-    ats_url = f"ats?user={current_user}"  # Navigate to ats.py page
-    qu_url = f"qu?user={current_user}"    # Navigate to qu.py page
+    ats_url = f"ats?user={current_user}"
+    qu_url = f"qu?user={current_user}"
+    auth_link = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
 else:
-    home_url = "#Home"
-    ats_url = "#ats"  # Fallback to anchor if not logged in
-    qu_url = "#qu"    # Fallback to anchor if not logged in
+    ats_url = "#features"
+    qu_url = "#how-it-works"
+    auth_link = '<a class="nav-link btn-primary" href="#Login" target="_self">Get Started</a>'
 
-if is_logged_in:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
-else:
-    auth_button = '<div class="nav-item"><a class="nav-link" data-section="Login" href="#Login">Login</a></div>'
-
+# Navigation Bar
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
-            <a class="nav-link" href="{home_url}" target="_self">Home</a>
+    <div class="nav-container">
+        <div class="logo">ResumeAI</div>
+        <div class="nav-menu">
+            <a class="nav-link" href="#features">Features</a>
+            <a class="nav-link" href="#how-it-works">How It Works</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            {auth_link}
         </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="ats" href="{ats_url}" target="_self">Check ATS Score</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="qu" href="{qu_url}" target="_self">Analysis Assistant</a>
-        </div>
-        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div style="height: 80px;"></div>', unsafe_allow_html=True)
 
-# Handle the home button click ONLY for logged-in users
-if st.query_params.get("home") == "true":
-    # Check if user is logged in
-    if st.session_state.get('logged_in_user'):
-        # User is logged in, allow home navigation
-        if "home" in st.query_params:
-            del st.query_params["home"]
-        
-        if st.session_state.logged_in_user:
-            st.query_params["user"] = st.session_state.logged_in_user
-        st.rerun()
-    else:
-        # User is NOT logged in, remove the home param and don't unlock
-        if "home" in st.query_params:
-            del st.query_params["home"]
-        # Don't rerun, just remove the param
-        st.rerun()
-
-
-
-
-st.markdown('<div id="Home"></div>', unsafe_allow_html=True)
-
-with st.container():
-    col1, col2 = st.columns([1, 1], gap="large")
-
-    with col1:
-        st.markdown("""
-        <div style="padding: 2rem 0;">
-            <div class="hero-title">Creating Resume with Help of AI</div>
-            <div class="hero-subtitle">
-                Transforming Data into elegant solutions through creative design and innovative development
+# Hero Section
+st.markdown("""
+<div class="hero-section" id="Home">
+    <div class="hero-container">
+        <div class="hero-content">
+            <div class="hero-badge">AI-Powered Resume Builder</div>
+            <h1 class="hero-title">
+                Create <span class="gradient-text">ATS-Optimized</span> Resumes in Minutes
+            </h1>
+            <p class="hero-subtitle">
+                Transform your career with AI-powered resume generation, ATS score checking, and intelligent assistant that helps you land your dream job.
+            </p>
+            <div class="hero-buttons" id="hero-btn-container">
+                <!-- Buttons will be inserted here by JavaScript -->
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop" alt="Resume Creation">
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-        btn1, btn2 = st.columns([0.9, 1])
+# Create Streamlit Buttons (Hidden with CSS)
+st.markdown("---")  # Spacer to separate from hero content
 
-        with btn1:
-            with stylable_container(
-                "create-resume-btn",
-                css_styles="""
-                    button {
-                        background-color: #e87532 !important;
-                        color: #ffffff !important;
-                        padding: 15px 35px !important;
-                        border-radius: 50px !important;
-                        font-weight: 600 !important;
-                        border: 2px solid #e87532 !important;
-                    }
-                    button:hover {
-                        background-color: #ffffff !important;
-                        color: #e87532 !important;
-                    }
-                """
-            ):
-                create_resume_clicked = st.button("Create Resume")
+col1, col3_hero = st.columns(2)
+with col1:
+    create_resume_clicked = st.button("Create Resume Now →", key="create-btn", use_container_width=True)
 
-        with btn2, stylable_container(
-            "template-btn",
-            css_styles="""
-                button {
-                    background-color: #ffffff !important;
-                    color: #e87532 !important;
-                    padding: 15px 35px !important;
-                    border-radius: 50px !important;
-                    font-weight: 600 !important;
-                    border: 1px solid #e87532 !important;
-                }
-                button:hover {
-                    background-color: #e87532 !important;
-                    color: #ffffff !important;
-                }
-            """
-        ):
-            template_clicked = st.button("Change Template")
+with col3_hero:
+    change_template_clicked = st.button("Change Template", key="change-template-btn", use_container_width=True)
 
-    with col2:
-        try:
-            img = Image.open(r"C:\\ask.ai\\image\\image.png")
-            st.image(img, width='stretch')
-        except:
-            st.info("Image not found. Check the path.")
+# JavaScript to Move Buttons into Hero Section
+st.markdown("""
+<script>
+    // Function to move buttons with better styling
+    function moveHeroButtons() {
+        const container = document.getElementById('hero-btn-container');
+        if (!container) {
+            console.log('Hero container not found');
+            return false;
+        }
+        
+        // Find all buttons in the first set of columns
+        const allButtons = document.querySelectorAll('[data-testid="stButton"] button');
+        
+        if (allButtons.length < 3) {
+            console.log('Not enough buttons found:', allButtons.length);
+            return false;
+        }
+        
+        // Get the first 3 buttons (hero buttons)
+        const createBtn = allButtons[0];
+        const templateBtn = allButtons[2];
+        
+        // Check if buttons already moved
+        if (container.querySelector('button')) {
+            console.log('Buttons already in container');
+            return true;
+        }
+        
+        if (createBtn && learnBtn && templateBtn) {
+            // Apply classes
+            createBtn.className = 'btn btn-primary';
+            templateBtn.className = 'btn btn-secondary';
+            
+            // Ensure proper display
+            [createBtn, learnBtn, templateBtn].forEach(btn => {
+                btn.style.display = 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.minWidth = '200px';
+            });
+            
+            // Move to container
+            container.appendChild(createBtn);
+            container.appendChild(templateBtn);
+            
+            console.log('Hero buttons moved successfully!');
+            return true;
+        }
+        
+        console.log('Buttons found but not moved');
+        return false;
+    }
+    
+    // Try multiple times with increasing delays
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    function tryMoveButtons() {
+        attempts++;
+        const success = moveHeroButtons();
+        
+        if (!success && attempts < maxAttempts) {
+            setTimeout(tryMoveButtons, 100 * attempts);
+        }
+    }
+    
+    // Start trying
+    tryMoveButtons();
+    
+    // Also try when Streamlit finishes rendering
+    window.addEventListener('load', moveHeroButtons);
+    
+    // Smooth scroll for Learn More
+    document.addEventListener('click', (e) => {
+        const btnText = e.target.textContent.trim();
+        if (btnText === 'Learn More') {
+            e.preventDefault();
+            const features = document.getElementById('features');
+            if (features) {
+                features.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    });
+</script>
+""", unsafe_allow_html=True)
 
-st.markdown('<div style="padding: 10px 0; min-height: 50px;">', unsafe_allow_html=True)
+# Features Section
+st.markdown("""
+<div class="features-section" id="features">
+    <div class="features-container">
+        <div class="section-header">
+            <div class="section-badge">Features</div>
+            <h2 class="section-title">Everything You Need to Stand Out</h2>
+            <p class="section-subtitle">
+                Powerful tools designed to help you create professional, ATS-optimized resumes that get you noticed.
+            </p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3 class="feature-title">AI-Powered Generation</h3>
+                <p class="feature-description">
+                    Our AI analyzes job descriptions and automatically tailors your resume to match the requirements, increasing your chances of getting hired.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">ATS Score Checker</h3>
+                <p class="feature-description">
+                    Check your resume's ATS compatibility score and get instant feedback on how to improve it for better visibility to recruiters.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h3 class="feature-title">AI Chat Assistant</h3>
+                <p class="feature-description">
+                    Get personalized advice and suggestions from our AI assistant to enhance your resume content and presentation.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h3 class="feature-title">Multiple Export Formats</h3>
+                <p class="feature-description">
+                    Download your resume in HTML, DOCX, or PDF formats - perfectly formatted and ready to send to employers.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3 class="feature-title">Professional Templates</h3>
+                <p class="feature-description">
+                    Choose from a variety of professionally designed templates that are both visually appealing and ATS-friendly.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Job-Specific Optimization</h3>
+                <p class="feature-description">
+                    Upload a job description and let our AI optimize your resume to match the specific role you're applying for.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# How It Works Section
+st.markdown("""
+<div class="steps-section" id="how-it-works">
+    <div class="steps-container">
+        <div class="section-header">
+            <div class="section-badge">How It Works</div>
+            <h2 class="section-title">Create Your Perfect Resume in 3 Steps</h2>
+            <p class="section-subtitle">
+                Our streamlined process makes it easy to create a professional, job-winning resume.
+            </p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Input Your Information</h3>
+                <p class="step-description">
+                    Upload your existing resume or enter your details manually. Add your experience, skills, and education.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3 class="step-title">Add Job Description</h3>
+                <p class="step-description">
+                    Paste the job description you're targeting. Our AI analyzes it to tailor your resume perfectly.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3 class="step-title">Generate & Download</h3>
+                <p class="step-description">
+                    Get your ATS-optimized resume instantly. Download in your preferred format and apply with confidence.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 
-if create_resume_clicked:
+col3,  col5 = st.columns(2)
+with col3:
+    cta_start_clicked = st.button("Start Building Now →", key="cta-start-btn", use_container_width=True)
+with col5:
+    template_clicked = st.button("Change Template", key="template-btn", use_container_width=True)
+
+# CTA Buttons
+st.markdown("---")  # Spacer
+# CTA Section
+st.markdown("""
+<div class="cta-section">
+    <div class="cta-container">
+        <h2 class="cta-title">Ready to Land Your Dream Job?</h2>
+        <p class="cta-subtitle">
+            Join thousands of professionals who have successfully created ATS-optimized resumes with our AI-powered platform.
+        </p>
+        <div class="cta-buttons" id="cta-btn-container"></div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+
+# JavaScript to Move CTA Buttons
+st.markdown("""
+<script>
+    // Function to move CTA buttons
+    function moveCTAButtons() {
+        const ctaContainer = document.getElementById('cta-btn-container');
+        if (!ctaContainer) {
+            console.log('CTA container not found');
+            return false;
+        }
+        
+        // Get all buttons
+        const allButtons = document.querySelectorAll('[data-testid="stButton"] button');
+        
+        if (allButtons.length < 6) {
+            console.log('Not enough buttons for CTA:', allButtons.length);
+            return false;
+        }
+        
+        // Check if CTA buttons already moved
+        if (ctaContainer.querySelector('button')) {
+            console.log('CTA buttons already in container');
+            return true;
+        }
+        
+        // Get buttons 4, 5, 6 (CTA section)
+        const ctaStartBtn = allButtons[3];
+        const ctaTemplateBtn = allButtons[5];
+        
+        if (ctaStartBtn && ctaExploreBtn && ctaTemplateBtn) {
+            // Apply classes
+            ctaStartBtn.className = 'btn btn-white';
+            ctaTemplateBtn.className = 'btn btn-outline';
+            
+            // Ensure proper display
+            [ctaStartBtn, ctaTemplateBtn].forEach(btn => {
+                btn.style.display = 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.minWidth = '200px';
+            });
+            
+            // Move to container
+            ctaContainer.appendChild(ctaStartBtn);
+            ctaContainer.appendChild(ctaTemplateBtn);
+            
+            console.log('CTA buttons moved successfully!');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // Try multiple times
+    let ctaAttempts = 0;
+    const maxCtaAttempts = 10;
+    
+    function tryMoveCTAButtons() {
+        ctaAttempts++;
+        const success = moveCTAButtons();
+        
+        if (!success && ctaAttempts < maxCtaAttempts) {
+            setTimeout(tryMoveCTAButtons, 100 * ctaAttempts);
+        }
+    }
+    
+    // Start trying after a delay (to ensure hero buttons are done first)
+    setTimeout(tryMoveCTAButtons, 500);
+    
+    // Also try on load
+    window.addEventListener('load', () => {
+        setTimeout(moveCTAButtons, 100);
+    });
+</script>
+""", unsafe_allow_html=True)
+
+# Footer
+st.markdown("""
+<div class="footer">
+    <div class="footer-container">
+        <div class="footer-logo">ResumeAI</div>
+        <p class="footer-text">
+            © 2024 ResumeAI. AI-Powered Resume Builder. All rights reserved.
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Handle Button Clicks
+if create_resume_clicked or cta_start_clicked:
     if st.session_state.logged_in_user is None:
         st.warning("🔒 Please login first to create a resume.")
         st.session_state.show_login_modal = True
@@ -747,7 +1143,6 @@ if create_resume_clicked:
         email = st.session_state.logged_in_user
         users = load_users()
         user_entry = users.get(email)
-        
         
         st.query_params["user"] = email
         
@@ -764,36 +1159,8 @@ if create_resume_clicked:
         else:
             st.switch_page("pages/main.py")
 
-
-
-
-if st.session_state.logged_in_user is None:
-    st.markdown(
-        "<p style='text-align:center; color:#e87532; font-weight:600; margin-top:1rem;margin-bottom:10rem;'>🔒 Please login to access all sections.</p>",
-        unsafe_allow_html=True
-    )
-    st.markdown('<div id="Login"></div>', unsafe_allow_html=True)
-    show_login_modal()
-    st.stop()
-
-
-
-
-email = st.session_state.logged_in_user
-
-
-if not st.query_params.get("user"):
-    st.query_params["user"] = email
-
-
-user_resume = get_user_resume(email)
-has_resume = user_resume and len(user_resume) > 0
-chatbot(user_resume)
-
-
-
-
-if template_clicked:
+# Handle Change Template Button
+if change_template_clicked or template_clicked:
     if st.session_state.logged_in_user is None:
         st.warning("🔒 Please login first to view templates.")
         st.session_state.show_login_modal = True
@@ -801,5 +1168,20 @@ if template_clicked:
         st.session_state.from_template_button = True
         st.switch_page("pages/change.py")
 
+# Show Login Modal if Not Logged In
+if st.session_state.logged_in_user is None:
+    st.markdown('<div id="Login"></div>', unsafe_allow_html=True)
+    show_login_modal()
+    st.stop()
 
-
+# Show Chatbot for Logged In Users
+if is_logged_in:
+    email = st.session_state.logged_in_user
+    if not st.query_params.get("user"):
+        st.query_params["user"] = email
+    
+    user_resume = get_user_resume(email)
+    has_resume = user_resume and len(user_resume) > 0
+    
+    # You can uncomment this to show chatbot
+    chatbot(user_resume)

@@ -161,420 +161,522 @@ PRIMARY_LARGE_BUTTON_STYLE = """
 # PAGE STYLE (NO BUTTON CSS HERE)
 # ============================
 st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
 
-    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
-    #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
-
-    * { font-family: 'Inter', sans-serif; }
-
-    .stApp {
-        background: #FFFFFF;
-        min-height: 100vh;
-        color:#000000;
+    /* ==================== RESET ==================== */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
-    .block-container {
-        max-width: 1200px;
-        padding: 2rem 3rem;
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+        max-width: 1100px !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
+    }
+
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
+
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:hover {
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    /* ==================== PAGE HEADER ==================== */
+    .page-header {
+        text-align: center;
+        margin: 120px 0 3rem;
+    }
+
+    .page-badge {
+        display: inline-block;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .page-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .page-subtitle {
+        font-size: 17px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+        max-width: 600px;
         margin: 0 auto;
     }
 
-    h1 {
-        color: #000000 !important;
-        font-weight: 800 !important;
-        font-size: 2.4rem !important;
-        margin-bottom: 0.5rem !important;
-        letter-spacing: -0.5px;
+    /* ==================== RADIO BUTTONS ==================== */
+    .stRadio {
+        margin: 2rem 0 !important;
+    }
+    
+    .stRadio > label {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .stRadio > div {
+        display: flex !important;
+        gap: 1.5rem !important;
+        justify-content: center !important;
     }
 
-    h2 {
-        color: #e87532 !important;
-        font-weight: 400 !important;
-        margin-top: 2.5rem !important;
-        margin-bottom: 1.2rem !important;
-        font-size: 2rem !important;
+    .stRadio > div > label {
+        background: var(--bg-secondary);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        border: 2px solid var(--border);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        margin: 0 !important;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        min-width: 180px;
+    }
+    
+    .stRadio > div > label:hover {
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+    }
+    
+    .stRadio > div > label > div:first-child {
+        display: none !important;
+    }
+    
+    .stRadio > div > label > div:last-child {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        white-space: nowrap !important;
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) {
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 140, 90, 0.1));
+        border-color: var(--primary);
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) > div:last-child {
+        color: var(--primary) !important;
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked)::before {
+        content: '✓';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border-radius: 50%;
         display: flex;
         align-items: center;
-        margin-left: 350px !important;
-        font-family: 'Montserrat', sans-serif;
-    }
-
-    .section-number {
-        display: inline-flex;
-        align-items: center;
         justify-content: center;
-        background: #E87532;
-        color: white;
-        width: 45px;
-        height: 45px;
-        border-radius: 14px;
-        font-weight: 700;
-        margin-right: 18px;
-        font-size: 1.1rem;
+        font-size: 12px;
+        font-weight: bold;
     }
 
-    .card-badge {
-        color: #E87532 !important;
-        font-weight: 700 !important;
-        font-size: 0.85rem !important;
-        letter-spacing: 1.5px;
-        margin-bottom: 2rem !important;
-        text-transform: uppercase;
-        margin-left: 480px !important;
-    }
-
-    .welcome-text {
-        color: #555555;
-        font-size: 0.95rem;
-    }
-
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stSelectbox > div > div > div,
-    .stMultiSelect > div > div,
-    .stDateInput > div > div > input {
-        background: rgba(0, 0, 0, 0.02) !important;
-        border-radius: 10px !important;
-        padding: 0.7rem 1rem !important;
-    }
-
-    .stTextInput label,
-    .stTextArea label,
-    .stSelectbox label,
-    .stMultiSelect label {
-        color:#000000 !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        margin-bottom: 0.3rem !important;
-    }
-
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #E87532;
-        border-radius: 6px;
-    }
-    
-.nav-wrapper {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
-    z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 50px;
-}
-
-.logo {
-    font-size: 24px;
-    font-weight: 400;
-    color: #2c3e50;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: -0.5px;
-}
-
-.nav-menu {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
-}
-
-.nav-item { position: relative; }
-
-.nav-link {
-    color: #000000 !important;
-    text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.nav-link:visited {
-    color: #000000 !important;
-}
-
-.nav-link:hover {
-    background-color: #fff5f0;
-    color: #ff8c42 !important;  /* Added !important to override the default color */
-}
-.section-header {
-    text-align: center;
-    color: #8b6f47;
-    font-size: 1.5rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: 0.5px;
-}
-
-
-/* Alternative wavy divider if you want the wave effect shown in the image */
-.section-divider-wave {
-    width: 200px;
-    height: 20px;
-    margin: 0.5rem auto 2rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10 T150,10 T200,10' stroke='%23c89665' stroke-width='3' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-}
- /* Tab Container Styles */
-    .tab-container {
-        margin-top: 2rem;
-        margin-bottom: 2rem;
-    }
-    
+    /* ==================== TABS ==================== */
     .tabs-wrapper {
         display: flex;
-        gap: 0;
-        border-bottom: 2px solid #e5e7eb;
-        margin-bottom: 2rem;
+        gap: 0.5rem;
+        margin: 2rem 0;
         overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.5rem;
     }
-    
-    .tab-item {
-        padding: 1rem 2rem;
-        cursor: pointer;
-        border: none;
-        background: transparent;
-        color: #6b7280;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        border-bottom: 3px solid transparent;
-        white-space: nowrap;
-        position: relative;
-    }
-    
-    .tab-item:hover {
-        color: #e87532;
-        background: rgba(232, 117, 50, 0.05);
-    }
-    
-    .tab-item.active {
-        color: #e87532;
-        border-bottom-color: #e87532;
-        background: rgba(232, 117, 50, 0.05);
-    }
-    
-    .tab-item .tab-number {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #e5e7eb;
-        color: #6b7280;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        font-weight: 700;
-        margin-right: 10px;
-        font-size: 0.85rem;
-        transition: all 0.3s ease;
-    }
-    
-# In the CSS section where tab styles are defined:
 
-.tab-item.active {
-    color: #e87532 !important;
-    border-bottom-color: #e87532 !important;
-    background: rgba(232, 117, 50, 0.05) !important;
-}
+    [data-testid="column"] {
+        padding: 0 !important;
+    }
 
+    [data-testid="stButton"] {
+        width: 100% !important;
+    }
 
-    
-    .tab-content {
-        animation: fadeIn 0.4s ease-in;
+    [data-testid="stButton"] > button {
+        width: 100% !important;
+        background: var(--bg-secondary) !important;
+        color: var(--text-secondary) !important;
+        border: 2px solid var(--border) !important;
+        border-radius: 10px !important;
+        padding: 12px 16px !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        transition: all 0.3s ease !important;
+        white-space: nowrap !important;
     }
-    
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+
+    [data-testid="stButton"] > button:hover {
+        border-color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.05) !important;
+        color: var(--primary) !important;
     }
-    
-    /* Section Card Styles */
-    .section-card {
-        background: white;
-        border-radius: 16px;
-        padding: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e7eb;
-        margin-bottom: 1.5rem;
+
+    [data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
+        color: white !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
     }
-    
- 
-    
-    .section-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
-        color: white;
-        width: 50px;
-        height: 50px;
-        border-radius: 12px;
-        font-weight: 700;
-        margin-right: 15px;
-        font-size: 1.2rem;
-        box-shadow: 0 4px 12px rgba(232, 117, 50, 0.3);
+
+    [data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--shadow) !important;
     }
-    
-    .section-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #111827;
-        margin: 0;
-    }
-    
-    /* Progress Indicator */
+
+    /* ==================== PROGRESS BAR ==================== */
     .progress-bar {
         width: 100%;
-        height: 6px;
-        background: #e5e7eb;
+        height: 8px;
+        background: var(--bg-secondary);
         border-radius: 10px;
         overflow: hidden;
-        margin-bottom: 2rem;
+        margin: 2rem 0 1rem;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
     }
     
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #e87532 0%, #ff8c42 100%);
-        transition: width 0.3s ease;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        transition: width 0.5s ease;
         border-radius: 10px;
     }
-    
-    /* Navigation Buttons */
-    .tab-nav-buttons {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-        gap: 1rem;
+
+    /* ==================== FORM ELEMENTS ==================== */
+    label, .stApp label {
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        margin-bottom: 0.5rem !important;
     }
-    
+
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div,
+    .stMultiSelect > div > div {
+        background: var(--bg-secondary) !important;
+        border: 2px solid var(--border) !important;
+        border-radius: 10px !important;
+        color: var(--text-primary) !important;
+        padding: 0.75rem !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div:focus-within,
+    .stMultiSelect > div > div:focus-within {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+    }
+
+    /* ==================== SECTION HEADERS ==================== */
+    .section-header {
+        text-align: center;
+        color: var(--primary);
+        font-size: 20px;
+        font-weight: 700;
+        margin: 3rem 0 2rem;
+        font-family: 'Archivo', sans-serif;
+    }
+
+    .section-divider {
+        width: 80px;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        margin: 0.5rem auto 2rem;
+    }
+
+    /* ==================== FILE UPLOADER ==================== */
+    .stFileUploader {
+        background: var(--bg-secondary);
+        border: 3px dashed var(--border);
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        transition: all 0.4s ease;
+        text-align: center;
+        margin: 2rem 0;
+    }
+
+    .stFileUploader:hover {
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.03);
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.1);
+    }
+
+    .stFileUploader section button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 12px 28px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stFileUploader section button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--shadow) !important;
+    }
+
+    /* ==================== ALERTS ==================== */
+    .stSuccess, .stError, .stWarning, .stInfo {
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        animation: slideInRight 0.5s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .stSuccess {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-left: 4px solid var(--success) !important;
+    }
+
+    .stError {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border-left: 4px solid var(--error) !important;
+    }
+
+    .stWarning {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border-left: 4px solid var(--warning) !important;
+    }
+
+    .stInfo {
+        background: rgba(59, 130, 246, 0.1) !important;
+        border-left: 4px solid #3b82f6 !important;
+    }
+
+    /* ==================== LOADER ==================== */
+    #overlay-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loader-spinner {
+        border: 5px solid rgba(255, 107, 53, 0.2);
+        border-top: 5px solid var(--primary);
+        border-radius: 50%;
+        width: 70px;
+        height: 70px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    #overlay-loader p {
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    /* ==================== RESPONSIVE ==================== */
     @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
+
+        .page-title {
+            font-size: 32px;
+        }
+
+        .stRadio > div {
+            flex-direction: column !important;
+        }
+
         .tabs-wrapper {
-            flex-wrap: nowrap;
             overflow-x: scroll;
         }
-        
-        .tab-item {
-            padding: 0.8rem 1.5rem;
-            font-size: 0.85rem;
-        }
-            
-    }    
-</style>
+    }
+    </style>
 """, unsafe_allow_html=True)
 
+# Build URLs
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
+home_url = f"/?user={current_user}"
 
-current_user = st.session_state.get('logged_in_user', '')
-is_logged_in = bool(current_user)
-
-# Build the URLs - only add user param if logged in
-if is_logged_in and current_user:
-    home_url = f"/?user={current_user}"
-    ats_url = f"ats?user={current_user}"  # Navigate to ats.py page
-    qu_url = f"qu?user={current_user}"    # Navigate to qu.py page
-else:
-    home_url = "#Home"
-    ats_url = "#ats"  # Fallback to anchor if not logged in
-    qu_url = "#qu"    # Fallback to anchor if not logged in
-
-if is_logged_in:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
-else:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="#Login">Login</a></div>'
-
+# Navigation Bar
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
+    <div class="nav-container">
+        <div class="logo">ResumeAI</div>
+        <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
         </div>
-        <div class="nav-item">
-            <a class="nav-link" href="{ats_url}" target="_self">Check ATS Score</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
-        </div>
-        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Handle navigation
-# if st.query_params.get("add_jd") == "true":
-#     st.query_params.clear()
-#     if st.session_state.logged_in_user:
-#         st.query_params["user"] = st.session_state.logged_in_user
-#     st.switch_page("pages/job.py")
-
-# if st.query_params.get("home") == "true":
-#     st.query_params.clear()
-#     if st.session_state.logged_in_user:
-#         st.query_params["user"] = st.session_state.logged_in_user
-#     st.switch_page("app.py")
-
-# if st.query_params.get("logout") == "true":
-#     # ONLY clear session on explicit logout
-#     st.session_state.logged_in_user = None
-#     for key in list(st.session_state.keys()):
-#         del st.session_state[key]
-#     st.query_params.clear()
-#     st.switch_page("app.py")
-
-
+# Handle logout
 if st.query_params.get("logout") == "true":
     st.session_state.logged_in_user = None
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
-    st.rerun()
-# Page Content
+    st.switch_page("app.py")
 
-if  st.session_state.logged_in_user :
+# Page Header
+st.markdown("""
+<div class="page-header">
+    <div class="page-badge">Step 1 of 3</div>
+    <h1 class="page-title">Build Your Resume</h1>
+    <p class="page-subtitle">
+        Choose how you'd like to provide your information - manually enter details or upload an existing resume
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-    st.markdown('<h2 >Please provide your basic information</h2>', unsafe_allow_html=True)
-    st.markdown("""
-    <style>
-        /* Radio button styling */
-        .stRadio > label {
-            color: #000000 !important;
-            font-weight: 600 !important;
-        }
-        .stRadio > div {
-            gap: 2rem !important;
-        }
-        .stRadio > div > label > div:first-child {
-            background-color: white !important;
-            border: 2px solid #e87532 !important;
-        }
-        .stRadio > div > label > div:first-child > div {
-            background-color: #e87532 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
+if st.session_state.logged_in_user:
     input_method = st.radio(
         "How would you like to provide your information?",
         ["Manual Entry", "Upload Resume"],

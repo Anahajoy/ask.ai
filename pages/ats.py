@@ -8,11 +8,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:
         st.session_state.logged_in_user = logged_user
-
 
 # Get user info for navigation
 current_user = st.session_state.get('logged_in_user', '')
@@ -28,52 +28,93 @@ else:
     ats_url = "#ats"
     qu_url = "#qu"
 
-
 if is_logged_in:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
+    auth_button = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
 else:
-    auth_button = '<div class="nav-item"><a class="nav-link" data-section="Login" href="#Login">Login</a></div>'
+    auth_button = '<a class="nav-link" href="#Login" target="_self">Login</a>'
 
-
-# Enhanced CSS Styling
+# COMPLETE CSS Styling with Navigation
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
 
-#MainMenu, footer, header, button[kind="header"] {{visibility: hidden;}}
+/* ==================== RESET ==================== */
+* {{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}}
+
+[data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"],
+#MainMenu, footer, header {{
+    display: none !important;
+    visibility: hidden !important;
+}}
+
 .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {{
     padding-top: 0rem !important;
     margin-top: 0rem !important;
 }}
 
-* {{
-    font-family: 'Inter', sans-serif !important;
+/* ==================== VARIABLES ==================== */
+:root {{
+    --primary: #FF6B35;
+    --primary-dark: #E85A28;
+    --primary-light: #FF8C5A;
+    --accent: #FFA500;
+    --bg-primary: #FAFAFA;
+    --bg-secondary: #FFFFFF;
+    --text-primary: #1A1A1A;
+    --text-secondary: #666666;
+    --text-light: #999999;
+    --border: #E5E5E5;
+    --shadow: rgba(255, 107, 53, 0.12);
 }}
 
-/* Fixed Navigation Bar */
+html, body, .stApp {{
+    font-family: 'Inter', sans-serif !important;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    scroll-behavior: smooth;
+}}
+
+/* ==================== NAVIGATION ==================== */
 .nav-wrapper {{
     position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
-    z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    animation: slideDown 0.6s ease-out;
+}}
+
+@keyframes slideDown {{
+    from {{ transform: translateY(-100%); opacity: 0; }}
+    to {{ transform: translateY(0); opacity: 1; }}
+}}
+
+.nav-container {{
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 3rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 50px;
+    height: 80px;
 }}
 
 .logo {{
-    font-size: 24px;
-    font-weight: 400;
-    color: #2c3e50;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: -0.5px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
 }}
 
 .nav-menu {{
@@ -82,29 +123,23 @@ st.markdown(f"""
     align-items: center;
 }}
 
-.nav-item {{ position: relative; }}
-
 .nav-link {{
-    color: #000000 !important;
+    color: var(--text-secondary) !important;
     text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 20px;
     border-radius: 8px;
-    cursor: pointer;
     transition: all 0.3s ease;
-}}
-
-.nav-link:visited {{
-    color: #000000 !important;
+    position: relative;
 }}
 
 .nav-link:hover {{
-    background-color: #fff5f0;
-    color: #ff8c42 !important;
+    color: var(--primary) !important;
+    background: rgba(255, 107, 53, 0.08);
 }}
 
-/* Main Page Wrapper */
+/* ==================== MAIN WRAPPER ==================== */
 .ats-main-wrapper {{
     min-height: 30vh;
     background: linear-gradient(135deg, #fff9f5 0%, #ffffff 50%, #fff5f0 100%);
@@ -123,7 +158,6 @@ st.markdown(f"""
     pointer-events: none;
 }}
 
-/* Hero Header - Compact */
 .ats-hero {{
     text-align: center;
     margin-bottom: 2.5rem;
@@ -169,7 +203,7 @@ st.markdown(f"""
     font-weight: 400;
 }}
 
-/* Upload Sections Container */
+/* ==================== UPLOAD SECTIONS ==================== */
 .upload-sections-wrapper {{
     max-width: 1300px;
     margin: 0 auto;
@@ -183,7 +217,6 @@ st.markdown(f"""
     margin-bottom: 2rem;
 }}
 
-/* Upload Section Card - Compact */
 .upload-section-card {{
     background: white;
     border-radius: 24px;
@@ -224,7 +257,6 @@ st.markdown(f"""
     border-color: rgba(232, 117, 50, 0.2);
 }}
 
-/* Section Header - Compact */
 .section-header-wrapper {{
     display: flex;
     align-items: flex-start;
@@ -275,7 +307,7 @@ st.markdown(f"""
     line-height: 1.5;
 }}
 
-/* File Upload Success - Compact */
+/* ==================== FILE UPLOAD SUCCESS ==================== */
 .file-uploaded {{
     background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
     border: 2px solid #10b981;
@@ -289,14 +321,8 @@ st.markdown(f"""
 }}
 
 @keyframes slideIn {{
-    from {{
-        opacity: 0;
-        transform: translateY(-10px);
-    }}
-    to {{
-        opacity: 1;
-        transform: translateY(0);
-    }}
+    from {{ opacity: 0; transform: translateY(-10px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
 }}
 
 .file-check-icon {{
@@ -312,9 +338,7 @@ st.markdown(f"""
     flex-shrink: 0;
 }}
 
-.file-details {{
-    flex: 1;
-}}
+.file-details {{ flex: 1; }}
 
 .file-name-text {{
     font-size: 0.9rem;
@@ -330,7 +354,7 @@ st.markdown(f"""
     gap: 0.75rem;
 }}
 
-/* Action Buttons Section - Compact */
+/* ==================== ACTION BUTTONS ==================== */
 .action-section {{
     max-width: 1300px;
     margin: 0 auto;
@@ -344,7 +368,7 @@ st.markdown(f"""
     margin-bottom: 2rem;
 }}
 
-/* Info Cards - Compact */
+/* ==================== INFO CARDS ==================== */
 .info-cards-grid {{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -387,7 +411,7 @@ st.markdown(f"""
     line-height: 1.5;
 }}
 
-/* Streamlit Text Area */
+/* ==================== TEXT AREA ==================== */
 textarea {{
     background: white !important;
     border: 2px solid #e2e8f0 !important;
@@ -411,53 +435,25 @@ textarea::placeholder {{
     color: #94a3b8 !important;
 }}
 
-/* Responsive Design */
+/* ==================== RESPONSIVE ==================== */
 @media (max-width: 1200px) {{
-    .upload-grid {{
-        gap: 1.5rem;
-    }}
-    
-    .info-cards-grid {{
-        grid-template-columns: 1fr;
-    }}
+    .upload-grid {{ gap: 1.5rem; }}
+    .info-cards-grid {{ grid-template-columns: 1fr; }}
 }}
 
 @media (max-width: 968px) {{
-    .upload-grid {{
-        grid-template-columns: 1fr;
-    }}
-    
-    .ats-main-title {{
-        font-size: 2rem;
-    }}
-    
-    .button-group {{
-        flex-direction: column;
-    }}
-    
-    .nav-wrapper {{
-        padding: 0.6rem 1.5rem;
-    }}
-    
-    .nav-menu {{
-        gap: 1rem;
-    }}
+    .upload-grid {{ grid-template-columns: 1fr; }}
+    .ats-main-title {{ font-size: 2rem; }}
+    .button-group {{ flex-direction: column; }}
+    .nav-container {{ padding: 0 1.5rem; }}
+    .nav-menu {{ gap: 0.5rem; flex-wrap: wrap; justify-content: center; }}
+    .nav-link {{ padding: 8px 12px; font-size: 13px; }}
 }}
 
 @media (max-width: 640px) {{
-    .upload-section-card {{
-        padding: 1.5rem;
-    }}
-    
-    .section-header-wrapper {{
-        gap: 0.75rem;
-    }}
-    
-    .section-icon-box {{
-        width: 45px;
-        height: 45px;
-        font-size: 20px;
-    }}
+    .upload-section-card {{ padding: 1.5rem; }}
+    .section-header-wrapper {{ gap: 0.75rem; }}
+    .section-icon-box {{ width: 45px; height: 45px; font-size: 20px; }}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -465,22 +461,18 @@ textarea::placeholder {{
 # Navigation Bar
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
+    <div class="nav-container">
+        <div class="logo">ResumeAI</div>
+        <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
+            <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            {auth_button}
         </div>
-        <div class="nav-item">
-            <a class="nav-link" href="main?&user={current_user}" target="_self">Create New Resume</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="qu" href="{qu_url}" target="_self">Analysis Assistant</a>
-        </div>
-        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 if st.query_params.get("logout") == "true":
     st.session_state.logged_in_user = None
@@ -488,6 +480,7 @@ if st.query_params.get("logout") == "true":
         del st.session_state[key]
     st.query_params.clear()
     st.rerun()
+
 # Page Content
 st.markdown("""
 <div class="ats-main-wrapper">
@@ -504,7 +497,6 @@ st.markdown("""
 # Upload Sections
 st.markdown('<div class="upload-sections-wrapper"><div class="upload-grid">', unsafe_allow_html=True)
 
-# Column 1 - Resume Upload
 col1, col2 = st.columns(2, gap="large")
 
 with col1:
@@ -520,7 +512,6 @@ with col1:
         </div>
     """, unsafe_allow_html=True)
     
-    # File uploader - now fully visible and functional
     uploaded_file = st.file_uploader(
         "Choose a file",
         type=["pdf", "docx"],
@@ -543,7 +534,6 @@ with col1:
     
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Column 2 - Job Description
 with col2:
     st.markdown("""
     <div class="upload-section-card">
@@ -600,14 +590,10 @@ with btn_col1:
             button:hover {
                 transform: translateY(-2px) !important;
                 box-shadow: 0 10px 28px rgba(232, 117, 50, 0.4) !important;
-                background: linear-gradient(135deg, #d66629 0%, #e87532 100%) !important;
-            }
-            button:active {
-                transform: translateY(0px) !important;
             }
         """
     ):
-        analyze_btn = st.button("🎯 Analyze ATS Score", width='stretch')
+        analyze_btn = st.button("🎯 Analyze ATS Score")
 
 with btn_col2:
     with stylable_container(
@@ -622,21 +608,16 @@ with btn_col2:
                 border-radius: 50px !important;
                 font-size: 1.05rem !important;
                 font-weight: 700 !important;
-                letter-spacing: 0.3px !important;
                 transition: all 0.3s ease !important;
             }
             button:hover {
                 background: #e87532 !important;
                 color: white !important;
                 transform: translateY(-2px) !important;
-                box-shadow: 0 6px 20px rgba(232, 117, 50, 0.25) !important;
-            }
-            button:active {
-                transform: translateY(0px) !important;
             }
         """
     ):
-        clear_btn = st.button("🗑️ Clear All", width='stretch')
+        clear_btn = st.button("🗑️ Clear All")
 
 st.markdown('</div></div>', unsafe_allow_html=True)
 
@@ -662,34 +643,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Handle Actions
-# Replace the "Handle Actions" section in your ats.py file with this code:
-
-# Handle Actions
 if analyze_btn:
     if uploaded_file and job_description:
-        with st.spinner('🔍 Analyzing your resume against the job description... This may take a moment.'):
+        with st.spinner('🔍 Analyzing your resume...'):
             try:
-                # Extract text from uploaded file
                 if uploaded_file.type == "application/pdf":
                     extracted_text = extract_text_from_pdf(uploaded_file)
-                else:  # DOCX
+                else:
                     uploaded_file.seek(0)
                     extracted_text = extract_text_from_docx(uploaded_file)
                 
                 if not extracted_text or len(extracted_text.strip()) < 50:
-                    st.error("⚠️ Could not extract enough text from the file. Please ensure:")
-                    st.markdown("""
-                    - The file is not corrupted
-                    - The file contains actual text (not just images)
-                    - The file is a valid PDF or DOCX format
-                    """)
+                    st.error("⚠️ Could not extract enough text from the file.")
                     st.stop()
                 
-                # Parse resume and JD
                 parsed_data = extract_details_from_text(extracted_text)
                 structured_jd = extract_details_from_jd(job_description)
-                
-                # Get ATS score
                 ats_data = ai_ats_score(parsed_data, structured_jd)
                 
                 if ats_data and ats_data.get("overall_score", 0) > 0:
@@ -697,283 +666,34 @@ if analyze_btn:
                     label = get_score_label(score)
                     color = get_score_color(score)
                     
-                    # Results Section
                     st.markdown('<div style="height: 3rem;"></div>', unsafe_allow_html=True)
                     st.markdown("""
                     <div style="text-align: center; margin: 2rem 0;">
-                        <h2 style="font-size: 2rem; font-weight: 800; color: #0a0f14; margin-bottom: 0.5rem;">
+                        <h2 style="font-size: 2rem; font-weight: 800; color: #0a0f14;">
                             📊 Your ATS Analysis Results
                         </h2>
-                        <p style="color: #64748b; font-size: 1rem;">Here's how your resume matches the job description</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Score Display Card
                     st.markdown(f"""
-                    <div style="
-                        max-width: 500px;
-                        margin: 0 auto 3rem;
-                        text-align: center;
-                        padding: 2.5rem;
-                        background: white;
-                        border-radius: 24px;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-                        border: 2px solid {color}20;
-                    ">
+                    <div style="max-width: 500px; margin: 0 auto 3rem; text-align: center; padding: 2.5rem; background: white; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 2px solid {color}20;">
                         <div style="position: relative; width: 160px; height: 160px; margin: auto;">
                             <svg width="160" height="160">
                                 <circle cx="80" cy="80" r="70" stroke="#f0f0f0" stroke-width="14" fill="none"/>
-                                <circle cx="80" cy="80" r="70"
-                                    stroke="{color}" stroke-width="14" fill="none"
-                                    stroke-linecap="round"
-                                    stroke-dasharray="{round(score*4.4)}, 440"
-                                    transform="rotate(-90 80 80)"
-                                    style="transition: stroke-dasharray 1s ease-out;"
-                                />
+                                <circle cx="80" cy="80" r="70" stroke="{color}" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="{round(score*4.4)}, 440" transform="rotate(-90 80 80)"/>
                                 <text x="80" y="90" text-anchor="middle" font-size="36" font-weight="800" fill="#0a0f14">{score}</text>
                                 <text x="80" y="110" text-anchor="middle" font-size="14" font-weight="600" fill="#64748b">out of 100</text>
                             </svg>
                         </div>
                         <div style="margin-top: 1.5rem;">
-                            <div style="
-                                display: inline-block;
-                                padding: 8px 24px;
-                                background: {color}15;
-                                color: {color};
-                                border-radius: 50px;
-                                font-size: 1.1rem;
-                                font-weight: 700;
-                                border: 2px solid {color}40;
-                            ">
-                                {label}
-                            </div>
+                            <div style="display: inline-block; padding: 8px 24px; background: {color}15; color: {color}; border-radius: 50px; font-size: 1.1rem; font-weight: 700; border: 2px solid {color}40;">{label}</div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Keywords Analysis Section
-                    st.markdown("""
-                    <div style="max-width: 1000px; margin: 0 auto;">
-                        <h3 style="
-                            text-align: center;
-                            font-size: 1.8rem;
-                            font-weight: 700;
-                            color: #0a0f14;
-                            margin-bottom: 2rem;
-                        ">
-                            🔍 Keyword Analysis
-                        </h3>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Matched and Missing Keywords in Two Columns
-                    kw_col1, kw_col2 = st.columns(2, gap="large")
-                    
-                    with kw_col1:
-                        matched = ats_data.get("matched_skills", [])
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-                            border-radius: 20px;
-                            padding: 2rem;
-                            border: 2px solid #10b981;
-                            min-height: 250px;
-                        ">
-                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: #10b981;
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-size: 24px;
-                                ">✓</div>
-                                <div>
-                                    <h4 style="
-                                        font-size: 1.3rem;
-                                        font-weight: 700;
-                                        color: #065f46;
-                                        margin: 0;
-                                    ">Matched Keywords</h4>
-                                    <p style="
-                                        font-size: 0.85rem;
-                                        color: #059669;
-                                        margin: 0;
-                                    ">{len(matched)} keywords found</p>
-                                </div>
-                            </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                        """, unsafe_allow_html=True)
-                        
-                        if matched:
-                            for keyword in matched:
-                                st.markdown(f"""
-                                <span style="
-                                    display: inline-block;
-                                    padding: 6px 14px;
-                                    background: white;
-                                    color: #065f46;
-                                    border-radius: 8px;
-                                    font-size: 0.85rem;
-                                    font-weight: 600;
-                                    border: 1px solid #10b98140;
-                                ">✓ {keyword}</span>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.markdown("""
-                            <p style="color: #059669; font-size: 0.9rem; font-style: italic;">
-                                No matched keywords found. Consider adding relevant skills from the job description.
-                            </p>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown('</div></div>', unsafe_allow_html=True)
-                    
-                    with kw_col2:
-                        missing = ats_data.get("missing_skills", [])
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-                            border-radius: 20px;
-                            padding: 2rem;
-                            border: 2px solid #ef4444;
-                            min-height: 250px;
-                        ">
-                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
-                                <div style="
-                                    width: 48px;
-                                    height: 48px;
-                                    background: #ef4444;
-                                    border-radius: 12px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-size: 24px;
-                                    color: white;
-                                ">!</div>
-                                <div>
-                                    <h4 style="
-                                        font-size: 1.3rem;
-                                        font-weight: 700;
-                                        color: #991b1b;
-                                        margin: 0;
-                                    ">Missing Keywords</h4>
-                                    <p style="
-                                        font-size: 0.85rem;
-                                        color: #dc2626;
-                                        margin: 0;
-                                    ">{len(missing)} keywords to add</p>
-                                </div>
-                            </div>
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                        """, unsafe_allow_html=True)
-                        
-                        if missing:
-                            for keyword in missing:
-                                st.markdown(f"""
-                                <span style="
-                                    display: inline-block;
-                                    padding: 6px 14px;
-                                    background: white;
-                                    color: #991b1b;
-                                    border-radius: 8px;
-                                    font-size: 0.85rem;
-                                    font-weight: 600;
-                                    border: 1px solid #ef444440;
-                                ">✗ {keyword}</span>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.markdown("""
-                            <p style="color: #dc2626; font-size: 0.9rem; font-style: italic;">
-                                Great! All important keywords are present in your resume.
-                            </p>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown('</div></div>', unsafe_allow_html=True)
-                    
-                    # Recommendations Section
-                    if missing:
-                        st.markdown('<div style="height: 2.5rem;"></div>', unsafe_allow_html=True)
-                        st.markdown("""
-                        <div style="
-                            max-width: 1200px;
-                            margin: 0 auto;
-                            background: linear-gradient(135deg, #fff9f5 0%, #ffe8d6 100%);
-                            border-radius: 24px;
-                            padding: 2.5rem;
-                            box-shadow: 0 8px 32px rgba(232, 117, 50, 0.12);
-                            border: 1px solid #e8753220;
-                        ">
-                            <div style="text-align: center; margin-bottom: 2rem;">
-                                <div style="
-                                    width: 64px;
-                                    height: 64px;
-                                    background: linear-gradient(135deg, #e87532, #ff8c42);
-                                    border-radius: 20px;
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    margin: 0 auto 1rem;
-                                    box-shadow: 0 8px 24px rgba(232, 117, 50, 0.3);
-                                ">
-                                    <span style="font-size: 32px;">💡</span>
-                                </div>
-                                <h3 style="
-                                    font-size: 1.75rem;
-                                    font-weight: 700;
-                                    color: #e87532;
-                                    margin: 0;
-                                ">How to Improve Your Score</h3>
-                            </div>
-                            <div style="
-                                display: grid;
-                                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                                gap: 1.25rem;
-                            ">
-                        """, unsafe_allow_html=True)
-                        
-                        tips = [
-                            ("📝", "Update Resume", "Incorporate missing keywords naturally into your experience"),
-                            ("🎯", "Be Specific", "Use both acronyms and full terms (ML & Machine Learning)"),
-                            ("📊", "Add Metrics", "Quantify achievements with numbers and percentages"),
-                            ("🔄", "Re-analyze", "Upload updated resume to see your improved score")
-                        ]
-                        
-                        for icon, title, desc in tips:
-                            st.markdown(f"""
-                            <div style="
-                                background: white;
-                                border-radius: 16px;
-                                padding: 1.5rem;
-                                box-shadow: 0 4px 16px rgba(0,0,0,0.04);
-                                text-align: center;
-                            ">
-                                <div style="
-                                    font-size: 2.5rem;
-                                    margin-bottom: 0.75rem;
-                                ">{icon}</div>
-                                <h4 style="
-                                    font-size: 1.1rem;
-                                    font-weight: 700;
-                                    color: #0a0f14;
-                                    margin: 0 0 0.5rem 0;
-                                ">{title}</h4>
-                                <p style="
-                                    font-size: 0.9rem;
-                                    color: #64748b;
-                                    margin: 0;
-                                    line-height: 1.5;
-                                ">{desc}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown('</div></div>', unsafe_allow_html=True)
-                    
-                    st.markdown('<div style="height: 1.5rem;"></div>', unsafe_allow_html=True)
-                    st.success("✅ Your ATS analysis is complete! Use these insights to optimize your resume.")
+                    st.success("✅ Analysis complete!")
             except:
-                st.markdown("please upload a valid resume file and job description.")
+                st.error("Please upload a valid resume and job description.")
     elif not uploaded_file and not job_description:
         st.error("⚠️ Please upload your resume and paste the job description")
     elif not uploaded_file:

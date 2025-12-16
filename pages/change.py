@@ -208,7 +208,7 @@ st.markdown("""
         font-size: 1rem;
         color: #64748b;
         max-width: 600px;
-        margin: 0 auto;
+        margin-left: 300px !important;
         line-height: 1.6;
         font-weight: 400;
     }

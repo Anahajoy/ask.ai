@@ -313,7 +313,7 @@ st.markdown("""
         color: var(--text-secondary);
         line-height: 1.7;
         max-width: 600px;
-        margin: 0 auto;
+        margin-left: 200px !important;
     }
 
     /* ==================== RADIO BUTTONS ==================== */

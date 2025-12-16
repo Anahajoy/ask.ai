@@ -7,85 +7,139 @@ st.set_page_config(page_title="Resume Upload", layout="wide")
 # Modern CSS styling
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
     
-    /* Reset and base styles */
+    /* ==================== RESET ==================== */
     * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
-        font-family: 'Inter', sans-serif !important;
     }
     
     /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    button[kind="header"] {visibility: hidden;}
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
     
     .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
         padding-top: 0rem !important;
         margin-top: 0rem !important;
     }
     
-    .stApp {
-        background: #ffffff;
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
     }
     
-    /* Fixed Navigation Bar */
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+    
+    /* ==================== NAVIGATION ==================== */
     .nav-wrapper {
         position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90%;
-        max-width: 1200px;
-        z-index: 99999 !important;
-        background-color: white !important;
-        padding: 0.8rem 2rem;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-radius: 50px;
+        height: 80px;
     }
-    
+
     .logo {
-        font-size: 24px;
-        font-weight: 400;
-        color: #2c3e50;
-        font-family: 'Nunito Sans', sans-serif !important;
-        letter-spacing: -0.5px;
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
     }
-    
+
     .nav-menu {
         display: flex;
         gap: 2rem;
         align-items: center;
     }
-    
-    .nav-item {
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
         position: relative;
     }
-    
-    .nav-link {
-        color: #000000 !important;
-        text-decoration: none !important;
-        font-size: 1rem;
-        font-family: 'Nunito Sans', sans-serif;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .nav-link:visited {
-        color: #000000 !important;
-    }
-    
+
     .nav-link:hover {
-        background-color: #fff5f0;
-        color: #ff8c42 !important;
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+    
+    /* ==================== MAIN CONTENT ==================== */
+    .main-content {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 120px 2rem 80px;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     /* Main Page Wrapper */
@@ -149,10 +203,9 @@ st.markdown("""
         font-size: 1rem;
         color: #64748b;
         max-width: 600px;
-        margin: 0 auto;
+        margin-left: 300px !important;
         line-height: 1.6;
         font-weight: 400;
-        margin-left: 300px !important;
     }
     
     /* Main Content Container */
@@ -162,11 +215,6 @@ st.markdown("""
         padding: 0 2rem;
     }
     
-    /* Two Column Layout - Remove grid CSS since using Streamlit columns */
-    .upload-card, .features-card {
-        height: 100%;
-    }
-    
     /* Upload Section */
     .upload-card {
         background: white;
@@ -174,6 +222,7 @@ st.markdown("""
         padding: 2rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: 1px solid #f0f0f0;
+        height: 100%;
     }
     
     .upload-icon-large {
@@ -395,16 +444,23 @@ st.markdown("""
     
     /* Responsive design */
     @media (max-width: 768px) {
-        .nav-wrapper {
-            flex-direction: column;
-            gap: 1rem;
-            padding: 1rem;
+        .nav-container {
+            padding: 0 1.5rem;
         }
-        
+
         .nav-menu {
+            gap: 0.5rem;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        
+        .main-content {
+            padding: 100px 1.5rem 60px;
         }
         
         .main-container {
@@ -453,29 +509,23 @@ else:
     ats_url = "#ats"
     qu_url = "#qu"
 
-
 if is_logged_in:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
+    auth_button = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
 else:
-    auth_button = '<div class="nav-item"><a class="nav-link" data-section="Login" href="#Login">Login</a></div>'
+    auth_button = '<a class="nav-link" href="#Login" target="_self">Login</a>'
 
-
-
-# Navigation Bar
+# Navigation Bar - Updated to match ResumeAI style
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
+    <div class="nav-container">
+        <div class="logo">ResumeAI</div>
+        <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
+            <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            {auth_button}
         </div>
-        <div class="nav-item">
-            <a class="nav-link" href="main?&user={current_user}" target="_self">Create New Resume</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="ats" href="{ats_url}" target="_self">Check ATS Score</a>
-        </div>
-        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -593,28 +643,25 @@ if uploaded_file is not None:
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("❓ Generate Interview Questions", width='stretch', key="btn_questions"):
+        if st.button("❓ Generate Interview Questions", key="btn_questions"):
             st.session_state.pending_query = "Generate interview questions based on my resume"
             st.rerun()
-        if st.button("💡 Get Resume Tips", width='stretch', key="btn_tips"):
+        if st.button("💡 Get Resume Tips", key="btn_tips"):
             st.session_state.pending_query = "Give me tips to improve my resume"
             st.rerun()
-        if st.button("🎯 Points to Focus", width='stretch', key="btn_focus"):
+        if st.button("🎯 Points to Focus", key="btn_focus"):
             st.session_state.pending_query = "What are the key points I should focus on in my resume?"
             st.rerun()
     
     with col2:
-        if st.button("💪 Analyze My Strengths", width='stretch', key="btn_strengths"):
+        if st.button("💪 Analyze My Strengths", key="btn_strengths"):
             st.session_state.pending_query = "Analyze the strengths shown in my resume"
             st.rerun()
-        if st.button("📈 How to Improve", width='stretch', key="btn_improve"):
+        if st.button("📈 How to Improve", key="btn_improve"):
             st.session_state.pending_query = "How can I improve my resume?"
             st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # # Chat messages container with fixed height and scroll
-    # st.markdown('<div class="chat-container" id="chat-container">', unsafe_allow_html=True)
     
     # Display welcome message only if chat history is empty
     if len(st.session_state.chat_history) == 0:
@@ -723,7 +770,7 @@ if uploaded_file is not None:
         with col1:
             user_input = st.text_input("Ask me anything about your resume...", key="chat_input", label_visibility="collapsed", placeholder="Type your question here...")
         with col2:
-            submit_button = st.form_submit_button("Send", width='stretch')
+            submit_button = st.form_submit_button("Send")
         
         if submit_button and user_input:
             st.session_state.pending_query = user_input

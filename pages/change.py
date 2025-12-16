@@ -8,88 +8,143 @@ st.set_page_config(page_title="Resume Upload", layout="wide")
 
 
 
-# Modern CSS styling
+# Replace the entire CSS section in Document 2 with this:
+
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
     
-    /* Reset and base styles */
+    /* ==================== RESET ==================== */
     * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
-        font-family: 'Inter', sans-serif !important;
     }
     
     /* Hide Streamlit default elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    button[kind="header"] {visibility: hidden;}
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
     
     .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
         padding-top: 0rem !important;
         margin-top: 0rem !important;
     }
     
-    .stApp {
-        background: #ffffff;
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
     }
     
-    /* Fixed Navigation Bar */
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+    
+    /* ==================== NAVIGATION ==================== */
     .nav-wrapper {
         position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90%;
-        max-width: 1200px;
-        z-index: 99999 !important;
-        background-color: white !important;
-        padding: 0.8rem 2rem;
-        box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-radius: 50px;
+        height: 80px;
     }
-    
+
     .logo {
-        font-size: 24px;
-        font-weight: 400;
-        color: #2c3e50;
-        font-family: 'Nunito Sans', sans-serif !important;
-        letter-spacing: -0.5px;
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
     }
-    
+
     .nav-menu {
         display: flex;
         gap: 2rem;
         align-items: center;
     }
-    
-    .nav-item {
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
         position: relative;
     }
-    
-    .nav-link {
-        color: #000000 !important;
-        text-decoration: none !important;
-        font-size: 1rem;
-        font-family: 'Nunito Sans', sans-serif;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    
-    .nav-link:visited {
-        color: #000000 !important;
-    }
-    
+
     .nav-link:hover {
-        background-color: #fff5f0;
-        color: #ff8c42 !important;
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+    
+    /* ==================== MAIN CONTENT ==================== */
+    .main-content {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 120px 2rem 80px;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     /* Main Page Wrapper */
@@ -112,7 +167,7 @@ st.markdown("""
         pointer-events: none;
     }
     
-    /* Hero Header - Compact */
+    /* Hero Header */
     .ats-hero {
         text-align: center;
         margin-bottom: 2.5rem;
@@ -156,7 +211,6 @@ st.markdown("""
         margin: 0 auto;
         line-height: 1.6;
         font-weight: 400;
-        margin-left: 300px !important;
     }
     
     /* Main Content Container */
@@ -166,11 +220,6 @@ st.markdown("""
         padding: 0 2rem;
     }
     
-    /* Two Column Layout - Remove grid CSS since using Streamlit columns */
-    .upload-card, .features-card {
-        height: 100%;
-    }
-    
     /* Upload Section */
     .upload-card {
         background: white;
@@ -178,6 +227,7 @@ st.markdown("""
         padding: 2rem;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         border: 1px solid #f0f0f0;
+        height: 100%;
     }
     
     .upload-icon-large {
@@ -206,64 +256,6 @@ st.markdown("""
         text-align: center;
         line-height: 1.5;
         margin-bottom: 1.5rem;
-    }
-    
-    /* Features List */
-    .features-card {
-        background: white;
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid #f0f0f0;
-    }
-    
-    .features-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 1rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 1px solid #f5f5f5;
-    }
-    
-    .feature-item {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        border-radius: 8px;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-    
-    .feature-item:hover {
-        background: #fff5f0;
-        transform: translateX(3px);
-    }
-    
-    .feature-icon {
-        width: 32px;
-        height: 32px;
-        background: linear-gradient(135deg, #fff5f0 0%, #ffe8dc 100%);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-    }
-    
-    .feature-text {
-        font-size: 0.9rem;
-        color: #2c3e50;
-        font-weight: 500;
-    }
-    
-    .feature-arrow {
-        margin-left: auto;
-        color: #cbd5e0;
-        font-size: 1.2rem;
     }
     
     /* Custom file uploader styling */
@@ -308,75 +300,28 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3) !important;
     }
     
-    /* Button styling for chat options */
-    .stButton > button {
-        background: white;
-        color: #2c3e50;
-        border: 1.5px solid #e2e8f0;
-        padding: 0.75rem 1rem;
-        border-radius: 10px;
-        font-weight: 500;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        margin-top: 0.5rem;
-        width: 100%;
-        text-align: left;
-    }
-    
-    .stButton > button:hover {
-        background: #fff5f0;
-        border-color: #ff8c42;
-        color: #ff8c42;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 140, 66, 0.2);
-    }
-    
-    /* Chat container with fixed height and scroll */
-    .chat-container {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        height: 400px;
-        overflow-y: auto;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        margin-bottom: 1rem;
-        scroll-behavior: smooth;
-    }
-    
-    /* Custom scrollbar */
-    .chat-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .chat-container::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    .chat-container::-webkit-scrollbar-thumb {
-        background: #ff8c42;
-        border-radius: 10px;
-    }
-    
-    .chat-container::-webkit-scrollbar-thumb:hover {
-        background: #ff7a29;
-    }
-    
-    /* Quick actions section - always visible */
-    .quick-actions-section {
-        margin-bottom: 1.5rem;
-    }
-    
-    .quick-actions-title {
-        font-size: 0.9rem;
+    /* Panel header */
+    .panel-header {
+        font-size: 1.1rem;
         font-weight: 600;
-        color: #64748b;
+        color: var(--text-primary);
         margin-bottom: 1rem;
-        text-align: center;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--border);
     }
     
-    /* Success/Error messages */
+    /* Preview header */
+    .preview-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        text-align: center;
+        margin: 3rem 0 2rem 0;
+        padding-top: 2rem;
+        border-top: 2px solid var(--border);
+    }
+    
+    /* Success messages */
     .stSuccess {
         background: #f0fdf4 !important;
         border: 1px solid #86efac !important;
@@ -384,31 +329,55 @@ st.markdown("""
         font-size: 0.9rem !important;
     }
     
-    /* Text input styling */
-    .stTextInput input {
+    /* Selectbox styling */
+    .stSelectbox > div > div {
+        background: white !important;
+        border: 2px solid var(--border) !important;
         border-radius: 10px !important;
-        border: 1.5px solid #e2e8f0 !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 0.9rem !important;
+        transition: all 0.3s ease !important;
     }
     
-    .stTextInput input:focus {
-        border-color: #ff8c42 !important;
-        box-shadow: 0 0 0 2px rgba(255, 140, 66, 0.1) !important;
+    .stSelectbox > div > div:hover {
+        border-color: var(--primary) !important;
+    }
+    
+    /* Download buttons */
+    .stDownloadButton button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 12px 24px !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.5rem !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+    }
+    
+    .stDownloadButton button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
     }
     
     /* Responsive design */
     @media (max-width: 768px) {
-        .nav-wrapper {
-            flex-direction: column;
-            gap: 1rem;
-            padding: 1rem;
+        .nav-container {
+            padding: 0 1.5rem;
         }
-        
+
         .nav-menu {
+            gap: 0.5rem;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        
+        .main-content {
+            padding: 100px 1.5rem 60px;
         }
         
         .main-container {
@@ -422,13 +391,11 @@ st.markdown("""
         .ats-hero-description {
             font-size: 0.9rem;
         }
-        
-        .chat-container {
-            height: 300px;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Update the navigation HTML to match the ResumeAI style:
 
 
 
@@ -548,24 +515,19 @@ else:
 
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
+    <div class="nav-container">
+        <div class="logo">ResumeAI</div>
+        <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" href="main?&user={current_user}" target="_self">Create New Resume</a>
-        </div>
-        <div class="nav-item">
-            <a class="nav-link" data-section="ats" href="{ats_url}" target="_self">Check ATS Score</a>
-        </div>
-        <div class="nav-item">
+            <a class="nav-link" href="{ats_url}" target="_self">Check ATS Score</a>
             <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
+            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
         </div>
-        {auth_button}
     </div>
 </div>
 """, unsafe_allow_html=True)
+
 
 if st.query_params.get("logout") == "true":
     st.session_state.logged_in_user = None

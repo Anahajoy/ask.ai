@@ -507,14 +507,15 @@ st.markdown("""
     }
 
     /* ==================== FILE UPLOADER ==================== */
+        /* File uploader */
     .stFileUploader {
-        background: var(--bg-secondary);
+        background: var(--bg-primary);
         border: 3px dashed var(--border);
         border-radius: 20px;
         padding: 3rem 2rem;
         transition: all 0.4s ease;
         text-align: center;
-        margin: 2rem 0;
+        margin: 2rem 0 !important;
     }
 
     .stFileUploader:hover {
@@ -539,7 +540,6 @@ st.markdown("""
         transform: translateY(-2px);
         box-shadow: 0 6px 16px var(--shadow) !important;
     }
-
     /* ==================== ALERTS ==================== */
     .stSuccess, .stError, .stWarning, .stInfo {
         border-radius: 12px;

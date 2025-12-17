@@ -221,29 +221,49 @@ section[data-testid="stAppViewContainer"] > div {
     --section-bg: #fffbf7;
 }
 
+/* ==================== NAVIGATION ==================== */
 .nav-wrapper {
     position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid #E5E5E5;
+    animation: slideDown 0.6s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 3rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 50px;
+    height: 80px;
 }
 
 .logo {
-    font-size: 24px;
-    font-weight: 400;
-    color: #2c3e50;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: -0.5px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #FF6B35 0%, #FFA500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
 }
 
 .nav-menu {
@@ -252,26 +272,28 @@ section[data-testid="stAppViewContainer"] > div {
     align-items: center;
 }
 
-.nav-item { position: relative; }
-
-.nav-link {
-    color: #000000 !important;
-    text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+.nav-item { 
+    position: relative; 
 }
 
-.nav-link:visited {
-    color: #000000 !important;
+.nav-link {
+    color: #666666 !important;
+    text-decoration: none !important;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 .nav-link:hover {
-    background-color: #fff5f0;
-    color: #ff8c42 !important;  /* Added !important to override the default color */
+    color: #FF6B35 !important;
+    background: rgba(255, 107, 53, 0.08);
+}
+
+.nav-link:visited {
+    color: #666666 !important;
 }
 
 /* Main Container - Increased bottom padding for white space */
@@ -726,6 +748,26 @@ div[data-testid="column"] {
 hr {
     display: none;
 }
+
+/* Responsive Navigation */
+@media (max-width: 768px) {
+    .nav-container {
+        padding: 0 1.5rem;
+    }
+
+    .nav-menu {
+        gap: 0.5rem;
+    }
+
+    .nav-link {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .logo {
+        font-size: 22px;
+    }
+}
 </style>
 
 <script>
@@ -772,40 +814,28 @@ qu_url = f"qu?user={current_user}"
 # ----------------------------------
 # Build navigation menu conditionally
 nav_items = f"""
-    <div class="nav-item">
-        <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
-    </div>
-  
+    <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
 """
 
 # Add Edit Content link only if final_resume_data exists
 if st.session_state.get("final_resume_data"):
     nav_items += f"""
-    <div class="nav-item">
-        <a class="nav-link" href="?edit=true&user={current_user}" target="_self">Edit Content</a>
-    </div>
+    <a class="nav-link" href="?edit=true&user={current_user}" target="_self">Edit Content</a>
 """
 
 nav_items += f"""
-    <div class="nav-item">
-        <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
-    </div>
-    <div class="nav-item">
-            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
-    </div>
-    <div class="nav-item">
-            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
-    </div>
-    <div class="nav-item">
-        <a class="nav-link" href="?logout=true" target="_self">Logout</a>
-    </div>
+    <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+    <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+    <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
+    <a class="nav-link" href="?logout=true" target="_self">Logout</a>
 """
 
 st.markdown(f"""
     <div class="nav-wrapper">
-        <div class="logo">Resume Creator</div>
-        <div class="nav-menu">
-            {nav_items}
+        <div class="nav-container">
+            <div class="logo">ResumeAI</div>
+            <div class="nav-menu">
+                {nav_items}
        
     </div>
 """, unsafe_allow_html=True)

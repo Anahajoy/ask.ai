@@ -438,60 +438,427 @@ def apply_custom_css():
 # Get current user and ensure it's preserved in session state
 current_user = st.session_state.get('logged_in_user', '')
 st.markdown("""
-    <style>
-      .nav-wrapper {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90%;
-    max-width: 1200px;
-    z-index: 99999 !important;
-    background-color: white !important;
-    padding: 0.8rem 2rem;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 50px;
-}
+   <style>
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+    #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
+     
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+    
+    :root {
+        --primary-blue: #e87532;
+        --primary-blue-hover: #1d4ed8;
+        --secondary-blue: #3b82f6;
+        --light-blue: #60a5fa;
+        --accent-blue: #1e40af;
+        --bg-dark: #0f172a;
+        --bg-card: #1e293b;
+        --bg-card-hover: #283447;
+        --text-white: #ffffff;
+        --text-gray: #94a3b8;
+        --text-light-gray: #cbd5e1;
+        --text-blue: #60a5fa;
+        --border-gray: #334155;
+        --border-light: #475569;
+        --success-green: #10b981;
+        --warning-yellow: #f59e0b;
+        --danger-red: #ef4444;
+        --border: #E5E5E5;
+    }
+    
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stApp {
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    /* Remove default Streamlit padding */
+    .main .block-container {
+        padding-top: 100px !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        max-width: 100% !important;
+    }
 
-.logo {
-    font-size: 24px;
-    font-weight: 400;
-    color: #2c3e50;
-    font-family: 'Nunito Sans', sans-serif !important;
-    letter-spacing: -0.5px;
-}
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
 
-.nav-menu {
-    display: flex;
-    gap: 2rem;
-    align-items: center;
-}
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 
-.nav-item { position: relative; }
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
 
-.nav-link {
-    color: #000000 !important;
-    text-decoration: none !important;
-    font-size: 1rem;
-    font-family: 'Nunito Sans', sans-serif;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, #FF6B35 0%, #FFA500 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
 
-.nav-link:visited {
-    color: #000000 !important;
-}
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
 
-.nav-link:hover {
-    background-color: #fff5f0;
-    color: #ff8c42 !important;  /* Added !important to override the default color */
-}
-    </style>
+    .nav-item { 
+        position: relative; 
+    }
+
+    .nav-link {
+        color: #666666 !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-link:hover {
+        color: #FF6B35 !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    .nav-link:visited {
+        color: #666666 !important;
+    }
+    
+    /* Panel Container Styling */
+    .panel-container {
+        height: calc(100vh - 120px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* Left Panel - Narrower */
+    .left-panel {
+        background: #e87532;
+        color: white;
+    }
+    
+    .left-panel h1, .left-panel h2, .left-panel h3, .left-panel p, .left-panel label {
+        color: #ffffff !important;
+    }
+    
+    /* Middle Panel - Medium width */
+    .middle-panel {
+        background: white;
+    }
+    
+    /* Right Panel - Wider */
+    .right-panel {
+        background: white;
+    }
+    
+    /* Scrollbar Styling */
+    .panel-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .panel-container::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.1);
+        border-radius: 10px;
+    }
+    
+    .panel-container::-webkit-scrollbar-thumb {
+        background: #e87532;
+        border-radius: 10px;
+    }
+    
+    .panel-container::-webkit-scrollbar-thumb:hover {
+        background: #d66829;
+    }
+    
+    /* SIDEBAR BUTTONS */
+    .left-panel .stButton > button {
+        background: #ffffff !important;
+        color: #e87532 !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.85rem 1.3rem !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        width: 100% !important;
+        margin-bottom: 0.6rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 14px rgba(255, 255, 255, 0.3) !important;
+        text-transform: none !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    .left-panel .stButton > button:hover {
+        background: #f8f9fa !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4) !important;
+        color: #d66829 !important;
+    }
+    
+    /* Resume Section Styling */
+    .resume-section {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .resume-section h2 {
+        color: #1f2937 !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 1.2rem !important;
+        padding-bottom: 0.8rem !important;
+        border-bottom: 2px solid #e87532 !important;
+        letter-spacing: 0.3px !important;
+    }
+    
+    .resume-section h3 {
+        color: #e87532 !important;
+        font-size: 1.2rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.8rem !important;
+        letter-spacing: 0.2px !important;
+    }
+    
+    /* Custom Section Header Styling */
+    .custom-section-header {
+        color: #1f2937 !important;
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 1rem !important;
+        text-transform: capitalize !important;
+        letter-spacing: 0.3px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+    
+    .custom-section-header::before {
+        content: '📋';
+        font-size: 1.2rem;
+    }
+    
+    /* Item Titles & Subtitles */
+    .resume-section .item-title {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        color: #1f2937 !important;
+        margin-bottom: 0.4rem !important;
+        display: block !important;
+        letter-spacing: 0.2px !important;
+    }
+
+    .resume-section .item-subtitle {
+        font-size: 1rem !important;
+        color: #4b5563 !important;
+        margin-bottom: 0.3rem !important;
+        font-weight: 500 !important;
+        display: block !important;
+    }
+
+    .resume-section .item-details {
+        color: #6b7280 !important;
+        margin-bottom: 0.5rem !important;
+        font-size: 0.9rem !important;
+        font-style: italic !important;
+    }
+
+    /* Bullet Lists */
+    .resume-section .bullet-list {
+        list-style-type: disc !important;
+        margin: 0.6rem 0 !important;
+        padding-left: 1.5rem !important;
+        color: #374151 !important;
+    }
+
+    .resume-section .bullet-list li {
+        color: #374151 !important;
+        margin-bottom: 0.4rem !important;
+        line-height: 1.6 !important;
+        list-style-type: disc !important;
+    }
+
+    /* Skill Lists */
+    .resume-section .skill-list {
+        list-style-type: none !important;
+        padding-left: 0 !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+
+    .resume-section .skill-list li.skill-item {
+        display: inline-flex !important;
+        align-items: center !important;
+        background: linear-gradient(135deg, rgba(232, 117, 50, 0.1) 0%, rgba(232, 117, 50, 0.05) 100%) !important;
+        padding: 0.5rem 1rem !important;
+        margin: 0 !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(232, 117, 50, 0.3) !important;
+        color: #e87532 !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .resume-section .skill-list li.skill-item:hover {
+        background: linear-gradient(135deg, rgba(232, 117, 50, 0.2) 0%, rgba(232, 117, 50, 0.15) 100%) !important;
+        border-color: rgba(232, 117, 50, 0.5) !important;
+        transform: translateY(-2px);
+    }
+
+    /* Custom Section Content */
+    .custom-section-content {
+        background: #f9fafb !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        padding: 1.2rem !important;
+        color: #374151 !important;
+        font-size: 0.95rem !important;
+        line-height: 1.7 !important;
+        white-space: pre-line !important;
+    }
+    
+    /* Input Fields */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        background: #ffffff !important;
+        border: 2px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        color: #1f2937 !important;
+        padding: 0.75rem !important;
+        font-size: 0.9rem !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #e87532 !important;
+        box-shadow: 0 0 0 3px rgba(232, 117, 50, 0.1) !important;
+        outline: none !important;
+    }
+    
+    .stTextInput > label,
+    .stTextArea > label {
+        color: #374151 !important;
+        font-weight: 600 !important;
+        font-size: 0.9rem !important;
+        margin-bottom: 0.4rem !important;
+    }
+    
+    /* Delete button styling */
+    .stButton > button[kind="secondary"] {
+        background: #9FC0DE !important;
+        color: #ffffff !important;
+        border: 1px solid #9FC0DE !important;
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        background: #ffffff !important;
+        border-color: #9FC0DE !important;
+        color : #9FC0DE !important;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: #e87532 !important;
+        color: #ffffff !important;
+        border: 1px solid #e87532 !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: #ffffff !important;
+        border-color: #e87532 !important;
+        color: #e87532 !important;
+    }
+
+    /* LIVE PREVIEW MOCK UI BOX */
+    .preview-box {
+        width: 100%;
+        height: 100%;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    
+    .preview-header {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    
+    .preview-content {
+        background: #fafafa;
+        height: calc(100% - 50px);
+        border-radius: 8px;
+        border: 1px dashed #d1d5db;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 0.9rem;
+    }
+
+    /* Responsive Navigation */
+    @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
+
+        .nav-menu {
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .logo {
+            font-size: 22px;
+        }
+    }
+</style>
     """, unsafe_allow_html=True)
 
 ats_url = f"ats?user={current_user}"
@@ -499,30 +866,19 @@ qu_url = f"qu?user={current_user}"
 # Use f-string to properly interpolate the user variable
 st.markdown(f"""
 <div class="nav-wrapper">
-    <div class="logo">Resume Creator</div>
-    <div class="nav-menu">
-        <div class="nav-item">
+    <div class="nav-container">
+        <div class="logo">Resume Creator</div>
+        <div class="nav-menu">
             <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
-        </div>
-        <div class="nav-item">
-             <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
-        </div>
-        <div class="nav-item">
-             <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
-        </div>
-        <div class="nav-item">
+            <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
+            <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
-        </div>
-        <div class="nav-item">
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 # Handle navigation - PRESERVE USER IN SESSION STATE
 if st.query_params.get("addjd") == "true":
     st.query_params.clear()

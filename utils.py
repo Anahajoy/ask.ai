@@ -3953,6 +3953,7 @@ def show_login_modal():
             font-family: 'Inter', sans-serif !important;
             box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3) !important;
             margin-top: 1rem !important;
+            margin-left: 150px !important;
         }
         
         [data-testid="stButton"] button:hover {
@@ -3970,7 +3971,7 @@ def show_login_modal():
             display: block !important;
             visibility: visible !important;
             max-width: 400px !important;  /* ADDED: Constrain button container */
-            margin: 0 auto !important; 
+           
         }
 
         /* Column alignment */

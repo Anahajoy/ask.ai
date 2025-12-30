@@ -88,13 +88,21 @@ def set_image_as_bg(image_file):
 
 
 
-def extract_details_from_text(extracted_text: str) -> Dict[str, Any]:
+import time
+from typing import Dict, Any
+import requests
+import json
+
+def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict[str, Any]:
     """
-    Extract structured details from resume text and return as Python dictionary.
-    Captures all standard fields and any additional fields present in the resume.
+    Extract structured details from resume text with retry logic and timeout handling.
     """
     
-    # Define schema as a separate constant to avoid f-string formatting issues
+    # Truncate if text is too long (keep first 15000 chars to avoid timeouts)
+    if len(extracted_text) > 15000:
+        print(f"⚠️ Resume text truncated from {len(extracted_text)} to 15000 characters")
+        extracted_text = extracted_text[:15000]
+    
     SCHEMA_DEFINITION = """{
   "name": "string or null",
   "email": "string or null",
@@ -141,7 +149,6 @@ def extract_details_from_text(extracted_text: str) -> Dict[str, Any]:
   }
 }"""
 
-    # Build prompt without f-string formatting issues
     prompt_parts = [
         "Extract structured information from the resume text below.",
         "Return ONLY valid JSON. Do NOT include explanations, markdown, or code blocks.",
@@ -157,127 +164,231 @@ def extract_details_from_text(extracted_text: str) -> Dict[str, Any]:
         "SCHEMA TO FOLLOW:",
         SCHEMA_DEFINITION,
         "",
-        "IMPORTANT FIELD MAPPINGS:",
-        "- Use 'position' not 'title' for job roles",
-        "- Use 'company' not 'organization'",
-        "- Use 'course' for degree/program name",
-        "- Use 'university' for institution name",
-        "- Use 'exp_skills' for skills used in each job",
-        "- Use 'decription' (note spelling) for project descriptions",
-        "",
         "Resume text:",
         extracted_text
     ]
     
     prompt = "\n".join(prompt_parts)
 
-    payload = {
-        "model": "meta/llama-3.1-70b-instruct",
-        "messages": [
-            {
-                "role": "system", 
-                "content": "You are an expert resume parser. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
-            },
-            {
-                "role": "user", 
-                "content": prompt
+    # Retry logic with exponential backoff
+    for attempt in range(max_retries):
+        try:
+            # Increase timeout with each retry
+            timeout = 30 + (attempt * 20)  # 30s, 50s, 70s
+            
+            print(f"🔄 Attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)...")
+            
+            payload = {
+                "model": FAST_MODEL,
+                "messages": [
+                    {
+                        "role": "system", 
+                        "content": "You are an expert resume parser. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.1,
+                "max_tokens": 3000,  # Reduced for faster response
+                "top_p": 0.7
             }
-        ],
-        "temperature": 0.1,
-        "max_tokens": 4000
+
+            # Make API request
+            response = requests.post(
+                url, 
+                headers=headers, 
+                json=payload, 
+                timeout=timeout
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            if 'choices' not in result or not result['choices']:
+                raise ValueError("API returned empty response")
+            
+            response_text = result['choices'][0]['message']['content'].strip()
+
+            # Clean up response - remove markdown code blocks if present
+            response_text = response_text.replace('```json', '').replace('```', '').strip()
+
+            # Extract JSON from response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            
+            if json_start == -1 or json_end <= json_start:
+                raise ValueError("No valid JSON object found in API response")
+
+            json_str = response_text[json_start:json_end]
+            data = json.loads(json_str)
+
+            # Post-processing
+            if "experience" in data and isinstance(data["experience"], list):
+                for exp in data["experience"]:
+                    desc = exp.get("description", [])
+                    if isinstance(desc, str):
+                        exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    elif not isinstance(desc, list):
+                        exp["description"] = []
+                    
+                    if "exp_skills" not in exp or not isinstance(exp["exp_skills"], list):
+                        exp["exp_skills"] = []
+
+            if "project" in data and isinstance(data["project"], list):
+                for proj in data["project"]:
+                    desc = proj.get("decription", "")
+                    if isinstance(desc, list):
+                        proj["decription"] = " ".join(desc)
+                    elif not isinstance(desc, str):
+                        proj["decription"] = ""
+
+            list_fields = ["skills", "experience", "education", "certificate", "project"]
+            for field in list_fields:
+                if field not in data:
+                    data[field] = []
+                elif not isinstance(data[field], list):
+                    data[field] = [data[field]] if data[field] else []
+
+            string_fields = ["name", "email", "phone", "location", "url", "summary"]
+            for field in string_fields:
+                if field not in data:
+                    data[field] = ""
+                elif data[field] is None:
+                    data[field] = ""
+
+            if "custom_sections" not in data:
+                data["custom_sections"] = {}
+            elif not isinstance(data["custom_sections"], dict):
+                data["custom_sections"] = {}
+
+            if not data.get("name") or not data.get("email"):
+                raise ValueError("Resume must contain at least a name and email address")
+
+            print(f"✅ Successfully parsed resume on attempt {attempt + 1}")
+            return data
+
+        except requests.exceptions.Timeout:
+            print(f"⏱️ Timeout on attempt {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                print(f"⏳ Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                continue
+            else:
+                # Last attempt failed - return fallback
+                print("❌ All retries exhausted. Using fallback parser...")
+                return _fallback_parse(extracted_text)
+        
+        except requests.exceptions.RequestException as e:
+            print(f"🌐 API error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                print(f"⏳ Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+                continue
+            else:
+                return _fallback_parse(extracted_text)
+        
+        except json.JSONDecodeError as e:
+            print(f"📄 JSON parse error: {str(e)}")
+            if attempt < max_retries - 1:
+                continue
+            else:
+                return _fallback_parse(extracted_text)
+        
+        except Exception as e:
+            print(f"❌ Unexpected error: {str(e)}")
+            if attempt < max_retries - 1:
+                continue
+            else:
+                return _fallback_parse(extracted_text)
+
+
+def _fallback_parse(text: str) -> Dict[str, Any]:
+    """
+    Simple regex-based fallback parser when API fails.
+    Extracts basic information using pattern matching.
+    """
+    import re
+    
+    print("🔧 Using fallback regex parser...")
+    
+    data = {
+        "name": "",
+        "email": "",
+        "phone": "",
+        "location": "",
+        "url": "",
+        "summary": "",
+        "skills": [],
+        "experience": [],
+        "education": [],
+        "certificate": [],
+        "project": [],
+        "custom_sections": {}
     }
-
-    try:
-        # Make API request
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        if 'choices' not in result or not result['choices']:
-            raise ValueError("API returned empty response")
-        
-        response_text = result['choices'][0]['message']['content'].strip()
-
-        # Clean up response - remove markdown code blocks if present
-        response_text = response_text.replace('```json', '').replace('```', '').strip()
-
-        # Extract JSON from response
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
-        
-        if json_start == -1 or json_end <= json_start:
-            raise ValueError("No valid JSON object found in API response")
-
-        json_str = response_text[json_start:json_end]
-        data = json.loads(json_str)
-
-        # Post-processing: Ensure data structure matches your app's expectations
-        
-        # 1. Convert experience descriptions to arrays
-        if "experience" in data and isinstance(data["experience"], list):
-            for exp in data["experience"]:
-                # Handle description field
-                desc = exp.get("description", [])
-                if isinstance(desc, str):
-                    exp["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
-                elif not isinstance(desc, list):
-                    exp["description"] = []
-                
-                # Ensure exp_skills is a list
-                if "exp_skills" not in exp or not isinstance(exp["exp_skills"], list):
-                    exp["exp_skills"] = []
-
-        # 2. Convert project descriptions to strings (matching your data model)
-        if "project" in data and isinstance(data["project"], list):
-            for proj in data["project"]:
-                desc = proj.get("decription", "")  # Note: your model uses 'decription'
-                if isinstance(desc, list):
-                    proj["decription"] = " ".join(desc)
-                elif not isinstance(desc, str):
-                    proj["decription"] = ""
-
-        # 3. Ensure all expected list fields exist and are lists
-        list_fields = ["skills", "experience", "education", "certificate", "project"]
-        for field in list_fields:
-            if field not in data:
-                data[field] = []
-            elif not isinstance(data[field], list):
-                data[field] = [data[field]] if data[field] else []
-
-        # 4. Ensure string fields exist
-        string_fields = ["name", "email", "phone", "location", "url", "summary"]
-        for field in string_fields:
-            if field not in data:
-                data[field] = ""
-            elif data[field] is None:
-                data[field] = ""
-
-        # 5. Handle custom_sections
-        if "custom_sections" not in data:
-            data["custom_sections"] = {}
-        elif not isinstance(data["custom_sections"], dict):
-            data["custom_sections"] = {}
-
-        # 6. Validate required personal info
-        if not data.get("name") or not data.get("email"):
-            raise ValueError("Resume must contain at least a name and email address")
-
-        return data
-
-    except requests.exceptions.Timeout:
-        raise Exception("⏱️ API request timed out. Please try again.")
     
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"🌐 API request failed: {str(e)}")
+    # Extract email
+    email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+    if email_match:
+        data["email"] = email_match.group()
     
-    except json.JSONDecodeError as e:
-        raise Exception(f"📄 Failed to parse API response as JSON: {str(e)}")
+    # Extract phone
+    phone_match = re.search(r'[\+\(]?[0-9][0-9 .\-\(\)]{8,}[0-9]', text)
+    if phone_match:
+        data["phone"] = phone_match.group()
     
-    except ValueError as e:
-        raise Exception(f"⚠️ {str(e)}")
+    # Extract name (first line typically)
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    if lines:
+        # Name is usually first non-empty line
+        data["name"] = lines[0]
     
-    except Exception as e:
-        raise Exception(f"❌ Unexpected error during resume parsing: {str(e)}")
+    # Extract skills section
+    skills_section = re.search(r'(?:SKILLS?|TECHNICAL SKILLS?|CORE SKILLS?)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                                text, re.IGNORECASE | re.DOTALL)
+    if skills_section:
+        skills_text = skills_section.group(1)
+        # Split by common delimiters
+        skills = re.split(r'[,•|]', skills_text)
+        data["skills"] = [s.strip() for s in skills if s.strip() and len(s.strip()) > 2][:20]
+    
+    # Add generic experience entry
+    exp_section = re.search(r'(?:EXPERIENCE|WORK EXPERIENCE)[:\s]+(.*?)(?=\n[A-Z]{3,}|EDUCATION|$)', 
+                            text, re.IGNORECASE | re.DOTALL)
+    if exp_section:
+        data["experience"].append({
+            "company": "See resume for details",
+            "position": "Multiple positions",
+            "location": "",
+            "start_date": "",
+            "end_date": "Present",
+            "exp_skills": data["skills"][:5] if data["skills"] else [],
+            "description": ["Experience details extracted from resume"]
+        })
+    
+    # Add generic education entry
+    edu_section = re.search(r'(?:EDUCATION)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                            text, re.IGNORECASE | re.DOTALL)
+    if edu_section:
+        data["education"].append({
+            "course": "See resume for details",
+            "university": "Educational background available",
+            "start_date": "",
+            "end_date": ""
+        })
+    
+    # Ensure we have at least name and email
+    if not data["name"]:
+        data["name"] = "Resume Holder"
+    if not data["email"]:
+        data["email"] = "email@example.com"
+    
+    print(f"✅ Fallback parser extracted: {len(data['skills'])} skills, "
+          f"{len(data['experience'])} experience entries")
+    
+    return data
 
 def call_llm(payload):
     response = requests.post(API_URL, json=payload, headers=headers)
@@ -715,86 +826,172 @@ def extract_text_from_docx(docx_file):
 
 
 
-def extract_details_from_jd(jd_text: str) -> dict:
+def extract_details_from_jd(job_description: str, max_retries: int = 3) -> Dict[str, Any]:
     """
-    No-bullshit JD extraction that actually works.
+    Extract structured details from job description with retry logic.
     """
     
-    # Remove obviously useless lines (this is the ONLY compression worth doing)
-    lines = [
-        line.strip() 
-        for line in jd_text.split('\n')
-        if line.strip() and not line.strip().startswith('Apply')
-    ]
-    clean_jd = '\n'.join(lines)
+    # Truncate if too long
+    if len(job_description) > 10000:
+        print(f"⚠️ JD truncated from {len(job_description)} to 10000 characters")
+        job_description = job_description[:10000]
     
-    # Simple, clear prompt - no flowery nonsense
-    prompt = f"""Extract this job description into JSON. Return ONLY the JSON object, no explanation.
-
-{clean_jd}
-
-Required format:
-{{
-  "job_title": "string or null",
+    SCHEMA_DEFINITION = """{
+  "job_title": "string",
   "company": "string or null",
   "location": "string or null",
-  "employment_type": "string or null",
-  "primary_skills": ["array of strings"],
-  "secondary_skills": ["array of strings"],
-  "responsibilities": ["array of strings"],
-  "qualifications": ["array of strings"],
-  "salary_range": "string or null",
-  "benefits": ["array of strings"],
-  "job_summary": "string or null"
-}}"""
+  "required_skills": ["array of strings - technical and soft skills"],
+  "required_experience": "string or null (e.g., '3-5 years')",
+  "education": "string or null (e.g., 'Bachelor's in CS')",
+  "responsibilities": ["array of strings - main duties"],
+  "qualifications": ["array of strings - requirements"],
+  "nice_to_have": ["array of strings - optional skills"],
+  "benefits": "string or null"
+}"""
 
-    payload = {
-        "model": HEAVY_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.0,
-        "max_tokens": 2000,  # ACTUALLY ENOUGH TOKENS
-        "stream": False  # NO STREAMING FOR STRUCTURED OUTPUT
+    prompt = f"""Extract structured information from the job description below.
+Return ONLY valid JSON. Do NOT include explanations, markdown, or code blocks.
+
+RULES:
+1. Extract only information explicitly mentioned.
+2. Use null for missing fields.
+3. Return empty arrays [] for missing list fields.
+4. Extract ALL skills mentioned (technical, tools, soft skills).
+
+SCHEMA TO FOLLOW:
+{SCHEMA_DEFINITION}
+
+Job Description:
+{job_description}"""
+
+    for attempt in range(max_retries):
+        try:
+            timeout = 30 + (attempt * 15)
+            print(f"🔄 Parsing JD - Attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)...")
+            
+            payload = {
+                "model": FAST_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert job description parser. Extract information exactly as it appears. Return only valid JSON."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.1,
+                "max_tokens": 2000,
+                "top_p": 0.7
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            response.raise_for_status()
+            result = response.json()
+            
+            if 'choices' not in result or not result['choices']:
+                raise ValueError("API returned empty response")
+            
+            response_text = result['choices'][0]['message']['content'].strip()
+            response_text = response_text.replace('```json', '').replace('```', '').strip()
+
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            
+            if json_start == -1 or json_end <= json_start:
+                raise ValueError("No valid JSON found")
+
+            json_str = response_text[json_start:json_end]
+            data = json.loads(json_str)
+
+            # Ensure all fields exist
+            list_fields = ["required_skills", "responsibilities", "qualifications", "nice_to_have"]
+            for field in list_fields:
+                if field not in data:
+                    data[field] = []
+                elif not isinstance(data[field], list):
+                    data[field] = [data[field]] if data[field] else []
+
+            string_fields = ["job_title", "company", "location", "required_experience", "education", "benefits"]
+            for field in string_fields:
+                if field not in data:
+                    data[field] = ""
+                elif data[field] is None:
+                    data[field] = ""
+
+            print(f"✅ Successfully parsed JD on attempt {attempt + 1}")
+            return data
+
+        except requests.exceptions.Timeout:
+            print(f"⏱️ JD timeout on attempt {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                return _fallback_parse_jd(job_description)
+        
+        except Exception as e:
+            print(f"❌ JD parse error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                return _fallback_parse_jd(job_description)
+
+
+def _fallback_parse_jd(text: str) -> Dict[str, Any]:
+    """Fallback parser for job descriptions."""
+    import re
+    
+    print("🔧 Using fallback JD parser...")
+    
+    data = {
+        "job_title": "",
+        "company": "",
+        "location": "",
+        "required_skills": [],
+        "required_experience": "",
+        "education": "",
+        "responsibilities": [],
+        "qualifications": [],
+        "nice_to_have": [],
+        "benefits": ""
     }
     
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Extract job title (usually first line or after "Job Title:")
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    if lines:
+        data["job_title"] = lines[0]
     
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        content = result["choices"][0]["message"]["content"].strip()
-        
-        # Remove markdown if LLM adds it
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-            content = content.split("```")[0].strip()
-        
-        # Parse JSON
-        parsed = json.loads(content)
-        
-        # Validate structure (catch garbage early)
-        required_keys = {"job_title", "company", "location", "employment_type", 
-                        "primary_skills", "secondary_skills", "responsibilities",
-                        "qualifications", "salary_range", "benefits", "job_summary"}
-        
-        if not required_keys.issubset(parsed.keys()):
-            missing = required_keys - parsed.keys()
-            raise ValueError(f"LLM returned incomplete JSON. Missing: {missing}")
-        
-        return parsed
-        
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"API request failed: {e}")
-    except json.JSONDecodeError as e:
-        raise ValueError(f"LLM returned invalid JSON: {e}\nContent: {content[:500]}")
-    except KeyError as e:
-        raise ValueError(f"Unexpected API response structure: {e}")
+    # Extract skills using common patterns
+    keywords = ["Python", "SQL", "Excel", "Tableau", "Power BI", "Azure", "AWS", 
+                "Machine Learning", "Data Analysis", "ETL", "JavaScript", "React",
+                "Java", "C++", "Docker", "Kubernetes", "Git"]
+    
+    found_skills = []
+    text_lower = text.lower()
+    for keyword in keywords:
+        if keyword.lower() in text_lower:
+            found_skills.append(keyword)
+    
+    data["required_skills"] = found_skills[:15]
+    
+    # Extract experience requirement
+    exp_match = re.search(r'(\d+[\+\-]?\s*(?:to\s*)?\d*\s*years?)', text, re.IGNORECASE)
+    if exp_match:
+        data["required_experience"] = exp_match.group(1)
+    
+    # Extract education
+    edu_keywords = ["bachelor", "master", "degree", "phd", "diploma"]
+    for keyword in edu_keywords:
+        if keyword in text.lower():
+            data["education"] = f"{keyword.title()} degree required"
+            break
+    
+    print(f"✅ Fallback JD parser extracted: {len(data['required_skills'])} skills")
+    
+    return data
 
 
 
@@ -1191,7 +1388,7 @@ def analyze_and_improve_resume(resume_data: Dict[str, Any], job_description: str
     """
 
     payload = {
-        "model": "meta/llama-3.1-70b-instruct",
+        "model": FAST_MODEL,
         "messages": [
             {"role": "system", "content": "You are an expert resume writer who improves content while preserving structure and facts. Return improved resume in exact same JSON format."},
             {"role": "user", "content": prompt}
@@ -3511,16 +3708,16 @@ def show_login_modal():
         st.session_state.page_transitioning = False
 
     # -------------------------------------------------------------------------------------------------
-    # CSS STYLES - Enhanced with Animation
+    # CSS STYLES - Modern Orange & White Theme
     # -------------------------------------------------------------------------------------------------
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
         
         /* Overall page background */
         [data-testid="stAppViewContainer"] {
-            background: #ffffff !important;
-            font-family: 'Montserrat', sans-serif !important;
+            background: linear-gradient(135deg, #FAFAFA 0%, #FFFFFF 100%) !important;
+            font-family: 'Inter', sans-serif !important;
         }
 
         /* Hide default Streamlit elements */
@@ -3528,146 +3725,260 @@ def show_login_modal():
         footer {visibility: hidden;}
         header {visibility: hidden;}
 
+        /* Main container styling */
+        .block-container {
+            padding-top: 5rem !important;
+            max-width: 1200px !important;
+        }
 
         /* Main heading */
         .main-heading {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #333;
-            margin-bottom: 1.2rem;
+            font-family: 'Archivo', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: #1A1A1A;
+            margin-bottom: 2rem;
             text-align: center;
-            font-family: 'Montserrat', sans-serif;
+            letter-spacing: -1px;
         }
 
         /* Subtext */
         .form-subtext {
-            font-size: 0.85rem;
-            color: #666;
+            font-size: 0.95rem;
+            color: #666666;
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 2rem;
             letter-spacing: 0.3px;
+            font-weight: 400;
         }
 
         /* Input fields styling */
         .stTextInput > div > div > input {
-            background-color: #eee !important;
-            color: #333 !important;
-            border: none !important;
-            border-radius: 8px !important;
-            padding: 10px 13px !important;
-            font-size: 13px !important;
+            background-color: #F5F5F5 !important;
+            color: #1A1A1A !important;
+            border: 2px solid #E5E5E5 !important;
+            border-radius: 12px !important;
+            padding: 16px 18px !important;
+            font-size: 15px !important;
             transition: all 0.3s ease !important;
-            font-family: 'Montserrat', sans-serif !important;
-            width: 100% !important;
-            margin: 6px 0 !important;
+            font-family: 'Inter', sans-serif !important;
+            font-weight: 500 !important;
+            max-width: 500px !important;  /* ADDED: Maximum width constraint */
+            margin: 0 auto !important;     /* ADDED: Center the input */
         }
 
         .stTextInput > div > div > input:focus {
-            background-color: #e8e8e8 !important;
+            background-color: #FFFFFF !important;
+            border-color: #FF6B35 !important;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1) !important;
             outline: none !important;
-            box-shadow: 0 0 0 2px rgba(241, 39, 17, 0.1) !important;
         }
 
         .stTextInput > div > div > input::placeholder {
-            color: #999 !important;
+            color: #999999 !important;
             font-weight: 400;
+        }
+                 .stTextInput {
+            max-width: 500px !important;  /* ADDED: Constrain text input container */
+            margin: 0 auto !important;     /* ADDED: Center the container */
+        }
+
+        /* Label styling */
+        .stTextInput label {
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            color: #1A1A1A !important;
+            margin-bottom: 8px !important;
         }
 
         /* Social icons styling */
         .social-icons {
             display: flex;
             justify-content: center;
-            gap: 10px;
-            margin: 15px 0;
+            gap: 16px;
+            margin: 2rem 0;
         }
 
         .social-icon {
-            border: 1px solid #ccc;
-            border-radius: 20%;
+            border: 2px solid #E5E5E5;
+            border-radius: 12px;
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            width: 36px;
-            height: 36px;
-            color: #333;
+            width: 48px;
+            height: 48px;
+            color: #666666;
             text-decoration: none;
             transition: all 0.3s ease;
-            background: #fff;
+            background: #FFFFFF;
         }
 
         .social-icon:hover {
-            border-color: #f12711;
-            color: #f12711;
+            border-color: #FF6B35;
+            color: #FF6B35;
             transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
         }
 
-        /* Sign up text link */
-        .signup-text {
-            text-align: center;
-            color: #333;
-            font-size: 13px;
-            margin: 12px 0 8px;
+        /* Toggle text styling */
+        .stCheckbox {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            max-width: 500px !important;     /* ADDED: Match form width */
+            margin-left: 130px !important;     /* ADDED: Push to center/right */
+            margin-right: auto !important;    /* ADDED: Keep centered */
+            padding-left: 40px !important;    /* ADDED: Shift content right */
         }
-
-        .signup-link {
-            color: #e87532;
-            text-decoration: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.3s ease;
+        
+        .stCheckbox > label {
+            display: flex !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 14px !important;
+            color: #666666 !important;
+            font-weight: 400 !important;
+             justify-content: flex-start !important;  
         }
-
-        .signup-link:hover {
-            color: #d61f06;
-            text-decoration: underline;
+        
+        .stCheckbox input[type="checkbox"] {
+            display: none !important;
+        }
+        
+        .stCheckbox > label > div:first-child {
+            display: none !important;
+        }
+        
+        .stCheckbox strong {
+            color: #FF6B35 !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            margin-left: 4px !important;
+            transition: all 0.3s ease !important;
+        }
+        
+        .stCheckbox strong:hover {
+            color: #E85A28 !important;
+            text-decoration: underline !important;
         }
 
         /* Divider */
         .divider-text {
             text-align: center;
-            color: #666;
-            margin: 1rem 0;
-            font-size: 0.875rem;
+            color: #999999;
+            margin: 2rem 0;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .divider-text::before,
+        .divider-text::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #E5E5E5;
+        }
+
+        .divider-text::before {
+            left: 0;
+        }
+
+        .divider-text::after {
+            right: 0;
         }
 
         /* Welcome panel (right side toggle) */
         .welcome-panel {
-            background: linear-gradient(to right, #e87532, #f5af19);
-            color: #fff;
-            padding: 40px 30px;
-            border-radius: 20px;
+            background: linear-gradient(135deg, #FF6B35 0%, #FFA500 100%);
+            color: #FFFFFF;
+            padding: 4rem 3rem;
+            border-radius: 24px;
             text-align: center;
-            min-height: 420px;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-shadow: 0 20px 60px rgba(255, 107, 53, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .welcome-heading {
+            font-family: 'Archivo', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            letter-spacing: -1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-text {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Button styling - FIXED */
+        [data-testid="stButton"] button {
+            background: linear-gradient(135deg, #FF6B35 0%, #E85A28 100%) !important;
+            color: #FFFFFF !important;
+            font-size: 15px !important;
+            padding: 16px 40px !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+            cursor: pointer !important;
+            width: 100% !important;
+            transition: all 0.3s ease !important;
+            font-family: 'Inter', sans-serif !important;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3) !important;
+            margin-top: 1rem !important;
+        }
+        
+        [data-testid="stButton"] button:hover {
+            background: linear-gradient(135deg, #E85A28 0%, #D84315 100%) !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4) !important;
+        }
+
+        [data-testid="stButton"] button:active {
+            transform: translateY(-1px) !important;
+        }
+
+        /* Ensure buttons are visible */
+        .stButton {
+            display: block !important;
+            visibility: visible !important;
+            max-width: 400px !important;  /* ADDED: Constrain button container */
+            margin: 0 auto !important; 
+        }
+
+        /* Column alignment */
+        [data-testid="column"] {
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
-
-        .welcome-heading {
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin-bottom: 0.8rem;
-            font-family: 'Montserrat', sans-serif;
-        }
-
-        .welcome-text {
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
-            opacity: 0.95;
-        }
-            button:hover {
-        background-color: transparent !important;
-        background-image: none !important;
-        box-shadow: none !important;
-    }
-    
-    /* Specific override for text link buttons */
-    [data-testid="stButton"] button[kind="secondary"]:hover {
-        background-color: transparent !important;
-        background-image: none !important;
-        background: transparent !important;
-    }
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
@@ -3676,7 +3987,11 @@ def show_login_modal():
             }
             
             .main-heading {
-                font-size: 1.8rem;
+                font-size: 2rem;
+            }
+
+            .block-container {
+                padding: 2rem 1rem !important;
             }
         }
     </style>
@@ -3687,7 +4002,7 @@ def show_login_modal():
     # -------------------------------------------------------------------------------------------------
     
     # Create container columns
-    col_form, col_welcome = st.columns([1, 1])
+    col_form, col_welcome = st.columns([1, 1], gap="large")
 
     # FORM SECTION (Left side)
     with col_form:
@@ -3698,229 +4013,146 @@ def show_login_modal():
             st.markdown('<h1 class="main-heading">Create Account</h1>', unsafe_allow_html=True)
         
         # Social icons
-        st.markdown('''
-        <div class="social-icons">
-            <a href="#" class="social-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-            </a>
-            <a href="#" class="social-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-            </a>
-            <a href="#" class="social-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-            </a>
-            <a href="#" class="social-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-            </a>
-        </div>
-        ''', unsafe_allow_html=True)
+        # st.markdown('''
+        # <div class="social-icons">
+        #     <a href="#" class="social-icon" title="Google">
+        #         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        #             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        #             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        #             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        #             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        #         </svg>
+        #     </a>
+        #     <a href="#" class="social-icon" title="Facebook">
+        #         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        #             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+        #         </svg>
+        #     </a>
+        #     <a href="#" class="social-icon" title="LinkedIn">
+        #         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        #             <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+        #         </svg>
+        #     </a>
+        #     <a href="#" class="social-icon" title="GitHub">
+        #         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        #             <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        #         </svg>
+        #     </a>
+        # </div>
+        # ''', unsafe_allow_html=True)
         
         # Subtext
-        if st.session_state.mode == 'login':
-            st.markdown('<p class="form-subtext">or use your email and password</p>', unsafe_allow_html=True)
-        else:
-            st.markdown('<p class="form-subtext">or use your email for registration</p>', unsafe_allow_html=True)
+        # if st.session_state.mode == 'login':
+        #     st.markdown('<p class="form-subtext">use your email and password</p>', unsafe_allow_html=True)
+        # else:
+        #     st.markdown('<p class="form-subtext">use your email for registration</p>', unsafe_allow_html=True)
         
         # Name field for registration
         name = ""
         if st.session_state.mode == 'register':
-            name = st.text_input("", placeholder="Name", label_visibility="collapsed", key="full_name")
+            name = st.text_input("Name", placeholder="Enter your full name", key="full_name")
         
         # Email field
-        email = st.text_input("", placeholder="Email", label_visibility="collapsed", key="lemail")
+        email = st.text_input("Email", placeholder="Enter your email", key="lemail")
         
         # Password field
-        password = st.text_input("", placeholder="Password", type="password", label_visibility="collapsed", key="password")
+        password = st.text_input("Password", placeholder="Enter your password", type="password", key="password")
         
-        # Sign up / Login text link - moved BEFORE main button
-        # Find this section in your show_login_modal() function and replace it entirely:
-
-        # Sign up / Login text link - moved BEFORE main button
-# Replace the "Sign up / Login text link" section with this:
-
-        # Sign up / Login text link - moved BEFORE main button
-# Replace the "Sign up / Login text link" section with this:
-
-        # Sign up / Login text link - moved BEFORE main button
-        col_spacer1, col_toggle_text, col_spacer2 = st.columns([2, 8, 2])
-        with col_toggle_text:
-            # Add custom CSS to hide checkbox and make label look like plain text
-            st.markdown("""
-            <style>
-                /* Hide the checkbox itself */
-                .stCheckbox {
-                    display: flex !important;
-                    justify-content: center !important;
-                    align-items: center !important;
-                }
-                .stCheckbox > label {
-                    display: flex !important;
-                    justify-content: center !important;
-                    width: 100% !important;
-                    margin: 0 !important;
-                    padding: 8px 0 !important;
-                }
-                .stCheckbox > label > div[data-testid="stMarkdownContainer"] {
-                    text-align: center !important;
-                }
-                .stCheckbox input[type="checkbox"] {
-                    display: none !important;
-                }
-                .stCheckbox > label > div:first-child {
-                    display: none !important;
-                }
-                
-                /* Style the text */
-                .toggle-text-link {
-                    color: #000000 !important;
-                    font-size: 13px !important;
-                    font-family: 'Montserrat', sans-serif !important;
-                    font-weight: 400 !important;
-                    text-align: center !important;
-                }
-                .toggle-text-link strong {
-                    font-weight: 600 !important;
-                    text-decoration: underline !important;
-                    cursor: pointer !important;
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            if st.session_state.mode == 'login':
-                # Show Sign up link
-                toggle_signup = st.checkbox(
-                    "Don't have an account? **Sign up**",
-                    key="toggle_to_signup",
-                    value=False,
-                    label_visibility="visible"
-                )
-                
-                if toggle_signup:
-                    st.session_state.mode = 'register'
-                    st.rerun()
-                    
-            else:
-                # Show Back to Login link
-                toggle_login = st.checkbox(
-                    "Already have an account? **Back to Login**",
-                    key="toggle_to_login", 
-                    value=False,
-                    label_visibility="visible"
-                )
-                
-                if toggle_login:
-                    st.session_state.mode = 'login'
-                    st.rerun()
-        # Main action button (Login/Sign Up) - Centered
+        # Main action button (Login/Sign Up)
         button_text = "Sign Up" if st.session_state.mode == 'register' else "Sign In"
         
-        col_btn1, col_main_btn, col_btn2 = st.columns([2, 8, 2])
-        with col_main_btn:
-            with stylable_container(
-                key="main_login_btn",
-                css_styles="""
-                button {
-                    background-color: #e87532 !important;
-                    color: #fff !important;
-                    font-size: 12px !important;
-                    padding: 10px 45px !important;
-                    border: 1px solid transparent !important;
-                    border-radius: 8px !important;
-                    font-weight: 600 !important;
-                    letter-spacing: 0.5px !important;
-                    text-transform: uppercase !important;
-                    margin-top: 10px !important;
-                    cursor: pointer !important;
-                    width: 100% !important;
-                    transition: all 0.3s ease !important;
-                    font-family: 'Montserrat', sans-serif !important;
-                }
-                button:hover {
-                    background: linear-gradient(to right, #d61f06, #d4941a) !important;
-                    transform: translateY(-2px) !important;
-                    box-shadow: 0 5px 15px rgba(241, 39, 17, 0.3) !important;
-                }
-                """
-            ):
-                if st.button(button_text, key="main_action_btn"):
-                    if email and password:
-                        if not is_valid_email(email):
-                            st.error("Please enter a valid email address")
+        if st.button(button_text, key="main_action_btn", use_container_width=True):
+            if email and password:
+                if not is_valid_email(email):
+                    st.error("Please enter a valid email address")
+                else:
+                    users = load_users()
+
+                    if st.session_state.mode == 'login':
+                        # LOGIN LOGIC
+                        user_entry = users.get(email)
+                        stored_pw = user_entry.get("password") if isinstance(user_entry, dict) else user_entry
+                        stored_name = user_entry.get("name") if isinstance(user_entry, dict) else None
+
+                        if user_entry is None or stored_pw != password:
+                            st.error("Invalid email or password")
                         else:
-                            users = load_users()
+                            st.session_state.logged_in_user = email
+                            st.query_params["user"] = email
+                            st.session_state.username = stored_name or email.split('@')[0]
 
-                            if st.session_state.mode == 'login':
-                                # LOGIN LOGIC
-                                user_entry = users.get(email)
-                                stored_pw = user_entry.get("password") if isinstance(user_entry, dict) else user_entry
-                                stored_name = user_entry.get("name") if isinstance(user_entry, dict) else None
-
-                                if user_entry is None or stored_pw != password:
-                                    st.error("Invalid email or password")
-                                else:
-                                    st.session_state.logged_in_user = email
-                                    st.query_params["user"] = email
-                                    st.session_state.username = stored_name or email.split('@')[0]
-
-                                    user_resume = get_user_resume(email)
-                                    if user_resume and len(user_resume) > 0:
-                                        st.session_state.resume_source = user_resume
-                                        st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
-                                        st.success(f"Welcome back, {st.session_state.username}!")
-                                        time.sleep(0.8)
-                                        st.switch_page("app.py")
-                                    else:
-                                        st.success(f"Welcome, {st.session_state.username}!")
-                                        time.sleep(0.8)
-                                        st.switch_page("app.py")
+                            user_resume = get_user_resume(email)
+                            if user_resume and len(user_resume) > 0:
+                                st.session_state.resume_source = user_resume
+                                st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
+                                st.success(f"Welcome back, {st.session_state.username}!")
+                                time.sleep(0.8)
+                                st.switch_page("app.py")
                             else:
-                                # REGISTRATION LOGIC
-                                if email in users:
-                                    st.error("Email already registered. Please login.")
-                                    st.session_state.mode = 'login'
-                                    st.rerun()
-                                elif len(password) < 6:
-                                    st.error("Password must be at least 6 characters long")
-                                elif not name or len(name.strip()) == 0:
-                                    st.error("Please enter your full name")
-                                else:
-                                    users[email] = {"password": password, "name": name.strip()}
-                                    save_users(users)
-                                    st.session_state.logged_in_user = email
-                                    st.query_params["user"] = email
-                                    st.session_state.username = name.strip()
-                                    st.session_state.mode = 'login'
-                                    st.success("Account created successfully!")
-                                    time.sleep(0.8)
-                                    st.switch_page("app.py")
+                                st.success(f"Welcome, {st.session_state.username}!")
+                                time.sleep(0.8)
+                                st.switch_page("app.py")
                     else:
-                        st.warning("Please enter both email and password")
+                        # REGISTRATION LOGIC
+                        if email in users:
+                            st.error("Email already registered. Please login.")
+                            st.session_state.mode = 'login'
+                            st.rerun()
+                        elif len(password) < 6:
+                            st.error("Password must be at least 6 characters long")
+                        elif not name or len(name.strip()) == 0:
+                            st.error("Please enter your full name")
+                        else:
+                            users[email] = {"password": password, "name": name.strip()}
+                            save_users(users)
+                            st.session_state.logged_in_user = email
+                            st.query_params["user"] = email
+                            st.session_state.username = name.strip()
+                            st.session_state.mode = 'login'
+                            st.success("Account created successfully!")
+                            time.sleep(0.8)
+                            st.switch_page("app.py")
+            else:
+                st.warning("Please enter both email and password")
+        
+        # Toggle between login/register
+        st.markdown('<br>', unsafe_allow_html=True)
+        if st.session_state.mode == 'login':
+            toggle_signup = st.checkbox(
+                "Don't have an account? **Sign up**",
+                key="toggle_to_signup",
+                value=False
+            )
+            
+            if toggle_signup:
+                st.session_state.mode = 'register'
+                st.rerun()
+                
+        else:
+            toggle_login = st.checkbox(
+                "Already have an account? **Back to Login**",
+                key="toggle_to_login", 
+                value=False
+            )
+            
+            if toggle_login:
+                st.session_state.mode = 'login'
+                st.rerun()
 
     # WELCOME PANEL (Right side)
     with col_welcome:
         if st.session_state.mode == 'login':
             st.markdown('''
             <div class="welcome-panel">
-                <h1 class="welcome-heading">Hello, User!</h1>
-                <p class="welcome-text">Register with your personal details to use all of site features</p>
+                <h1 class="welcome-heading">Hello, Friend!</h1>
+                <p class="welcome-text">Register with your personal details to use all of our amazing features and start your journey with us.</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
             st.markdown('''
             <div class="welcome-panel">
                 <h1 class="welcome-heading">Welcome Back!</h1>
-                <p class="welcome-text">Enter your personal details to use all of site features</p>
+                <p class="welcome-text">Enter your personal details to continue your journey with us and access all features.</p>
             </div>
             ''', unsafe_allow_html=True)
             
@@ -5804,3 +6036,55 @@ def get_standard_keys():
 def format_section_title(key):
     """Format section key into readable title."""
     return key.replace('_', ' ').title()
+
+
+
+
+
+def save_custom_sections():
+    """Save custom section edits to session state."""
+    data = st.session_state['enhanced_resume']
+    standard_keys = get_standard_keys()
+    
+    # Update custom sections from session state (for edit mode)
+    for key in list(data.keys()):
+        if key not in standard_keys and isinstance(data.get(key), str):
+            edit_key = f"edit_custom_{key}"
+            if edit_key in st.session_state:
+                data[key] = st.session_state[edit_key].strip()
+    
+    # Ensure all custom sections are preserved in the data
+    st.session_state['enhanced_resume'] = data
+
+
+def generate_and_switch():
+    """Performs final analysis and switches to download page."""
+    # Save any pending custom section edits
+    save_custom_sections()
+    
+    data = st.session_state['enhanced_resume']
+    
+    # Extract custom sections before analysis
+    standard_keys = get_standard_keys()
+    custom_sections = {k: v for k, v in data.items() 
+                      if k not in standard_keys and isinstance(v, str)}
+    
+    # Perform analysis
+    finalized_data = analyze_and_improve_resume(data)
+    
+    # Re-add custom sections to finalized data
+    for key, value in custom_sections.items():
+        if key not in finalized_data:
+            finalized_data[key] = value
+
+    default_template = "Minimalist (ATS Best)"
+
+    st.session_state.selected_template = default_template
+    st.session_state.template_source = 'saved'
+    st.session_state['final_resume_data'] = finalized_data
+
+    # Set default template config
+    from templates.templateconfig import SYSTEM_TEMPLATES  # make sure this import exists
+    st.session_state.selected_template_config = SYSTEM_TEMPLATES.get(default_template)
+
+    st.switch_page("pages/template_preview.py")

@@ -355,7 +355,7 @@ st.markdown("""
         font-size: 18px;
         color: var(--text-secondary);
         max-width: 600px;
-        margin: 0 auto;
+        margin-left: 300px !important;
         line-height: 1.7;
     }
 
@@ -528,118 +528,43 @@ st.markdown("""
         flex-wrap: wrap;
     }
 
-    /* ==================== BUTTONS ==================== */
-/* ==================== BUTTONS ==================== */
-    .btn {
-        padding: 12px 28px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 14px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-        border: none;
-        cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        white-space: nowrap;
-    }
+        /* Button styling - FIXED */
+        [data-testid="stButton"] button {
+            background: linear-gradient(135deg, #FF6B35 0%, #E85A28 100%) !important;
+            color: #FFFFFF !important;
+            font-size: 15px !important;
+            padding: 16px 40px !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+            cursor: pointer !important;
+            width: 100% !important;
+            transition: all 0.3s ease !important;
+            font-family: 'Inter', sans-serif !important;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3) !important;
+            margin-top: 1rem !important;
+            margin-left: 150px !important;
+        }
+        
+        [data-testid="stButton"] button:hover {
+            background: linear-gradient(135deg, #E85A28 0%, #D84315 100%) !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4) !important;
+        }
 
-    .btn-primary {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-        color: white !important;
-        box-shadow: 0 6px 20px var(--shadow);
-        border: 2px solid var(--primary);
-    }
+        [data-testid="stButton"] button:active {
+            transform: translateY(-1px) !important;
+        }
 
-    .btn-primary:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px var(--shadow);
-        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
-    }
-
-    .btn-secondary {
-        background: white;
-        color: var(--primary) !important;
-        border: 2px solid var(--primary);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .btn-secondary:hover {
-        background: var(--primary);
-        color: white !important;
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px var(--shadow);
-    }
-
-    .btn-white {
-        background: white;
-        color: var(--primary) !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-        border: 2px solid white;
-    }
-
-    .btn-white:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        background: rgba(255, 255, 255, 0.95);
-    }
-
-    .btn-outline {
-        background: transparent;
-        color: white !important;
-        border: 2px solid white;
-    }
-
-    .btn-outline:hover {
-        background: white;
-        color: var(--primary) !important;
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
-    }
-
-    /* Streamlit Button Overrides */
-    [data-testid="stButton"] > button {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
-        color: white !important;
-        border: 2px solid var(--primary) !important;
-        border-radius: 12px !important;
-        padding: 16px 40px !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        font-family: 'Inter', sans-serif !important;
-        box-shadow: 0 6px 20px var(--shadow) !important;
-        transition: all 0.3s ease !important;
-        min-width: 200px !important;
-        white-space: nowrap !important;
-    }
-
-    [data-testid="stButton"] > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 10px 30px var(--shadow) !important;
-        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
-    }
-
-    /* Make sure buttons in columns are visible */
-    [data-testid="column"] {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-    [data-testid="column"] [data-testid="stButton"] {
-        width: 100% !important;
-    }
-
-    [data-testid="column"] [data-testid="stButton"] > button {
-        width: 100% !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
+        /* Ensure buttons are visible */
+        .stButton {
+            display: block !important;
+            visibility: visible !important;
+            max-width: 400px !important;  /* ADDED: Constrain button container */
+            margin-left: 200px !important; 
+        }
     /* ==================== FOOTER ==================== */
     .footer {
         background: var(--text-primary);
@@ -754,6 +679,24 @@ st.markdown("""
             width: 100%;
             justify-content: center;
         }
+            
+
+            /* Pull Streamlit hero buttons into hero section */
+.hero-btn-streamlit {
+    max-width: 520px;
+    margin-top: -260px;   /* THIS is the key line */
+    position: relative;
+    z-index: 20;
+}
+
+/* Button sizing consistency */
+.hero-btn-streamlit [data-testid="stButton"] > button {
+    min-width: 220px;
+    height: 56px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
     }
     </style>
 """, unsafe_allow_html=True)
@@ -829,14 +772,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Create Streamlit Buttons (Hidden with CSS)
-st.markdown("---")  # Spacer to separate from hero content
+# Hero Buttons (Streamlit layer)
+with st.container():
+    st.markdown('<div class="hero-btn-streamlit">', unsafe_allow_html=True)
 
-col1, col3_hero = st.columns(2)
-with col1:
-    create_resume_clicked = st.button("Create Resume Now →", key="create-btn", use_container_width=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        create_resume_clicked = st.button(
+            "Create Resume Now →",
+            key="hero-create",
+            use_container_width=True
+        )
 
-with col3_hero:
-    change_template_clicked = st.button("Change Template", key="change-template-btn", use_container_width=True)
+    with col2:
+        change_template_clicked = st.button(
+            "Change Template",
+            key="hero-template",
+            use_container_width=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # JavaScript to Move Buttons into Hero Section
 st.markdown("""
@@ -1032,17 +988,17 @@ with col5:
 # CTA Buttons
 st.markdown("---")  # Spacer
 # CTA Section
-st.markdown("""
-<div class="cta-section">
-    <div class="cta-container">
-        <h2 class="cta-title">Ready to Land Your Dream Job?</h2>
-        <p class="cta-subtitle">
-            Join thousands of professionals who have successfully created ATS-optimized resumes with our AI-powered platform.
-        </p>
-        <div class="cta-buttons" id="cta-btn-container"></div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# st.markdown("""
+# <div class="cta-section">
+#     <div class="cta-container">
+#         <h2 class="cta-title">Ready to Land Your Dream Job?</h2>
+#         <p class="cta-subtitle">
+#             Join thousands of professionals who have successfully created ATS-optimized resumes with our AI-powered platform.
+#         </p>
+#         <div class="cta-buttons" id="cta-btn-container"></div>
+#     </div>
+# </div>
+# """, unsafe_allow_html=True)
 
 
 

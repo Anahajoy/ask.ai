@@ -735,7 +735,7 @@ else:
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">ResumeAI</div>
+        <div class="logo">ResumeIQ</div>
         <div class="nav-menu">
             <a class="nav-link" href="#features">Features</a>
             <a class="nav-link" href="#how-it-works">How It Works</a>

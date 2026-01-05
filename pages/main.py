@@ -646,7 +646,7 @@ home_url = f"/?user={current_user}"
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">ResumeAI</div>
+        <div class="logo">ResumeIQ</div>
         <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>

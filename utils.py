@@ -3605,37 +3605,112 @@ def save_and_improve():
     user_skills_before = deepcopy(data.get('skills', {}))
     job_description = st.session_state.get('job_description', '') 
 
-    
     improved_data = analyze_and_improve_resume(data, job_description)
     
-    # Skills merging logic
+    # Skills merging logic - Handle both list and dict formats
     llm_skills_after = improved_data.get('skills', {})
-    merged_skills = {}
-    all_categories = set(user_skills_before.keys()) | set(llm_skills_after.keys())
-
-    for category in all_categories:
-        user_list = user_skills_before.get(category, [])
-        llm_list = llm_skills_after.get(category, [])
+    
+    # Check if skills are in list format or dict format
+    user_is_list = isinstance(user_skills_before, list)
+    llm_is_list = isinstance(llm_skills_after, list)
+    
+    if user_is_list and llm_is_list:
+        # Both are lists - simple merge
+        user_set = set(user_skills_before)
+        llm_set = set(llm_skills_after)
         
-        user_set = set(user_list)
-        llm_set = set(llm_list)
-        final_skills_set = user_set.copy()
-        
+        # Add new skills from LLM that user doesn't have
         for skill in llm_set:
-            if skill not in final_skills_set:
-                final_skills_set.add(skill)
+            if skill not in user_set:
+                user_set.add(skill)
+        
+        improved_data['skills'] = sorted(list(user_set))
+        
+    elif user_is_list and not llm_is_list:
+        # User has list, LLM returned dict - convert user list to dict format
+        merged_skills = {}
+        
+        # First, add all LLM categorized skills
+        for category, llm_list in llm_skills_after.items():
+            merged_skills[category] = list(set(llm_list))
+        
+        # Add uncategorized user skills to a "General" category
+        if user_skills_before:
+            if "General" not in merged_skills:
+                merged_skills["General"] = []
+            
+            for skill in user_skills_before:
+                # Check if skill exists in any category
+                skill_exists = False
+                for cat_skills in merged_skills.values():
+                    if skill in cat_skills:
+                        skill_exists = True
+                        break
                 
-        merged_skills[category] = sorted(list(final_skills_set))
+                if not skill_exists:
+                    merged_skills["General"].append(skill)
+            
+            # Remove empty General category
+            if not merged_skills.get("General"):
+                merged_skills.pop("General", None)
+        
+        improved_data['skills'] = merged_skills
+        
+    elif not user_is_list and llm_is_list:
+        # User has dict, LLM returned list - add list items to existing categories
+        merged_skills = deepcopy(user_skills_before)
+        
+        # Try to categorize new skills or add to "General"
+        for skill in llm_skills_after:
+            skill_added = False
+            
+            # Check if skill already exists in any category
+            for category, skills_list in merged_skills.items():
+                if skill in skills_list:
+                    skill_added = True
+                    break
+            
+            # If not found, add to General category
+            if not skill_added:
+                if "General" not in merged_skills:
+                    merged_skills["General"] = []
+                merged_skills["General"].append(skill)
+        
+        improved_data['skills'] = merged_skills
+        
+    else:
+        # Both are dicts - original logic
+        merged_skills = {}
+        all_categories = set(user_skills_before.keys()) | set(llm_skills_after.keys())
 
-    improved_data['skills'] = merged_skills
+        for category in all_categories:
+            user_list = user_skills_before.get(category, [])
+            llm_list = llm_skills_after.get(category, [])
+            
+            user_set = set(user_list)
+            llm_set = set(llm_list)
+            final_skills_set = user_set.copy()
+            
+            # Add new skills from LLM
+            for skill in llm_set:
+                if skill not in final_skills_set:
+                    final_skills_set.add(skill)
+                    
+            merged_skills[category] = sorted(list(final_skills_set))
+
+        improved_data['skills'] = merged_skills
+    
+    # Update session state
     st.session_state['enhanced_resume'] = improved_data
+    
     if 'ats_score_data' in st.session_state:
         del st.session_state['ats_score_data']
     
     # Update hash so it doesn't regenerate
     st.session_state['last_resume_hash'] = get_resume_hash(st.session_state.get('resume_source'))
     
-    st.success("Resume content saved and improved! Check the updated details below.")
+    st.success("✅ Resume content saved and improved! Check the updated details below.")
+    st.rerun()
 
 
 

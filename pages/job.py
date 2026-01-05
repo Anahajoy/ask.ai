@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+import base64
 from utils import get_user_resume, extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
 from streamlit_extras.stylable_container import stylable_container
 
@@ -703,7 +704,20 @@ else:
                     st.error(f"❌ Error processing job description: {e}")
                     structured_jd = {"raw_text": job_description}
 
+                # Store in session state
                 st.session_state.job_description = structured_jd
+
+                # ============= CRITICAL: ENCODE JD TO URL =============
+                try:
+                    # Encode to base64 for safe URL transmission
+                    jd_json = json.dumps(structured_jd)
+                    encoded_bytes = base64.b64encode(jd_json.encode('utf-8'))
+                    encoded_str = encoded_bytes.decode('utf-8')
+                    st.query_params["jd"] = encoded_str
+                except Exception as e:
+                    st.warning(f"Could not encode JD to URL: {e}")
+                # ============= END ENCODE =============
+
                 loading_placeholder.empty()
                 st.switch_page("pages/create.py")
             else:

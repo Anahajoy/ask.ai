@@ -1,485 +1,487 @@
 import streamlit as st
-import os,json
-from utils import get_score_color,get_score_label,ai_ats_score,analyze_and_improve_resume, should_regenerate_resume, generate_enhanced_resume, save_and_improve, add_new_item, render_basic_details, render_skills_section, render_generic_section
-from streamlit_extras.switch_page_button import switch_page
-from streamlit_extras.stylable_container import stylable_container
+import streamlit.components.v1 as components
+import io
+import json
+from pptx import Presentation
+import time
+from datetime import datetime
+from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
+from utils import (
+    generate_generic_html, get_user_resume, get_score_color, render_skills_section,
+    get_score_label, ai_ats_score, extract_temp_from_docx,render_generic_section,
+    should_regenerate_resume, generate_enhanced_resume, extract_template_from_html,save_user_templates,
+    save_and_improve, add_new_item,generate_and_switch,render_basic_details,load_user_doc_templates,
+    docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
+    match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
+    load_user_templates,load_user_ppt_templates,chatbot
+)
 
-st.set_page_config(layout="wide", page_title="Dynamic ATS Resume Editor")
+# Page config
+st.set_page_config(
+    page_title="Resume Creator",
+    page_icon="📄",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-# PRESERVE USER SESSION - Get user from query params if not in session state
-if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+
+# Add this RIGHT AFTER st.set_page_config() and BEFORE any other code
+
+# ============= SESSION PERSISTENCE FIX =============
+# Handle logout first - ONLY clear on explicit logout
+if st.query_params.get("logout") == "true":
+    # Clear ALL session state on logout
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    # Clear query params
+    st.query_params.clear()
+    st.switch_page("app.py")
+    st.stop()
+
+# Initialize logged_in_user if it doesn't exist
+if 'logged_in_user' not in st.session_state:
+    st.session_state.logged_in_user = None
+
+# Restore user from query params if not already set
+if st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:
         st.session_state.logged_in_user = logged_user
     else:
         st.warning("Please login first!")
         st.switch_page("app.py")
+        st.stop()
 
-
+# Ensure query params stay synced with session
 if st.session_state.logged_in_user:
-    st.query_params["user"] = st.session_state.logged_in_user
+    current_param = st.query_params.get("user")
+    if current_param != st.session_state.logged_in_user:
+        st.query_params["user"] = st.session_state.logged_in_user
 
-current_user = st.session_state.get('logged_in_user', '')
+# Now safely get email
+email = st.session_state.logged_in_user
 
+# ============= END SESSION FIX =============
 
-if os.path.exists("persist.json"):
-    with open("persist.json", "r") as f:
-        stored = json.load(f)
-else:
-    stored = {}
+# Initialize ALL session states with proper defaults
+if 'selected_template' not in st.session_state:
+    st.session_state.selected_template = None
+if 'template_preview_html' not in st.session_state:
+    st.session_state.template_preview_html = None
+if 'template_preview_css' not in st.session_state:
+    st.session_state.template_preview_css = None
+if 'show_template_selector' not in st.session_state:
+    st.session_state.show_template_selector = True
+if 'show_visual_editor' not in st.session_state:
+    st.session_state.show_visual_editor = False
+if 'enhanced_resume' not in st.session_state:
+    st.session_state.enhanced_resume = None
+if 'final_resume_data' not in st.session_state:
+    st.session_state.final_resume_data = None
+if 'editor_content' not in st.session_state:
+    st.session_state.editor_content = ""
+if 'ats_result' not in st.session_state:
+    st.session_state.ats_result = {}
+if 'edit_mode' not in st.session_state:
+    st.session_state.edit_mode = False
+if 'current_edit_section' not in st.session_state:
+    st.session_state.current_edit_section = None
+if 'show_upload_modal' not in st.session_state:
+    st.session_state.show_upload_modal = False
+if 'uploaded_templates' not in st.session_state:
+    st.session_state.uploaded_templates = {}
 
-# ---------- Restore logged user ----------
-from utils import get_user_resume  # or your resume fetch function
+# ============= JOB DESCRIPTION PERSISTENCE FIX =============
+# ============= JOB DESCRIPTION PERSISTENCE FIX =============
+import base64
 
-# ---------- RESUME STATE RESTORE ----------
-if "resume_source" not in st.session_state or st.session_state.resume_source is None:
-    resume_param = st.query_params.get("resume")
-    if resume_param:  # resume passed via URL
-        try:
-            st.session_state.resume_source = json.loads(resume_param)
-        except:
-            st.session_state.resume_source = {}
-    else:
-        # Resume not in URL → try to fetch normally if user is logged in
-        email = st.session_state.get("logged_in_user")
-        if email:
-            st.session_state.resume_source = get_user_resume(email)
+# Initialize job_description if it doesn't exist
+if 'job_description' not in st.session_state:
+    st.session_state.job_description = None
 
-# Save back resume to URL if valid
-if st.session_state.get("resume_source"):
-    st.query_params["resume"] = json.dumps(st.session_state.resume_source)
-
-# ---------- JD STATE RESTORE ----------
-if "job_description" not in st.session_state or st.session_state.job_description is None:
+# Try to restore from query params on first load
+if st.session_state.job_description is None:
     jd_param = st.query_params.get("jd")
     if jd_param:
         try:
-            st.session_state.job_description = json.loads(jd_param)
-        except:
+            # Decode from base64
+            decoded_bytes = base64.b64decode(jd_param)
+            decoded_json = decoded_bytes.decode('utf-8')
+            st.session_state.job_description = json.loads(decoded_json)
+        except Exception as e:
             st.session_state.job_description = {}
     else:
-        st.session_state.job_description = st.session_state.get("job_description", {})
+        st.session_state.job_description = {}
+
+# CRITICAL: Always sync session state back to query params
+if st.session_state.job_description and isinstance(st.session_state.job_description, dict) and len(st.session_state.job_description) > 0:
+    try:
+        # Encode to base64 for safe URL transmission
+        jd_json = json.dumps(st.session_state.job_description)
+        encoded_bytes = base64.b64encode(jd_json.encode('utf-8'))
+        encoded_str = encoded_bytes.decode('utf-8')
+        st.query_params["jd"] = encoded_str
+    except:
+        pass
+# ============= END JOB DESCRIPTION FIX =============
+
+# Get user resume data - Load from database if not in session
+if st.session_state.final_resume_data is None:
+    user_resume = get_user_resume(email)
+    if user_resume:
+        st.session_state.final_resume_data = user_resume
+else:
+    user_resume = st.session_state.final_resume_data
+
+# CRITICAL: Ensure enhanced_resume is properly initialized
+if st.session_state.enhanced_resume is None and user_resume:
+    st.session_state.enhanced_resume = user_resume.copy()
+
+chatbot(user_resume)
+
+resume_data = st.session_state.get('enhanced_resume')
+jd_data = st.session_state.get('job_description')
+
+# ============= ATS SCORING WITH PROPER CHECKS =============
+if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
+    try:
+        # Only calculate if we don't already have a score OR if data changed
+        if not st.session_state.ats_result or st.session_state.ats_result.get('overall_score', 0) == 0:
+            st.session_state.ats_result = ai_ats_score(resume_data, jd_data)
+    except Exception as e:
+        st.warning(f"Could not calculate ATS score: {str(e)}")
+        st.session_state.ats_result = {}
+else:
+    # No JD available, set empty ATS result
+    st.session_state.ats_result = {}
 
 
 
-# Save JD back to URL
-if st.session_state.get("job_description"):
-    st.query_params["jd"] = json.dumps(st.session_state.job_description)
-
-# ---------- ENHANCED RESUME STATE RESTORE ----------
-if "enhanced_resume" not in st.session_state or st.session_state.enhanced_resume is None:
-    enhanced_param = st.query_params.get("enhanced_resume")
-    if enhanced_param:
-        try:
-            st.session_state.enhanced_resume = json.loads(enhanced_param)
-        except:
-            st.session_state.enhanced_resume = None
-
-# ---------- RESTORE GENERATION METADATA ----------
-if "last_resume_hash" not in st.session_state or st.session_state.last_resume_hash is None:
-    st.session_state.last_resume_hash = st.query_params.get("last_resume_hash")
-
-if "last_jd_hash" not in st.session_state or st.session_state.last_jd_hash is None:
-    st.session_state.last_jd_hash = st.query_params.get("last_jd_hash")
-
-if "last_resume_user" not in st.session_state or st.session_state.last_resume_user is None:
-    st.session_state.last_resume_user = st.query_params.get("last_resume_user")
-
-# ---------- SAVE ALL STATE BACK TO URL (Always sync to URL) ----------
-if st.session_state.get("enhanced_resume"):
-    st.query_params["enhanced_resume"] = json.dumps(st.session_state.enhanced_resume)
-
-if st.session_state.get("last_resume_hash"):
-    st.query_params["last_resume_hash"] = str(st.session_state.last_resume_hash)
-
-if st.session_state.get("last_jd_hash"):
-    st.query_params["last_jd_hash"] = str(st.session_state.last_jd_hash)
-
-if st.session_state.get("last_resume_user"):
-    st.query_params["last_resume_user"] = str(st.session_state.last_resume_user)
 
 
-
+# Define resume order
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
-
-def apply_custom_css():
-    """Applies improved dark theme with gradient accents."""
-    st.markdown("""
-    <style>
-    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
+st.markdown("""
+<style>
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"] {display: none;}
     #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
-     
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
     
+    /* Orange and White Theme */
     :root {
-        --primary-blue: #e87532;
-        --primary-blue-hover: #1d4ed8;
-        --secondary-blue: #3b82f6;
-        --light-blue: #60a5fa;
-        --accent-blue: #1e40af;
-        --bg-dark: #0f172a;
-        --bg-card: #1e293b;
-        --bg-card-hover: #283447;
-        --text-white: #ffffff;
-        --text-gray: #94a3b8;
-        --text-light-gray: #cbd5e1;
-        --text-blue: #60a5fa;
-        --border-gray: #334155;
-        --border-light: #475569;
-        --success-green: #10b981;
-        --warning-yellow: #f59e0b;
-        --danger-red: #ef4444;
-    }
-    
-    * {
-        font-family: 'Inter', sans-serif;
+        --primary-orange: #FF6B35;
+        --primary-orange-light: #FF8B5C;
+        --primary-orange-dark: #D45A2B;
+        --white: #FFFFFF;
+        --light-gray: #F8F9FA;
+        --medium-gray: #E9ECEF;
+        --dark-gray: #495057;
+        --text-dark: #212529;
+        --success-green: #28A745;
     }
     
     .stApp {
-        background: #f8f9fa;
-        min-height: 100vh;
+        background: var(--white) !important;
     }
     
-    /* Remove default Streamlit padding */
+    /* Main container */
     .main .block-container {
-        padding-top: 100px !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
+        padding-top: 0.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
         max-width: 100% !important;
     }
     
-    /* Panel Container Styling */
-    .panel-container {
-        height: calc(100vh - 120px);
-        overflow-y: auto;
-        overflow-x: hidden;
+    /* Template Gallery - Orange Theme */
+    .template-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .template-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: 0.3rem;
+    }
+    
+    .template-subtitle {
+        font-size: 1rem;
+        color: var(--dark-gray);
+        margin-bottom: 1.5rem;
+    }
+    
+    .template-card {
+        background: var(--white);
         border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        transition: all 0.3s ease;
+        border: 1px solid var(--medium-gray);
+        height: 100%;
+        cursor: pointer;
+        margin-bottom: 1rem;
     }
     
-    /* Left Panel - Narrower */
-    .left-panel {
-        background: #e87532;
-        color: white;
+    .template-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(255, 107, 53, 0.2);
+        border-color: var(--primary-orange);
     }
     
-    .left-panel h1, .left-panel h2, .left-panel h3, .left-panel p, .left-panel label {
-        color: #ffffff !important;
-    }
-    
-    /* Middle Panel - Medium width */
-    .middle-panel {
-        background: white;
-    }
-    
-    /* Right Panel - Wider */
-    .right-panel {
-        background: white;
-    }
-    
-    /* Scrollbar Styling */
-    .panel-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .panel-container::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.1);
-        border-radius: 10px;
-    }
-    
-    .panel-container::-webkit-scrollbar-thumb {
-        background: #e87532;
-        border-radius: 10px;
-    }
-    
-    .panel-container::-webkit-scrollbar-thumb:hover {
-        background: #d66829;
-    }
-    
-    /* SIDEBAR BUTTONS */
-    .left-panel .stButton > button {
-        background: #ffffff !important;
-        color: #e87532 !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.85rem 1.3rem !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        width: 100% !important;
-        margin-bottom: 0.6rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 14px rgba(255, 255, 255, 0.3) !important;
-        text-transform: none !important;
-        letter-spacing: 0.3px !important;
-    }
-    
-    .left-panel .stButton > button:hover {
-        background: #f8f9fa !important;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4) !important;
-        color: #d66829 !important;
-    }
-    
-    /* Resume Section Styling */
-    .resume-section {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+    .create-blank-card {
+        background: var(--white);
         border-radius: 12px;
         padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        transition: all 0.3s ease;
+        border: 2px dashed var(--primary-orange);
+        height: 380px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        margin-bottom: 1rem;
     }
     
-    .resume-section h2 {
-        color: #1f2937 !important;
-        font-size: 1.5rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 1.2rem !important;
-        padding-bottom: 0.8rem !important;
-        border-bottom: 2px solid #e87532 !important;
-        letter-spacing: 0.3px !important;
+    .create-blank-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(255, 107, 53, 0.2);
+        border-color: var(--primary-orange-dark);
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.05) 0%, rgba(255, 107, 53, 0.02) 100%);
     }
     
-    .resume-section h3 {
-        color: #e87532 !important;
-        font-size: 1.2rem !important;
-        font-weight: 600 !important;
-        margin-bottom: 0.8rem !important;
-        letter-spacing: 0.2px !important;
-    }
-    
-    /* Custom Section Header Styling */
-    .custom-section-header {
-        color: #1f2937 !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 1rem !important;
-        text-transform: capitalize !important;
-        letter-spacing: 0.3px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-    
-    .custom-section-header::before {
-        content: '📋';
-        font-size: 1.2rem;
-    }
-    
-    /* Item Titles & Subtitles */
-    .resume-section .item-title {
-        font-size: 1.15rem !important;
-        font-weight: 700 !important;
-        color: #1f2937 !important;
-        margin-bottom: 0.4rem !important;
-        display: block !important;
-        letter-spacing: 0.2px !important;
-    }
-
-    .resume-section .item-subtitle {
-        font-size: 1rem !important;
-        color: #4b5563 !important;
-        margin-bottom: 0.3rem !important;
-        font-weight: 500 !important;
-        display: block !important;
-    }
-
-    .resume-section .item-details {
-        color: #6b7280 !important;
-        margin-bottom: 0.5rem !important;
-        font-size: 0.9rem !important;
-        font-style: italic !important;
-    }
-
-    /* Bullet Lists */
-    .resume-section .bullet-list {
-        list-style-type: disc !important;
-        margin: 0.6rem 0 !important;
-        padding-left: 1.5rem !important;
-        color: #374151 !important;
-    }
-
-    .resume-section .bullet-list li {
-        color: #374151 !important;
-        margin-bottom: 0.4rem !important;
-        line-height: 1.6 !important;
-        list-style-type: disc !important;
-    }
-
-    /* Skill Lists */
-    .resume-section .skill-list {
-        list-style-type: none !important;
-        padding-left: 0 !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 0.5rem !important;
-    }
-
-    .resume-section .skill-list li.skill-item {
-        display: inline-flex !important;
-        align-items: center !important;
-        background: linear-gradient(135deg, rgba(232, 117, 50, 0.1) 0%, rgba(232, 117, 50, 0.05) 100%) !important;
-        padding: 0.5rem 1rem !important;
-        margin: 0 !important;
-        border-radius: 8px !important;
-        border: 1px solid rgba(232, 117, 50, 0.3) !important;
-        color: #e87532 !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .resume-section .skill-list li.skill-item:hover {
-        background: linear-gradient(135deg, rgba(232, 117, 50, 0.2) 0%, rgba(232, 117, 50, 0.15) 100%) !important;
-        border-color: rgba(232, 117, 50, 0.5) !important;
-        transform: translateY(-2px);
-    }
-
-    /* Custom Section Content */
-    .custom-section-content {
-        background: #f9fafb !important;
-        border: 1px solid #e5e7eb !important;
-        border-radius: 8px !important;
-        padding: 1.2rem !important;
-        color: #374151 !important;
-        font-size: 0.95rem !important;
-        line-height: 1.7 !important;
-        white-space: pre-line !important;
-    }
-    
-    /* Input Fields */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {
-        background: #ffffff !important;
-        border: 2px solid #e5e7eb !important;
-        border-radius: 8px !important;
-        color: #1f2937 !important;
-        padding: 0.75rem !important;
-        font-size: 0.9rem !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #e87532 !important;
-        box-shadow: 0 0 0 3px rgba(232, 117, 50, 0.1) !important;
-        outline: none !important;
-    }
-    
-    .stTextInput > label,
-    .stTextArea > label {
-        color: #374151 !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        margin-bottom: 0.4rem !important;
-    }
-    
-    /* Delete button styling */
-    .stButton > button[kind="secondary"] {
-        background: #9FC0DE !important;
-        color: #ffffff !important;
-        border: 1px solid #9FC0DE !important;
-    }
-    
-    .stButton > button[kind="secondary"]:hover {
-        background: #ffffff !important;
-        border-color: #9FC0DE !important;
-        color : #9FC0DE !important;
-    }
-
-    .stButton > button[kind="primary"] {
-        background: #e87532 !important;
-        color: #ffffff !important;
-        border: 1px solid #e87532 !important;
-    }
-    
-    .stButton > button[kind="primary"]:hover {
-        background: #ffffff !important;
-        border-color: #e87532 !important;
-        color: #e87532 !important;
-    }
-
-    /* LIVE PREVIEW MOCK UI BOX */
-    .preview-box {
-        width: 100%;
-        height: 100%;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        padding: 15px;
-    }
-    
-    .preview-header {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #374151;
-        margin-bottom: 15px;
-        text-align: center;
-    }
-    
-    .preview-content {
-        background: #fafafa;
-        height: calc(100% - 50px);
-        border-radius: 8px;
-        border: 1px dashed #d1d5db;
+    .plus-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-light) 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #9ca3af;
+        font-size: 2rem;
+        color: var(--white);
+        margin-bottom: 1rem;
+    }
+    
+    .template-preview {
+        width: 100%;
+        height: 200px;
+        background: linear-gradient(135deg, var(--light-gray) 0%, var(--medium-gray) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .template-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: var(--primary-orange);
+        color: var(--white);
+        padding: 0.3rem 0.8rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    
+    /* Visual Editor Container */
+ .visual-editor-container {
+        width: 100%;
+        height: calc(100vh - 120px);
+        border: none;
+        overflow: auto;
+        margin-top: 0.5rem;
+        background: var(--light-gray);
+        border-radius: 12px;
+        border: 1px solid var(--medium-gray);
+    }
+    
+    /* Ensure iframe scrolls */
+    iframe {
+        overflow: auto !important;
+    }
+    /* Resume Tools Panel - Orange Theme */
+    .resume-tools-panel {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        height: fit-content;
+        margin-top: 0;
+        border: 1px solid var(--medium-gray);
+    }
+    
+    .ats-score-display {
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 107, 53, 0.05) 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+    
+    .ats-score-number {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--primary-orange);
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .ats-score-label {
+        font-size: 1.1rem;
+        color: var(--text-dark);
+        font-weight: 700;
+        margin-bottom: 0.3rem;
+    }
+    
+    .ats-score-subtext {
         font-size: 0.9rem;
+        color: var(--dark-gray);
     }
-
-    /* Navigation Bar */
-
-    </style>
-    """, unsafe_allow_html=True)
-
-# Get current user and ensure it's preserved in session state
-current_user = st.session_state.get('logged_in_user', '')
-st.markdown("""
-   <style>
-    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stSidebarNav"] {display: none;}
-    #MainMenu, footer, header, button[kind="header"] {visibility: hidden;}
-     
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Archivo:wght@400;500;600;700;800;900&display=swap');
     
+    /* ================= FORCE ORANGE PRIMARY BUTTONS ================= */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #FF6B35 0%, #FF8B5C 100%) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+}
+
+/* Hover */
+.stButton > button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #D45A2B 0%, #FF6B35 100%) !important;
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.35) !important;
+    transform: translateY(-2px);
+}
+
+/* Active */
+.stButton > button[kind="primary"]:active {
+    background: #D45A2B !important;
+}
+
+    /* Header styling */
+    .editor-header {
+        background: var(--white);
+        padding: 1rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(255, 107, 53, 0.1);
+        border: 1px solid var(--medium-gray);
+    }
+    
+    /* Inline Editor */
+    .inline-editor {
+        position: absolute;
+        background: var(--white);
+        border: 2px solid var(--primary-orange);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        z-index: 10000;
+        min-width: 300px;
+        max-width: 500px;
+    }
+    
+    .inline-editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--medium-gray);
+    }
+    
+    .inline-editor-title {
+        font-weight: 600;
+        color: var(--primary-orange);
+        font-size: 1.1rem;
+    }
+    
+    .inline-editor-close {
+        background: none;
+        border: none;
+        color: var(--dark-gray);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+    
+    .inline-editor-close:hover {
+        background: var(--light-gray);
+        color: var(--primary-orange);
+    }
+    
+    /* Template grid */
+    [data-testid="column"] {
+        padding: 0.5rem;
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background-color: rgba(255, 107, 53, 0.05) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(255, 107, 53, 0.1) !important;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        background-color: rgba(255, 107, 53, 0.1) !important;
+    }
+    
+    /* Hide empty sections */
+    .empty-section {
+        display: none !important;
+    }
+    
+    /* Make text areas look better */
+    .stTextArea textarea {
+        border-radius: 8px !important;
+        border: 2px solid var(--medium-gray) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: var(--primary-orange) !important;
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+    }
+    
+    .stTextInput input {
+        border-radius: 8px !important;
+        border: 2px solid var(--medium-gray) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput input:focus {
+        border-color: var(--primary-orange) !important;
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+    }
     :root {
-        --primary-blue: #e87532;
-        --primary-blue-hover: #1d4ed8;
-        --secondary-blue: #3b82f6;
-        --light-blue: #60a5fa;
-        --accent-blue: #1e40af;
-        --bg-dark: #0f172a;
-        --bg-card: #1e293b;
-        --bg-card-hover: #283447;
-        --text-white: #ffffff;
-        --text-gray: #94a3b8;
-        --text-light-gray: #cbd5e1;
-        --text-blue: #60a5fa;
-        --border-gray: #334155;
-        --border-light: #475569;
-        --success-green: #10b981;
-        --warning-yellow: #f59e0b;
-        --danger-red: #ef4444;
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
         --border: #E5E5E5;
-    }
-    
-    * {
+        --shadow: rgba(255, 107, 53, 0.12);
+    }     
+
+     html, body, .stApp {
         font-family: 'Inter', sans-serif;
-    }
-    
-    .stApp {
-        background: #f8f9fa;
-        min-height: 100vh;
-    }
-    
-    /* Remove default Streamlit padding */
-    .main .block-container {
-        padding-top: 100px !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-        max-width: 100% !important;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
     }
 
     /* ==================== NAVIGATION ==================== */
@@ -520,7 +522,7 @@ st.markdown("""
         font-family: 'Archivo', sans-serif;
         font-size: 28px;
         font-weight: 900;
-        background: linear-gradient(135deg, #FF6B35 0%, #FFA500 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -533,12 +535,8 @@ st.markdown("""
         align-items: center;
     }
 
-    .nav-item { 
-        position: relative; 
-    }
-
     .nav-link {
-        color: #666666 !important;
+        color: var(--text-secondary) !important;
         text-decoration: none !important;
         font-size: 15px;
         font-weight: 500;
@@ -549,527 +547,2952 @@ st.markdown("""
     }
 
     .nav-link:hover {
-        color: #FF6B35 !important;
+        color: var(--primary) !important;
         background: rgba(255, 107, 53, 0.08);
     }
 
-    .nav-link:visited {
-        color: #666666 !important;
-    }
-    
-    /* Panel Container Styling */
-    .panel-container {
-        height: calc(100vh - 120px);
-        overflow-y: auto;
-        overflow-x: hidden;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    /* Left Panel - Narrower */
-    .left-panel {
-        background: #e87532;
-        color: white;
-    }
-    
-    .left-panel h1, .left-panel h2, .left-panel h3, .left-panel p, .left-panel label {
-        color: #ffffff !important;
-    }
-    
-    /* Middle Panel - Medium width */
-    .middle-panel {
-        background: white;
-    }
-    
-    /* Right Panel - Wider */
-    .right-panel {
-        background: white;
-    }
-    
-    /* Scrollbar Styling */
-    .panel-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .panel-container::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.1);
-        border-radius: 10px;
-    }
-    
-    .panel-container::-webkit-scrollbar-thumb {
-        background: #e87532;
-        border-radius: 10px;
-    }
-    
-    .panel-container::-webkit-scrollbar-thumb:hover {
-        background: #d66829;
-    }
-    
-    /* SIDEBAR BUTTONS */
-    .left-panel .stButton > button {
-        background: #ffffff !important;
-        color: #e87532 !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 0.85rem 1.3rem !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        width: 100% !important;
-        margin-bottom: 0.6rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 14px rgba(255, 255, 255, 0.3) !important;
-        text-transform: none !important;
-        letter-spacing: 0.3px !important;
-    }
-    
-    .left-panel .stButton > button:hover {
-        background: #f8f9fa !important;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4) !important;
-        color: #d66829 !important;
-    }
-    
-    /* Resume Section Styling */
-    .resume-section {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    .resume-section h2 {
-        color: #1f2937 !important;
-        font-size: 1.5rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 1.2rem !important;
-        padding-bottom: 0.8rem !important;
-        border-bottom: 2px solid #e87532 !important;
-        letter-spacing: 0.3px !important;
-    }
-    
-    .resume-section h3 {
-        color: #e87532 !important;
-        font-size: 1.2rem !important;
-        font-weight: 600 !important;
-        margin-bottom: 0.8rem !important;
-        letter-spacing: 0.2px !important;
-    }
-    
-    /* Custom Section Header Styling */
-    .custom-section-header {
-        color: #1f2937 !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 1rem !important;
-        text-transform: capitalize !important;
-        letter-spacing: 0.3px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-    
-    .custom-section-header::before {
-        content: '📋';
-        font-size: 1.2rem;
-    }
-    
-    /* Item Titles & Subtitles */
-    .resume-section .item-title {
-        font-size: 1.15rem !important;
-        font-weight: 700 !important;
-        color: #1f2937 !important;
-        margin-bottom: 0.4rem !important;
-        display: block !important;
-        letter-spacing: 0.2px !important;
-    }
-
-    .resume-section .item-subtitle {
-        font-size: 1rem !important;
-        color: #4b5563 !important;
-        margin-bottom: 0.3rem !important;
-        font-weight: 500 !important;
-        display: block !important;
-    }
-
-    .resume-section .item-details {
-        color: #6b7280 !important;
-        margin-bottom: 0.5rem !important;
-        font-size: 0.9rem !important;
-        font-style: italic !important;
-    }
-
-    /* Bullet Lists */
-    .resume-section .bullet-list {
-        list-style-type: disc !important;
-        margin: 0.6rem 0 !important;
-        padding-left: 1.5rem !important;
-        color: #374151 !important;
-    }
-
-    .resume-section .bullet-list li {
-        color: #374151 !important;
-        margin-bottom: 0.4rem !important;
-        line-height: 1.6 !important;
-        list-style-type: disc !important;
-    }
-
-    /* Skill Lists */
-    .resume-section .skill-list {
-        list-style-type: none !important;
-        padding-left: 0 !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 0.5rem !important;
-    }
-
-    .resume-section .skill-list li.skill-item {
-        display: inline-flex !important;
-        align-items: center !important;
-        background: linear-gradient(135deg, rgba(232, 117, 50, 0.1) 0%, rgba(232, 117, 50, 0.05) 100%) !important;
-        padding: 0.5rem 1rem !important;
-        margin: 0 !important;
-        border-radius: 8px !important;
-        border: 1px solid rgba(232, 117, 50, 0.3) !important;
-        color: #e87532 !important;
-        font-weight: 500 !important;
-        font-size: 0.9rem !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .resume-section .skill-list li.skill-item:hover {
-        background: linear-gradient(135deg, rgba(232, 117, 50, 0.2) 0%, rgba(232, 117, 50, 0.15) 100%) !important;
-        border-color: rgba(232, 117, 50, 0.5) !important;
-        transform: translateY(-2px);
-    }
-
-    /* Custom Section Content */
-    .custom-section-content {
-        background: #f9fafb !important;
-        border: 1px solid #e5e7eb !important;
-        border-radius: 8px !important;
-        padding: 1.2rem !important;
-        color: #374151 !important;
-        font-size: 0.95rem !important;
-        line-height: 1.7 !important;
-        white-space: pre-line !important;
-    }
-    
-    /* Input Fields */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea {
-        background: #ffffff !important;
-        border: 2px solid #e5e7eb !important;
-        border-radius: 8px !important;
-        color: #1f2937 !important;
-        padding: 0.75rem !important;
-        font-size: 0.9rem !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    .stTextInput > div > div > input:focus,
-    .stTextArea > div > div > textarea:focus {
-        border-color: #e87532 !important;
-        box-shadow: 0 0 0 3px rgba(232, 117, 50, 0.1) !important;
-        outline: none !important;
-    }
-    
-    .stTextInput > label,
-    .stTextArea > label {
-        color: #374151 !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        margin-bottom: 0.4rem !important;
-    }
-    
-    /* Delete button styling */
-    .stButton > button[kind="secondary"] {
-        background: #9FC0DE !important;
-        color: #ffffff !important;
-        border: 1px solid #9FC0DE !important;
-    }
-    
-    .stButton > button[kind="secondary"]:hover {
-        background: #ffffff !important;
-        border-color: #9FC0DE !important;
-        color : #9FC0DE !important;
-    }
-
-    .stButton > button[kind="primary"] {
-        background: #e87532 !important;
-        color: #ffffff !important;
-        border: 1px solid #e87532 !important;
-    }
-    
-    .stButton > button[kind="primary"]:hover {
-        background: #ffffff !important;
-        border-color: #e87532 !important;
-        color: #e87532 !important;
-    }
-
-    /* LIVE PREVIEW MOCK UI BOX */
-    .preview-box {
-        width: 100%;
-        height: 100%;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
-        padding: 15px;
-    }
-    
-    .preview-header {
-        font-size: 1rem;
+    .nav-link.btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white !important;
         font-weight: 600;
-        color: #374151;
-        margin-bottom: 15px;
-        text-align: center;
-    }
-    
-    .preview-content {
-        background: #fafafa;
-        height: calc(100% - 50px);
-        border-radius: 8px;
-        border: 1px dashed #d1d5db;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #9ca3af;
-        font-size: 0.9rem;
+        padding: 12px 28px;
+        box-shadow: 0 4px 12px var(--shadow);
     }
 
-    /* Responsive Navigation */
-    @media (max-width: 768px) {
-        .nav-container {
-            padding: 0 1.5rem;
-        }
-
-        .nav-menu {
-            gap: 0.5rem;
-        }
-
-        .nav-link {
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-
-        .logo {
-            font-size: 22px;
-        }
+    .nav-link.btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px var(--shadow);
     }
 </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-ats_url = f"ats?user={current_user}"
-qu_url = f"qu?user={current_user}"
-# Use f-string to properly interpolate the user variable
+
+
+if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+
+# Get user info for navigation
+current_user = st.session_state.get('logged_in_user', '')
+is_logged_in = bool(current_user)
+
+# Build URLs
+if is_logged_in and current_user:
+    home_url = f"/?user={current_user}"
+    ats_url = f"ats?user={current_user}"
+    qu_url = f"qu?user={current_user}"
+else:
+    home_url = "/"
+    ats_url = "#ats"
+    qu_url = "#qu"
+
+if is_logged_in:
+    auth_button = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
+else:
+    auth_button = '<a class="nav-link" href="#Login" target="_self">Login</a>'
+
+# Navigation Bar
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">Resume Creator</div>
+        <div class="logo">ResumeAI</div>
         <div class="nav-menu">
-            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
-            <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create New Resume</a>
-            <a class="nav-link" href="?addjd=true&user={current_user}" target="_self">Add New JD</a>
+            <a class="nav-link" href="{home_url}" target="_self">Home</a>
+            <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
+            <a class="nav-link" href="job?&user={current_user}" target="_self">Add New JD</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
-            <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
-            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            {auth_button}
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
-# Handle navigation - PRESERVE USER IN SESSION STATE
-if st.query_params.get("addjd") == "true":
-    st.query_params.clear()
-    st.query_params["user"] = current_user
-    st.switch_page("pages/job.py")
 
-if st.query_params.get("create") == "true":
-    st.query_params.clear()
-    st.query_params["user"] = current_user
-    st.switch_page("pages/main.py")
 
-if st.query_params.get("home") == "true":
-    st.query_params.clear()
-    st.query_params["user"] = current_user
-    st.switch_page("app.py")
 
-if st.query_params.get("logout") == "true":
-    # Only clear session state on logout
-    st.session_state.logged_in_user = None
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    st.query_params.clear()
-    st.switch_page("app.py")
+def process_html_upload(uploaded_file):
+    """Process uploaded HTML file."""
+    import chardet
+    resume_data = st.session_state.get('final_resume_data') or {}
+    raw_data = uploaded_file.read()
+    detected = chardet.detect(raw_data)
+    encoding = detected["encoding"] or "utf-8"
+    content = raw_data.decode(encoding, errors="ignore")
 
-loading_placeholder = st.empty()
-import time
-enhanced_resume = st.session_state.get('enhanced_resume')
-is_currently_editing = st.session_state.get('edit_toggle', False)
+    parsed_template = extract_template_from_html(content)
 
-should_generate = (
-    should_regenerate_resume() and 
-    not enhanced_resume and 
-    not is_currently_editing
-)
+    st.session_state.temp_upload_config = {
+        'name': f"Uploaded_{uploaded_file.name.split('.')[0]}",
+        'css': parsed_template.get('css', ''),
+        'html': parsed_template.get('html', ''),
+        'original_filename': uploaded_file.name
+    }
+    
+    # Generate preview
+    preview_html = f"""
+        <style>{parsed_template.get('css', '')}</style>
+        <div class="ats-page">{generate_generic_html(resume_data)}</div>
+    """
+    st.session_state.temp_upload_preview = preview_html
+    st.session_state.selected_template_config = st.session_state.temp_upload_config
+    st.session_state.template_source = 'temp_upload'
 
-if should_generate:
-    loading_placeholder.markdown("""
-        <div id="overlay-loader">
-            <div class="loader-spinner"></div>
-            <p>Please Wait...</p>
-        </div>
-        <style>
-            #overlay-loader {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background: rgba(255, 255, 255, 0.95);
-                backdrop-filter: blur(6px);
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                font-size: 1.2rem;
-                font-weight: 500;
-            }
 
-            .loader-spinner {
-                border: 5px solid rgba(232, 117, 50, 0.2);
-                border-top: 5px solid #e87532;
-                border-radius: 50%;
-                width: 70px;
-                height: 70px;
-                animation: spin 1s linear infinite;
-                margin-bottom: 20px;
-            }
 
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-
-            #overlay-loader p {
-                color: #1f2937;
-                font-size: 1.1rem;
-                letter-spacing: 0.5px;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # Run spinner for 5 seconds
-    time.sleep(5)
-
-    # Run your function AFTER the delay
-    generate_enhanced_resume()
-
-    # Remove spinner
-    loading_placeholder.empty()
-
-resume_data = st.session_state.get('enhanced_resume')
-jd_data = st.session_state.get('job_description')
-
-if resume_data and jd_data:
+def save_uploaded_template(template_name, file_type):
+    """Save the uploaded template to user's templates."""
+    current_user = st.session_state.logged_in_user
+    
     try:
-        st.session_state['ats_result'] = ai_ats_score(resume_data, jd_data)
-        # st.write("✅ ATS Analysis Complete:", st.session_state['ats_result'])
+        if file_type == 'html':
+            if 'uploaded_templates' not in st.session_state:
+                st.session_state.uploaded_templates = {}
+            
+            template_id = f"html_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            temp_config = st.session_state.get('temp_upload_config', {})
+            
+            st.session_state.uploaded_templates[template_id] = {
+                'name': template_name,
+                'css': temp_config.get('css', ''),
+                'html': temp_config.get('html', ''),
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.get('uploaded_file_name', 'unknown.html'),
+                'type': 'html'
+            }
+            
+            # Save to database
+            save_user_templates(current_user, st.session_state.uploaded_templates)
+        
+        elif file_type in ['docx', 'doc']:
+            if 'doc_templates' not in st.session_state:
+                st.session_state.doc_templates = {}
+            
+            template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            temp_config = st.session_state.get('temp_upload_config', {})
+            
+            st.session_state.doc_templates[template_id] = {
+                'name': template_name,
+                'doc_data': temp_config.get('doc_data', st.session_state.get('temp_doc_data')),
+                'structure': temp_config.get('structure', st.session_state.get('temp_doc_structure')),
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.uploaded_file_name,
+                'type': 'word',
+                'sections_detected': temp_config.get('sections_detected', [])
+            }
+            
+            # Save to database
+            from utils import save_user_doc_templates
+            save_user_doc_templates(current_user, st.session_state.doc_templates)
+        
+        elif file_type in ['pptx', 'ppt']:
+            if 'ppt_templates' not in st.session_state:
+                st.session_state.ppt_templates = {}
+            
+            template_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            temp_config = st.session_state.get('temp_upload_config', {})
+            
+            st.session_state.ppt_templates[template_id] = {
+                'name': template_name,
+                'ppt_data': temp_config.get('ppt_data', st.session_state.get('temp_ppt_data')),
+                'structure': temp_config.get('structure', st.session_state.get('temp_ppt_structure')),
+                'edits': temp_config.get('edits', st.session_state.get('temp_ppt_edits', {})),
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.uploaded_file_name,
+                'type': 'powerpoint',
+                'text_elements': temp_config.get('text_elements', [])
+            }
+            
+            # Save to database
+            from utils import save_user_ppt_templates
+            save_user_ppt_templates(current_user, st.session_state.ppt_templates)
+        
     except Exception as e:
-        st.error(f"❌ Error analyzing resume: {str(e)}")
-        st.session_state['ats_result'] = {}
+        st.error(f"Error saving template: {str(e)}")
+        raise e
+
+
+def show_word_doc_preview_and_save(uploaded_file, final_data):
+    """Display Word document preview with save template section."""
+    try:
+        # ========== SAVE TEMPLATE SECTION ==========
+        st.markdown("---")
+        st.markdown("### 💾 Save Word Template")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            doc_template_name = st.text_input(
+                "Template Name:",
+                value=f"DocTemplate_{uploaded_file.name.split('.')[0]}",
+                key="doc_template_name"
+            )
+        
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("💾 Save Template", width=True, type="primary", key="save_doc_btn"):
+                current_user = st.session_state.logged_in_user
+                
+                if 'doc_templates' not in st.session_state:
+                    st.session_state.doc_templates = {}
+                
+                template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                structure = st.session_state.temp_doc_structure
+                
+                st.session_state.doc_templates[template_id] = {
+                    'name': doc_template_name,
+                    'doc_data': st.session_state.temp_doc_data,
+                    'structure': structure,
+                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'original_filename': uploaded_file.name,
+                    'sections_detected': [s['section'] for s in structure],
+                    'type': 'word'
+                }
+                
+                if save_user_doc_templates(current_user, st.session_state.doc_templates):
+                    st.success(f"✅ Template '{doc_template_name}' saved!")
+                    st.balloons()
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Failed to save template. Please try again.")
+        
+        # ========== PREVIEW SECTION ==========
+        st.markdown("---")
+        st.markdown("### 🔍 Document Preview (Not Saved Yet)")
+        
+        if st.session_state.get('generated_doc'):
+            from docx import Document
+            import io
+            
+            doc_stream = io.BytesIO(st.session_state.generated_doc)
+            processed_doc = Document(doc_stream)
+            
+            st.markdown("""
+            <style>
+            .doc-preview {
+                border: 2px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 40px;
+                background: white;
+                min-height: 600px;
+                max-height: 800px;
+                overflow-y: auto;
+                font-family: 'Calibri', 'Arial', sans-serif;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .doc-name { 
+                font-size: 24px; 
+                font-weight: bold; 
+                margin-bottom: 5px;
+                color: #1a1a1a;
+            }
+            .doc-title { 
+                font-size: 14px; 
+                margin-bottom: 5px;
+                color: #4a4a4a;
+            }
+            .doc-contact { 
+                font-size: 12px; 
+                margin-bottom: 20px;
+                color: #666;
+            }
+            .doc-heading { 
+                font-size: 16px; 
+                font-weight: bold; 
+                margin: 20px 0 10px 0;
+                border-bottom: 2px solid #333;
+                padding-bottom: 5px;
+                color: #1a1a1a;
+            }
+            .doc-text { 
+                font-size: 11pt; 
+                line-height: 1.6;
+                margin: 8px 0;
+                color: #333;
+                white-space: pre-wrap;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            html_content = '<div class="doc-preview">'
+            para_count = 0
+            
+            for para in processed_doc.paragraphs:
+                if not para.text.strip():
+                    continue
+                
+                text = para.text.strip()
+                
+                if para_count == 0:
+                    html_content += f'<div class="doc-name">{text}</div>'
+                elif para_count == 1:
+                    html_content += f'<div class="doc-title">{text}</div>'
+                elif para_count == 2:
+                    html_content += f'<div class="doc-contact">{text}</div>'
+                elif para.style.name.startswith('Heading') or (para.runs and para.runs[0].bold and len(text.split()) <= 10):
+                    html_content += f'<div class="doc-heading">{text}</div>'
+                else:
+                    formatted_text = text.replace('\n', '<br>')
+                    html_content += f'<div class="doc-text">{formatted_text}</div>'
+                
+                para_count += 1
+            
+            html_content += '</div>'
+            st.markdown(html_content, unsafe_allow_html=True)
+        
+        # ========== DOWNLOAD SECTION ==========
+        st.markdown("---")
+        filename = f"{final_data.get('name', 'Resume').replace(' ', '_')}_Final.docx"
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.download_button(
+                label="📥 Download Document (Not Saved Yet)",
+                data=st.session_state.generated_doc,
+                file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+                type="primary"
+            )
+        
+        with col2:
+            if st.button("🔄 Reset", use_container_width=True):
+                for key in ['generated_doc', 'temp_doc_data', 'temp_doc_filename', 'temp_doc_structure']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                st.rerun()
+                
+    except Exception as e:
+        st.error(f"Preview error: {str(e)}")
+
+def process_word_upload(uploaded_file, final_data):
+    """Process uploaded Word document and generate preview - FIXED VERSION."""
+    try:
+        # Check if already processed to avoid reprocessing
+        if not st.session_state.get('doc_already_processed', False):
+            # ✅ Read the file ONCE and store it
+            uploaded_file.seek(0)
+            original_file_bytes = uploaded_file.read()
+            
+            # ✅ Extract template text
+            uploaded_file.seek(0)
+            uploadtext = extract_temp_from_docx(uploaded_file)
+            
+            # ✅ Generate mapping
+            mapped_data = ask_ai_for_mapping(uploadtext, final_data)
+
+            # ✅ FORCE mapping to be a dictionary
+            if isinstance(mapped_data, list):
+                mapped_data = {
+                    item["template"]: item["new"]
+                    for item in mapped_data
+                    if "template" in item and "new" in item
+                }
+
+            st.session_state['mapping'] = mapped_data
+            st.session_state['template_text'] = uploadtext
+
+            # ✅ Generate updated DOCX using the original bytes
+            output_doc = auto_process_docx(
+                io.BytesIO(original_file_bytes),
+                st.session_state['mapping']
+            )
+
+            # ✅ Store everything properly
+            st.session_state['generated_docx'] = output_doc.getvalue()
+            st.session_state['doc_original_filename'] = uploaded_file.name
+            st.session_state['doc_original_bytes'] = original_file_bytes
+            
+            # ✅ CRITICAL: Set template source to trigger col3 preview
+            st.session_state['template_source'] = 'doc_saved'
+            
+            # Mark as processed
+            st.session_state['doc_already_processed'] = True
+
+            st.success("✅ DOCX processed successfully! Check preview on the right →")
+
+        # ==============================
+        # ✅ SAVE TEMPLATE SECTION
+        # ==============================
+        st.divider()
+        st.subheader("💾 Save Template")
+
+        # Get the template name (preserve it if already set)
+        default_name = f"Doc_{st.session_state.get('doc_original_filename', 'template').split('.')[0]}"
+        
+        col1, col2 = st.columns([2, 1])
+
+        with col1:
+            doc_template_name = st.text_input(
+                "Template Name:",
+                value=st.session_state.get('doc_template_name_input', default_name),
+                key="doc_template_name_input_field"
+            )
+            # Store in session to persist
+            st.session_state['doc_template_name_input'] = doc_template_name
+
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("💾 Save Template", width='stretch', type="primary", key="save_doc_template_btn"):
+                current_user = st.session_state.logged_in_user
+                
+                if 'doc_templates' not in st.session_state:
+                    st.session_state.doc_templates = load_user_doc_templates(current_user)
+
+                template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+                # ✅ Save with ORIGINAL file bytes
+                st.session_state.doc_templates[template_id] = {
+                    'name': doc_template_name,
+                    'doc_data': st.session_state['doc_original_bytes'],
+                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'original_filename': st.session_state['doc_original_filename']
+                }
+
+                try:
+                    result = save_user_doc_templates(
+                        current_user,
+                        st.session_state.doc_templates
+                    )
+
+                    if result:
+                        st.success(f"✅ Template '{doc_template_name}' saved successfully!")
+                        st.balloons()
+                        
+                        # Set as active template
+                        st.session_state.selected_doc_template_id = template_id
+                        st.session_state.selected_doc_template = st.session_state.doc_templates[template_id]
+                        
+                        # Clear the upload states
+                        st.session_state['doc_already_processed'] = False
+                        st.session_state.pop('doc_template_name_input', None)
+                        
+                        # Wait a moment to show success
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to save template (function returned False)")
+                
+                except Exception as e:
+                    st.error("❌ Save function crashed!")
+                    st.exception(e)
+
+        # ==============================
+        # ✅ DOWNLOAD BUTTON
+        # ==============================
+        st.divider()
+        st.download_button(
+            label="⬇️ Download Updated Resume",
+            data=st.session_state['generated_docx'],
+            file_name=f"Resume_{final_data.get('name', 'User').replace(' ', '_')}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            width='stretch',
+            key="download_doc_from_upload"
+        )
+
+    except Exception as e:
+        st.error(f"❌ Error processing document: {str(e)}")
+        st.exception(e)
+
+
+
+def process_ppt_upload(uploaded_file, final_data):
+    """Process uploaded PowerPoint file and generate preview - FIXED WITH DOWNLOAD."""
+    try:
+        # Check if already processed to avoid reprocessing
+        if not st.session_state.get('ppt_already_processed', False):
+            # Store original file
+            ppt_data = uploaded_file.getvalue()
+            st.session_state.temp_ppt_data = ppt_data
+            st.session_state.temp_ppt_filename = uploaded_file.name
+            
+            # Load presentation
+            prs = Presentation(io.BytesIO(ppt_data))
+            
+            # Extract slide structure
+            slide_texts = []
+            for slide_idx, slide in enumerate(prs.slides):
+                text_blocks = []
+                for shape_idx, shape in enumerate(slide.shapes):
+                    if shape.has_text_frame and shape.text.strip():
+                        text_blocks.append({
+                            "index": shape_idx,
+                            "text": shape.text.strip(),
+                            "position": {"x": shape.left, "y": shape.top}
+                        })
+                
+                if text_blocks:
+                    text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                    slide_texts.append({
+                        "slide_number": slide_idx + 1,
+                        "text_blocks": text_blocks
+                    })
+            
+            st.session_state.temp_ppt_structure = slide_texts
+            
+            # Generate content with user's resume data
+            structured_slides = analyze_slide_structure(slide_texts)
+            generated_sections = generate_ppt_sections(final_data, structured_slides)
+            
+            # Create text elements list
+            text_elements = []
+            for slide_idx, slide in enumerate(prs.slides):
+                for shape_idx, shape in enumerate(slide.shapes):
+                    if shape.has_text_frame and shape.text.strip():
+                        text_elements.append({
+                            'slide': slide_idx + 1,
+                            'shape': shape_idx,
+                            'original_text': shape.text.strip(),
+                            'shape_type': type(shape).__name__
+                        })
+            
+            st.session_state.temp_ppt_text_elements = text_elements
+            
+            # Match content
+            content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+                text_elements, generated_sections, prs)
+            
+            # Generate preview
+            working_prs = Presentation(io.BytesIO(ppt_data))
+            edits = {}
+            
+            for element in text_elements:
+                key = f"{element['slide']}_{element['shape']}"
+                if key not in heading_shapes:
+                    edits[key] = content_mapping.get(key, element['original_text'])
+            
+            # Apply edits to working presentation
+            for element in text_elements:
+                key = f"{element['slide']}_{element['shape']}"
+                if key not in heading_shapes and key in edits:
+                    slide_idx = element['slide'] - 1
+                    shape_idx = element['shape']
+                    
+                    if slide_idx < len(working_prs.slides):
+                        slide = working_prs.slides[slide_idx]
+                        if shape_idx < len(slide.shapes):
+                            shape = slide.shapes[shape_idx]
+                            if shape.has_text_frame:
+                                clear_and_replace_text(shape, edits[key])
+            
+            # Save output
+            output = io.BytesIO()
+            working_prs.save(output)
+            output.seek(0)
+            
+            # ✅ CRITICAL: Store generated PPT and set template source
+            st.session_state['generated_ppt'] = output.getvalue()
+            st.session_state['template_source'] = 'ppt_saved'
+            st.session_state.temp_ppt_edits = edits
+            
+            # Mark as processed
+            st.session_state['ppt_already_processed'] = True
+            
+            st.success("✅ PowerPoint processed successfully! Check preview on the right →")
+        
+        # ==============================
+        # ✅ SAVE TEMPLATE SECTION
+        # ==============================
+        st.divider()
+        st.subheader("💾 Save Template")
+        
+        # Get the template name (preserve it if already set)
+        default_name = f"PPT_{st.session_state.get('temp_ppt_filename', 'template').split('.')[0]}"
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            ppt_template_name = st.text_input(
+                "Template Name:",
+                value=st.session_state.get('ppt_template_name_input', default_name),
+                key="ppt_template_name_input_field"
+            )
+            # Store in session to persist
+            st.session_state['ppt_template_name_input'] = ppt_template_name
+        
+        with col2:
+            st.write("")
+            st.write("")
+            if st.button("💾 Save Template", width='stretch', type="primary", key="save_ppt_template_btn"):
+                current_user = st.session_state.logged_in_user
+                
+                if 'ppt_templates' not in st.session_state:
+                    st.session_state.ppt_templates = {}
+                
+                template_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                st.session_state.ppt_templates[template_id] = {
+                    'name': ppt_template_name,
+                    'ppt_data': st.session_state.temp_ppt_data,
+                    'structure': st.session_state.temp_ppt_structure,
+                    'edits': st.session_state.temp_ppt_edits,
+                    'text_elements': st.session_state.temp_ppt_text_elements,
+                    'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'original_filename': st.session_state.temp_ppt_filename,
+                    'type': 'powerpoint'
+                }
+                
+                if save_user_ppt_templates(current_user, st.session_state.ppt_templates):
+                    st.success(f"✅ Template '{ppt_template_name}' saved successfully!")
+                    st.balloons()
+                    
+                    # Set as active template
+                    st.session_state.selected_ppt_template_id = template_id
+                    st.session_state.selected_ppt_template = st.session_state.ppt_templates[template_id]
+                    
+                    # Clear the upload states
+                    st.session_state['ppt_already_processed'] = False
+                    st.session_state.pop('ppt_template_name_input', None)
+                    
+                    # Wait a moment to show success
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("Failed to save template. Please try again.")
+        
+        # ==============================
+        # ✅ DOWNLOAD BUTTON
+        # ==============================
+        st.divider()
+        st.download_button(
+            label="⬇️ Download Updated Presentation",
+            data=st.session_state['generated_ppt'],
+            file_name=f"Resume_{final_data.get('name', 'User').replace(' ', '_')}.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            width='stretch',
+            key="download_ppt_from_upload"
+        )
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error processing PowerPoint file: {str(e)}")
+        st.exception(e)
+        return False
+
+def show_word_preview_inline(doc_bytes):
+    """Display Word document preview inline with proper formatting."""
+    from docx import Document
+    import io
+    
+    try:
+        doc = Document(io.BytesIO(doc_bytes))
+        
+        st.markdown("""
+        <style>
+        .doc-preview-inline {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 40px;
+            background: white;
+            max-height: 800px;
+            overflow-y: auto;
+            font-family: 'Calibri', 'Arial', sans-serif;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .doc-name { 
+            font-size: 24px; 
+            font-weight: bold; 
+            margin-bottom: 5px;
+            color: #1a1a1a;
+        }
+        .doc-title { 
+            font-size: 14px; 
+            margin-bottom: 5px;
+            color: #4a4a4a;
+        }
+        .doc-contact { 
+            font-size: 12px; 
+            margin-bottom: 20px;
+            color: #666;
+        }
+        .doc-heading { 
+            font-size: 16px; 
+            font-weight: bold; 
+            margin: 20px 0 10px 0;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+            color: #1a1a1a;
+        }
+        .doc-text { 
+            font-size: 11pt; 
+            line-height: 1.6;
+            margin: 8px 0;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        html_content = '<div class="doc-preview-inline">'
+        para_count = 0
+        
+        for para in doc.paragraphs:
+            if not para.text.strip():
+                continue
+            
+            text = para.text.strip()
+            
+            if para_count == 0:
+                html_content += f'<div class="doc-name">{text}</div>'
+            elif para_count == 1:
+                html_content += f'<div class="doc-title">{text}</div>'
+            elif para_count == 2:
+                html_content += f'<div class="doc-contact">{text}</div>'
+            elif para.style.name.startswith('Heading') or (para.runs and para.runs[0].bold and len(text.split()) <= 10):
+                html_content += f'<div class="doc-heading">{text}</div>'
+            else:
+                formatted_text = text.replace('\n', '<br>')
+                html_content += f'<div class="doc-text">{formatted_text}</div>'
+            
+            para_count += 1
+        
+        html_content += '</div>'
+        st.markdown(html_content, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"Preview error: {str(e)}")
+
+
+def show_ppt_preview_inline(ppt_bytes):
+    """Display PowerPoint preview inline with proper formatting."""
+    from pptx import Presentation
+    import io
+    
+    try:
+        prs = Presentation(io.BytesIO(ppt_bytes))
+        
+        st.markdown("""
+        <style>
+        .ppt-slide-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .ppt-slide-header {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .ppt-content-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .ppt-title-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .ppt-body-text {
+            font-size: 14px;
+            color: #34495e;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .ppt-bullet {
+            color: #667eea;
+            margin-right: 8px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        for slide_idx, slide in enumerate(prs.slides):
+            st.markdown(f"""
+            <div class="ppt-slide-container">
+                <div class="ppt-slide-header">📊 Slide {slide_idx + 1}</div>
+            """, unsafe_allow_html=True)
+            
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text.strip():
+                    text = shape.text.strip()
+                    
+                    # Check if it's a title
+                    is_title = False
+                    if hasattr(shape, 'text_frame'):
+                        for paragraph in shape.text_frame.paragraphs:
+                            if paragraph.runs:
+                                first_run = paragraph.runs[0]
+                                if first_run.font.size and first_run.font.size.pt > 18:
+                                    is_title = True
+                                    break
+                                if first_run.font.bold:
+                                    is_title = True
+                                    break
+                    
+                    # Format text
+                    if '\n' in text:
+                        lines = text.split('\n')
+                        formatted_lines = [f'<span class="ppt-bullet">●</span> {line.strip()}' 
+                                         for line in lines if line.strip()]
+                        formatted_text = '<br>'.join(formatted_lines)
+                    else:
+                        formatted_text = text
+                    
+                    css_class = "ppt-title-text" if is_title else "ppt-body-text"
+                    st.markdown(f"""
+                    <div class="ppt-content-box">
+                        <div class="{css_class}">{formatted_text}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+    except Exception as e:
+        st.error(f"Preview error: {str(e)}")
+
+
+def save_uploaded_template(template_name, file_type):
+    """Save the uploaded template to user's templates - CORRECTED VERSION."""
+    current_user = st.session_state.logged_in_user
+    
+    try:
+        if file_type == 'html':
+            if 'uploaded_templates' not in st.session_state:
+                st.session_state.uploaded_templates = {}
+            
+            template_id = f"html_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            temp_config = st.session_state.get('temp_upload_config', {})
+            
+            st.session_state.uploaded_templates[template_id] = {
+                'name': template_name,
+                'css': temp_config.get('css', ''),
+                'html': temp_config.get('html', ''),
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.get('uploaded_file_name', 'unknown.html'),
+                'type': 'html'
+            }
+            
+            save_user_templates(current_user, st.session_state.uploaded_templates)
+            return True
+        
+        elif file_type in ['docx', 'doc']:
+            if 'doc_templates' not in st.session_state:
+                st.session_state.doc_templates = {}
+            
+            template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            structure = st.session_state.get('temp_doc_structure', [])
+            
+            st.session_state.doc_templates[template_id] = {
+                'name': template_name,
+                'doc_data': st.session_state.temp_doc_data,
+                'structure': structure,
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.uploaded_file_name,
+                'type': 'word',
+                'sections_detected': [s['section'] for s in structure]
+            }
+            
+            save_user_doc_templates(current_user, st.session_state.doc_templates)
+            return True
+        
+        elif file_type in ['pptx', 'ppt']:
+            if 'ppt_templates' not in st.session_state:
+                st.session_state.ppt_templates = {}
+            
+            template_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            st.session_state.ppt_templates[template_id] = {
+                'name': template_name,
+                'ppt_data': st.session_state.temp_ppt_data,
+                'structure': st.session_state.get('temp_ppt_structure', []),
+                'edits': st.session_state.get('temp_ppt_edits', {}),
+                'text_elements': st.session_state.get('temp_ppt_text_elements', []),
+                'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'original_filename': st.session_state.uploaded_file_name,
+                'type': 'powerpoint'
+            }
+            
+            save_user_ppt_templates(current_user, st.session_state.ppt_templates)
+            return True
+        
+        return False
+        
+    except Exception as e:
+        st.error(f"Error saving template: {str(e)}")
+        import traceback
+        st.error(f"Details: {traceback.format_exc()}")
+        return False
+
+
+def use_uploaded_template_now(template_name, file_type):
+    """Use the uploaded template immediately without saving."""
+    try:
+        if file_type == 'html':
+            resume_data = generate_resume_for_template()
+            
+            css = st.session_state.temp_upload_css
+            html_content = generate_generic_html(resume_data)
+            
+            full_html = f"""
+            <div class="ats-page">
+                {html_content}
+            </div>
+            """
+            
+            st.session_state.selected_template = template_name
+            st.session_state.template_preview_html = full_html
+            st.session_state.template_preview_css = css
+            st.session_state.final_resume_data = resume_data
+            st.session_state.show_upload_interface = False
+            st.session_state.show_template_selector = False
+            st.session_state.show_visual_editor = True
+            st.rerun()
+        
+        elif file_type in ['docx', 'doc']:
+            st.info("Word template functionality will redirect to download after use.")
+            # Implement Word template usage logic here
+        
+        elif file_type in ['pptx', 'ppt']:
+            st.info("PowerPoint template functionality will redirect to download after use.")
+            # Implement PowerPoint template usage logic here
+            
+    except Exception as e:
+        st.error(f"Error using template: {str(e)}")
+
+def show_upload_interface():
+    """Show the full-page upload interface - FIXED VERSION."""
+    final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
+    
+    # Header with back button
+    st.markdown('<div class="editor-header">', unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("← Back to Templates", type="secondary", use_container_width=True):
+            st.session_state.show_upload_interface = False
+            # Clear ALL temporary upload states INCLUDING processing flags
+            for key in ['temp_upload_html', 'temp_upload_css', 'temp_upload_preview', 
+                       'uploaded_file_name', 'uploaded_file_type', 'temp_upload_config',
+                       'temp_doc_data', 'temp_doc_structure', 'temp_doc_filename',
+                       'generated_docx', 'doc_structure', 'doc_replaced', 'doc_removed',
+                       'temp_ppt_data', 'temp_ppt_structure', 'temp_ppt_edits', 
+                       'temp_ppt_text_elements', 'generated_ppt', 'doc_original_bytes',
+                       'doc_original_filename', 'mapping', 'template_text',
+                       'doc_already_processed', 'ppt_already_processed',  # CRITICAL: Clear flags
+                       'doc_template_name_input', 'ppt_template_name_input']:  # Clear name inputs
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+    
+    with col2:
+        st.markdown("<h3 style='margin: 0; color: #212529;'>📤 Upload Custom Resume Template</h3>", 
+                   unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Main upload section
+    st.markdown("### 📁 Select Template File")
+    
+    uploaded_file = st.file_uploader(
+        "Upload your template file",
+        type=['html', 'pptx', 'docx', 'doc'],
+        key="template_file_upload",
+        help="Supported formats: HTML, Word (.docx, .doc), PowerPoint (.pptx)"
+    )
+    
+    if uploaded_file is not None:
+        st.success(f"✅ File uploaded: {uploaded_file.name}")
+        
+        file_type = uploaded_file.name.split('.')[-1].lower()
+        st.session_state.uploaded_file_name = uploaded_file.name
+        st.session_state.uploaded_file_type = file_type
+        
+        # Create two columns: upload controls (col1) and preview (col2)
+        col1, col2 = st.columns([1, 1.5])
+        
+        with col1:
+            # Only show spinner on first processing
+            if file_type in ['docx', 'doc'] and not st.session_state.get('doc_already_processed'):
+                with st.spinner("Processing template..."):
+                    process_word_upload(uploaded_file, final_data)
+            elif file_type in ['pptx', 'ppt'] and not st.session_state.get('ppt_already_processed'):
+                with st.spinner("Processing template..."):
+                    process_ppt_upload(uploaded_file, final_data)
+            elif file_type == 'html':
+                with st.spinner("Processing template..."):
+                    process_html_upload(uploaded_file)
+                    
+                    # Show HTML save/download inline
+                    st.markdown("---")
+                    st.markdown("### 💾 Save & Download")
+                    
+                    template_name = st.text_input(
+                        "Template Name:",
+                        value=f"Custom_{uploaded_file.name.split('.')[0]}",
+                        key="html_template_name"
+                    )
+                    
+                    col_save, col_download = st.columns(2)
+                    
+                    with col_save:
+                        if st.button("💾 Save", type="primary", use_container_width=True, key="save_html"):
+                            if save_uploaded_template(template_name, file_type):
+                                st.success("✅ Saved!")
+                                st.balloons()
+                                time.sleep(1)
+                                st.session_state.show_upload_interface = False
+                                st.rerun()
+                    
+                    with col_download:
+                        if st.session_state.get('temp_upload_preview'):
+                            st.download_button(
+                                label="📥 Download",
+                                data=st.session_state.temp_upload_preview,
+                                file_name=f"{template_name}.html",
+                                mime="text/html",
+                                use_container_width=True,
+                                type="secondary"
+                            )
+            else:
+                # Already processed, just show the save/download sections
+                if file_type in ['docx', 'doc']:
+                    process_word_upload(uploaded_file, final_data)
+                elif file_type in ['pptx', 'ppt']:
+                    process_ppt_upload(uploaded_file, final_data)
+        
+        # Preview column
+        with col2:
+            st.markdown("---")
+            st.markdown("### 👁️ Template Preview")
+            
+            if file_type == 'html' and st.session_state.get('temp_upload_preview'):
+                st.components.v1.html(st.session_state.temp_upload_preview, height=800, scrolling=True)
+            
+            elif file_type in ['docx', 'doc'] and st.session_state.get('generated_docx'):
+                # Show Word preview
+                try:
+                    preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
+                    st.components.v1.html(preview_html, height=800, scrolling=True)
+                except Exception as e:
+                    st.error(f"Preview error: {str(e)}")
+            
+            elif file_type in ['pptx', 'ppt'] and st.session_state.get('generated_ppt'):
+                # Show PPT preview
+                show_ppt_preview_inline(st.session_state['generated_ppt'])
+    else:
+        # Clear processing flags when no file is uploaded
+        st.session_state.pop('doc_already_processed', None)
+        st.session_state.pop('ppt_already_processed', None)
+
+
+
+
+
+def regenerate_live_preview():
+    """Regenerate the live preview with updated resume data."""
+    if not st.session_state.get('selected_template'):
+        return None, None
+    
+    # Get current resume data from enhanced_resume
+    resume_data = st.session_state.get('enhanced_resume', {})
+    
+    # Get template configuration
+    template_config = SYSTEM_TEMPLATES.get(st.session_state.selected_template)
+    if not template_config:
+        return None, None
+    
+    # Generate fresh HTML and CSS
+    selected_color = ATS_COLORS["Professional Blue (Default)"]
+    css = load_css_template(
+        template_config['css_template'],
+        selected_color
+    )
+    html_content = template_config['html_generator'](resume_data)
+    
+    # Create full HTML
+    full_html = f"""
+    <div class="ats-page">
+        {html_content}
+    </div>
+    """
+    
+    return full_html, css
+
+
 
 def get_standard_keys():
-    """Return set of standard resume keys that should not be treated as custom sections."""
+    """Return set of standard resume keys."""
     return {
         "name", "email", "phone", "location", "url", "summary", "job_title",
         "education", "experience", "skills", "projects", "certifications", 
-         "total_experience_count","input_method"
+        "total_experience_count", "input_method", "achievements", "languages"
     }
 
+def clean_resume_data(data):
+    """Clean and prepare resume data for templates."""
+    if not data:
+        return {}
+    
+    cleaned = data.copy()
+    
+    # Remove empty values
+    for key in list(cleaned.keys()):
+        if cleaned[key] is None or cleaned[key] == "":
+            del cleaned[key]
+        elif isinstance(cleaned[key], list) and len(cleaned[key]) == 0:
+            del cleaned[key]
+        elif isinstance(cleaned[key], dict) and len(cleaned[key]) == 0:
+            del cleaned[key]
+    
+    # Ensure required sections exist
+    if 'experience' not in cleaned:
+        cleaned['experience'] = []
+    if 'education' not in cleaned:
+        cleaned['education'] = []
+    if 'skills' not in cleaned:
+        cleaned['skills'] = []
+    
+    return cleaned
+
+def generate_resume_for_template():
+    """Generate enhanced resume data for template."""
+    # Return enhanced resume if it exists
+    if st.session_state.enhanced_resume:
+        return clean_resume_data(st.session_state.enhanced_resume)
+    
+    # Check if we should regenerate (only if job description exists)
+    jd_data = st.session_state.get('job_description')
+    has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
+    
+    # Only regenerate if JD exists and edit mode is off
+    if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
+        try:
+            generate_enhanced_resume()
+        except Exception as e:
+            st.warning(f"Could not enhance resume: {str(e)}")
+            # Fall back to original resume
+            pass
+    
+    # Get resume data - enhanced if available, otherwise original
+    resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume
+    
+    if not resume_data:
+        st.error("No resume data found. Please create a resume first.")
+        return {}
+    
+    resume_data = clean_resume_data(resume_data)
+    
+    
+    return resume_data
+
 def save_custom_sections():
-    """Save custom section edits to session state."""
-    data = st.session_state['enhanced_resume']
-    standard_keys = get_standard_keys()
+    """Save custom section edits."""
+    if 'enhanced_resume' in st.session_state:
+        data = st.session_state.enhanced_resume
+        standard_keys = get_standard_keys()
+        
+        for key in list(data.keys()):
+            if key not in standard_keys and isinstance(data.get(key), str):
+                edit_key = f"edit_custom_{key}"
+                if edit_key in st.session_state:
+                    data[key] = st.session_state[edit_key].strip()
+        
+        st.session_state.enhanced_resume = data
+
+VISUAL_EDITOR_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #F8F9FA;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: 100vh;
+        }
+
+        body {
+            padding: 1rem;
+        }
+
+        .canvas-container {
+            width: 100%;
+            background: #F8F9FA;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 1rem;
+            min-height: 100vh;
+        }
+
+        .canvas {
+            width: 8.5in;
+            min-height: 11in;
+            background: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: visible !important;
+            margin: 0 auto;
+            padding: 0.5in;
+        }
+
+        /* Make elements editable */
+        .editable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .editable:hover {
+            background: rgba(255, 107, 53, 0.05) !important;
+            outline: 2px dashed rgba(255, 107, 53, 0.3) !important;
+            outline-offset: 2px;
+        }
+
+        .editable:active {
+            background: rgba(255, 107, 53, 0.1) !important;
+        }
+
+        .editable-section {
+            border-radius: 4px;
+            padding: 4px;
+        }
+
+        /* Inline Editor Modal */
+        .inline-editor-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .inline-editor-content {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 2px solid #FF6B35;
+        }
+
+        .inline-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #F8F9FA;
+        }
+
+        .inline-editor-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #FF6B35;
+        }
+
+        .inline-editor-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #495057;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .inline-editor-close:hover {
+            background: #F8F9FA;
+            color: #FF6B35;
+        }
+
+        .inline-editor-body {
+            margin-bottom: 1.5rem;
+        }
+
+        .inline-editor-textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid #E9ECEF;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .inline-editor-textarea:focus {
+            outline: none;
+            border-color: #FF6B35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        .inline-editor-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .inline-editor-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .inline-editor-save {
+            background: linear-gradient(135deg, #FF6B35 0%, #FF8B5C 100%);
+            color: white;
+        }
+
+        .inline-editor-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .inline-editor-cancel {
+            background: #F8F9FA;
+            color: #495057;
+            border: 2px solid #E9ECEF;
+        }
+
+        .inline-editor-cancel:hover {
+            background: #E9ECEF;
+        }
+
+        /* Remove any hidden elements */
+        [style*="display: none"],
+        [style*="visibility: hidden"],
+        .empty-section {
+            display: none !important;
+        }
+        
+        /* Ensure content is visible */
+        .ats-page {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 11in !important;
+            padding: 0.5in !important;
+            overflow: visible !important;
+        }
+        
+        /* Make sure all content shows */
+        div, p, h1, h2, h3, h4, li, span {
+            overflow: visible !important;
+            white-space: normal !important;
+        }
+        
+    </style>
+    <style id="template-css"></style>
+</head>
+<body>
+    <!-- Inline Editor Modal -->
+    <div class="inline-editor-modal" id="inlineEditor">
+        <div class="inline-editor-content">
+            <div class="inline-editor-header">
+                <div class="inline-editor-title" id="editorTitle">Edit Section</div>
+                <button class="inline-editor-close" onclick="closeEditor()">×</button>
+            </div>
+            <div class="inline-editor-body">
+                <textarea class="inline-editor-textarea" id="editorTextarea" placeholder="Enter your content here..."></textarea>
+            </div>
+            <div class="inline-editor-actions">
+                <button class="inline-editor-btn inline-editor-cancel" onclick="closeEditor()">Cancel</button>
+                <button class="inline-editor-btn inline-editor-save" onclick="saveContent()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <div class="canvas" id="canvas">
+            <!-- Template content will be injected here -->
+        </div>
+    </div>
+
+    <script>
+        let currentEditElement = null;
+        let currentEditPath = '';
+        
+        // Load template content
+        function loadTemplateContent() {
+            const templateData = window.templateContent || '';
+            const templateCss = window.templateCss || '';
+            
+            if (templateData) {
+                document.getElementById('canvas').innerHTML = templateData;
+            }
+            
+            if (templateCss) {
+                document.getElementById('template-css').innerHTML = templateCss;
+            }
+            
+            // Make all text elements editable
+            setTimeout(() => {
+                makeElementsEditable();
+                removeEmptySections();
+            }, 100);
+        }
+        
+        function makeElementsEditable() {
+            // Select elements that should be editable
+            const editableSelectors = [
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'p', 'span', 'li', 'div[class*="name"]',
+                'div[class*="title"]', 'div[class*="summary"]',
+                'div[class*="description"]', 'div[class*="skill"]'
+            ];
+            
+            editableSelectors.forEach(selector => {
+                document.querySelectorAll(`#canvas ${selector}`).forEach(el => {
+                    if (el.textContent.trim() && !el.hasAttribute('data-non-editable')) {
+                        el.classList.add('editable', 'editable-section');
+                        el.setAttribute('title', 'Click to edit');
+                        el.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            openEditor(el);
+                        });
+                    }
+                });
+            });
+        }
+        
+        function removeEmptySections() {
+            // Remove completely empty sections
+            const sections = document.querySelectorAll('#canvas > div, #canvas section, #canvas .section');
+            sections.forEach(section => {
+                if (section.textContent.trim() === '' || section.innerHTML.trim() === '<br>') {
+                    section.style.display = 'none';
+                }
+            });
+        }
+        
+        function openEditor(element) {
+            currentEditElement = element;
+            currentEditPath = getElementPath(element);
+            
+            // Get current content
+            let content = element.textContent || '';
+            
+            // For list items, get all items in the list
+            if (element.tagName === 'LI') {
+                const list = element.closest('ul, ol');
+                if (list) {
+                    content = Array.from(list.querySelectorAll('li')).map(li => li.textContent).join('\\n');
+                    currentEditElement = list;
+                }
+            }
+            
+            document.getElementById('editorTitle').textContent = 'Edit Content';
+            document.getElementById('editorTextarea').value = content;
+            document.getElementById('inlineEditor').style.display = 'flex';
+        }
+        
+        function closeEditor() {
+            document.getElementById('inlineEditor').style.display = 'none';
+            currentEditElement = null;
+            currentEditPath = '';
+        }
+        
+        function saveContent() {
+            if (!currentEditElement) return;
+            
+            const newContent = document.getElementById('editorTextarea').value.trim();
+            
+            if (newContent) {
+                if (currentEditElement.tagName === 'LI' || currentEditElement.tagName === 'UL' || currentEditElement.tagName === 'OL') {
+                    // Handle list content
+                    const list = currentEditElement.tagName === 'LI' ? currentEditElement.closest('ul, ol') : currentEditElement;
+                    if (list) {
+                        const items = newContent.split('\\n').filter(item => item.trim());
+                        list.innerHTML = items.map(item => `<li>${item.trim()}</li>`).join('');
+                        
+                        // Make new items editable
+                        list.querySelectorAll('li').forEach(li => {
+                            li.classList.add('editable', 'editable-section');
+                            li.setAttribute('title', 'Click to edit');
+                            li.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                openEditor(li);
+                            });
+                        });
+                    }
+                } else {
+                    // Handle regular text content
+                    currentEditElement.textContent = newContent;
+                }
+                
+                // Notify parent about the change
+                window.parent.postMessage({
+                    type: 'content_updated',
+                    path: currentEditPath,
+                    content: newContent
+                }, '*');
+            }
+            
+            closeEditor();
+        }
+        
+        function getElementPath(element) {
+            const path = [];
+            let current = element;
+            
+            while (current && current !== document.body) {
+                let selector = current.tagName.toLowerCase();
+                
+                if (current.id) {
+                    selector += `#${current.id}`;
+                } else if (current.className && typeof current.className === 'string') {
+                    const classes = current.className.split(' ').filter(c => c).join('.');
+                    if (classes) selector += `.${classes}`;
+                }
+                
+                path.unshift(selector);
+                current = current.parentElement;
+            }
+            
+            return path.join(' > ');
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadTemplateContent);
+        window.addEventListener('load', loadTemplateContent);
+        
+        // Listen for messages from parent
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'update_content') {
+                document.getElementById('canvas').innerHTML = event.data.content;
+                const styleEl = document.getElementById('template-css');
+                if (styleEl && event.data.css) {
+                    styleEl.innerHTML = event.data.css;
+                }
+                setTimeout(() => {
+                    makeElementsEditable();
+                    removeEmptySections();
+                }, 100);
+            }
+            
+            if (event.data.type === 'refresh_editor') {
+                loadTemplateContent();
+            }
+        });
+        
+        // Close editor on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeEditor();
+            }
+        });
+        
+        // Close editor when clicking outside
+        document.getElementById('inlineEditor').addEventListener('click', (e) => {
+            if (e.target.classList.contains('inline-editor-modal')) {
+                closeEditor();
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+
+
+
+
+def render_template_card(template_name, template_config, template_categories):
+    """Render a single template card."""
+    template_type = template_categories.get(template_name, "Template")
     
-    # Update custom sections from session state (for edit mode)
-    for key in list(data.keys()):
-        if key not in standard_keys and isinstance(data.get(key), str):
-            edit_key = f"edit_custom_{key}"
-            if edit_key in st.session_state:
-                data[key] = st.session_state[edit_key].strip()
+    st.markdown(f"""
+    <div class="template-card">
+        <div class="template-preview">
+            <div style="width: 85%; height: 90%; background: white; 
+                 border-radius: 4px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="width: 60%; height: 10px; background: #FF6B35; 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+                <div style="width: 40%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 1rem;"></div>
+                <div style="width: 80%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+            </div>
+            <div class="template-badge">{template_type}</div>
+        </div>
+        <div style="padding: 1rem;">
+            <div style="font-size: 1rem; font-weight: 600; color: #212529; 
+                 margin-bottom: 0.5rem;">📄 {template_name}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Ensure all custom sections are preserved in the data
-    st.session_state['enhanced_resume'] = data
+    if st.button("Use Template", key=f"use_{template_name}", type="primary", use_container_width=True):
+        # Generate resume data
+        resume_data = generate_resume_for_template()
+        
+        # Generate template HTML
+        selected_color = ATS_COLORS["Professional Blue (Default)"]
+        css = load_css_template(template_config['css_template'], selected_color)
+        html_content = template_config['html_generator'](resume_data)
+        
+        # Create full HTML
+        full_html = f"""
+        <div class="ats-page">
+            {html_content}
+        </div>
+        """
+        
+        # Store in session state
+        st.session_state.selected_template = template_name
+        st.session_state.template_preview_html = full_html
+        st.session_state.template_preview_css = css
+        st.session_state.final_resume_data = resume_data
+        st.session_state.show_template_selector = False
+        st.session_state.show_visual_editor = True
+        st.rerun()
 
-def generate_and_switch():
-    """Performs final analysis and switches to download page."""
-    # Save any pending custom section edits
-    save_custom_sections()
+def show_upload_modal():
+    """Show the upload modal for custom templates."""
+    st.markdown("---")
+    st.markdown("### 📤 Upload Custom Template")
     
-    data = st.session_state['enhanced_resume']
+    # Create tabs for different file types
+    tab1, tab2, tab3 = st.tabs(["📄 HTML Template", "📝 Word Document", "📊 PowerPoint"])
     
-    # Extract custom sections before analysis
-    standard_keys = get_standard_keys()
-    custom_sections = {k: v for k, v in data.items() 
-                      if k not in standard_keys and isinstance(v, str)}
+    with tab1:
+        show_html_upload()
     
-    # Perform analysis
-    finalized_data = analyze_and_improve_resume(data)
+    with tab2:
+        show_word_upload()
     
-    # Re-add custom sections to finalized data
-    for key, value in custom_sections.items():
-        if key not in finalized_data:
-            finalized_data[key] = value
-
-    default_template = "Minimalist (ATS Best)"
-
-    st.session_state.selected_template = default_template
-    st.session_state.template_source = 'saved'
-    st.session_state['final_resume_data'] = finalized_data
-
-    # Set default template config
-    from templates.templateconfig import SYSTEM_TEMPLATES  # make sure this import exists
-    st.session_state.selected_template_config = SYSTEM_TEMPLATES.get(default_template)
-
-    st.switch_page("pages/template_preview.py")
+    with tab3:
+        show_powerpoint_upload()
+    
+    # Close button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("❌ Close Upload", type="secondary", use_container_width=True):
+            st.session_state.show_upload_modal = False
+            st.rerun()
 
 
-def flatten_custom_sections(data):
+def show_html_upload():
+    """Handle HTML template upload."""
+    st.markdown("Upload an HTML file with embedded CSS styles")
+    
+    uploaded_file = st.file_uploader(
+        "Choose HTML file",
+        type=['html'],
+        key="html_upload",
+        help="Upload an HTML file with your custom resume template"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            import chardet
+            raw_data = uploaded_file.read()
+            detected = chardet.detect(raw_data)
+            encoding = detected["encoding"] or "utf-8"
+            content = raw_data.decode(encoding, errors="ignore")
+            
+            # Extract template structure (you'll need to implement this based on your needs)
+            from templates.templateconfig import extract_template_from_html
+            parsed_template = extract_template_from_html(content)
+            
+            # FIXED: Changed key from 'html_template_name' to be more unique
+            template_name = st.text_input(
+                "Template Name:",
+                value=f"Custom_{uploaded_file.name.split('.')[0]}",
+                key="modal_html_template_name"  # Changed key here
+            )
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_html_template_btn"):
+                    save_html_template(template_name, parsed_template, uploaded_file.name)
+                    st.success(f"✅ Template '{template_name}' saved!")
+                    st.balloons()
+                    time.sleep(1)
+                    st.session_state.show_upload_modal = False
+                    st.rerun()
+            
+            with col2:
+                if st.button("👁️ Preview & Use", type="secondary", use_container_width=True, key="preview_html_template_btn"):
+                    use_uploaded_html_template(template_name, parsed_template)
+            
+            # Show preview
+            st.markdown("#### Preview")
+            resume_data = st.session_state.get('final_resume_data') or {}
+            preview_html = f"""
+                <style>{parsed_template.get('css', '')}</style>
+                <div class="ats-page">{generate_generic_html(resume_data)}</div>
+            """
+            st.components.v1.html(preview_html, height=600, scrolling=True)
+            
+        except Exception as e:
+            st.error(f"Error processing HTML file: {str(e)}")
+
+
+def show_word_upload():
+    """Handle Word document upload."""
+    st.markdown("Upload a Word document (.docx) template")
+    
+    uploaded_file = st.file_uploader(
+        "Choose Word file",
+        type=['docx', 'doc'],
+        key="word_upload",
+        help="Upload a Word document with your custom resume template"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            from templates.templateconfig import extract_document_structure, replace_content
+            
+            # Extract structure
+            uploaded_file.seek(0)
+            doc, structure = extract_document_structure(uploaded_file)
+            
+            # Store template data
+            uploaded_file.seek(0)
+            doc_data = uploaded_file.read()
+            
+            # FIXED: Changed key to be unique
+            template_name = st.text_input(
+                "Template Name:",
+                value=f"Word_{uploaded_file.name.split('.')[0]}",
+                key="modal_word_template_name"  # Changed key here
+            )
+            
+            # Get resume data
+            resume_data = st.session_state.get('final_resume_data') or {}
+            
+            # Generate preview
+            uploaded_file.seek(0)
+            doc, _ = extract_document_structure(uploaded_file)
+            output, replaced, removed = replace_content(doc, structure, resume_data)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_word_template_btn"):
+                    save_word_template(template_name, doc_data, structure, uploaded_file.name)
+                    st.success(f"✅ Template '{template_name}' saved!")
+                    st.balloons()
+                    time.sleep(1)
+                    st.session_state.show_upload_modal = False
+                    st.rerun()
+            
+            with col2:
+                if st.button("📥 Download Preview", type="secondary", use_container_width=True, key="download_word_preview_btn"):
+                    st.download_button(
+                        label="Download Word Document",
+                        data=output.getvalue(),
+                        file_name=f"{template_name}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+            
+            # Show preview
+            st.markdown("#### Preview")
+            show_word_preview(output.getvalue())
+            
+        except Exception as e:
+            st.error(f"Error processing Word file: {str(e)}")
+
+
+def show_powerpoint_upload():
+    """Handle PowerPoint upload."""
+    st.markdown("Upload a PowerPoint presentation (.pptx) template")
+    
+    uploaded_file = st.file_uploader(
+        "Choose PowerPoint file",
+        type=['pptx', 'ppt'],
+        key="ppt_upload",
+        help="Upload a PowerPoint presentation with your custom resume template"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            import io
+            from pptx import Presentation
+            from templates.templateconfig import analyze_slide_structure, generate_ppt_sections
+            
+            # Load presentation
+            ppt_data = uploaded_file.getvalue()
+            prs = Presentation(io.BytesIO(ppt_data))
+            
+            # Extract structure
+            slide_texts = []
+            for slide_idx, slide in enumerate(prs.slides):
+                text_blocks = []
+                for shape_idx, shape in enumerate(slide.shapes):
+                    if shape.has_text_frame and shape.text.strip():
+                        text_blocks.append({
+                            "index": shape_idx,
+                            "text": shape.text.strip(),
+                            "position": {"x": shape.left, "y": shape.top}
+                        })
+                
+                if text_blocks:
+                    text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                    slide_texts.append({
+                        "slide_number": slide_idx + 1,
+                        "text_blocks": text_blocks
+                    })
+            
+            # FIXED: Changed key to be unique
+            template_name = st.text_input(
+                "Template Name:",
+                value=f"PPT_{uploaded_file.name.split('.')[0]}",
+                key="modal_ppt_template_name"  # Changed key here
+            )
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn"):
+                    save_ppt_template(template_name, ppt_data, slide_texts, uploaded_file.name)
+                    st.success(f"✅ Template '{template_name}' saved!")
+                    st.balloons()
+                    time.sleep(1)
+                    st.session_state.show_upload_modal = False
+                    st.rerun()
+            
+            with col2:
+                if st.button("👁️ Preview", type="secondary", use_container_width=True, key="preview_ppt_btn"):
+                    st.session_state.show_ppt_preview = True
+            
+            # Show preview if requested
+            if st.session_state.get('show_ppt_preview', False):
+                st.markdown("#### Preview")
+                show_ppt_preview(prs)
+            
+        except Exception as e:
+            st.error(f"Error processing PowerPoint file: {str(e)}")
+
+
+def save_html_template(name, parsed_template, filename):
+    """Save HTML template to user's templates."""
+    if 'uploaded_templates' not in st.session_state:
+        st.session_state.uploaded_templates = {}
+    
+    template_id = f"html_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    st.session_state.uploaded_templates[template_id] = {
+        'name': name,
+        'css': parsed_template.get('css', ''),
+        'html': parsed_template.get('html', ''),
+        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'original_filename': filename,
+        'type': 'html'
+    }
+    
+    # Save to database (implement this based on your storage)
+    # save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+
+
+def save_word_template(name, doc_data, structure, filename):
+    """Save Word template to user's templates."""
+    if 'doc_templates' not in st.session_state:
+        st.session_state.doc_templates = {}
+    
+    template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    st.session_state.doc_templates[template_id] = {
+        'name': name,
+        'doc_data': doc_data,
+        'structure': structure,
+        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'original_filename': filename,
+        'type': 'word'
+    }
+    
+    # Save to database
+    # save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
+
+
+def save_ppt_template(name, ppt_data, slide_texts, filename):
+    """Save PowerPoint template to user's templates."""
+    if 'ppt_templates' not in st.session_state:
+        st.session_state.ppt_templates = {}
+    
+    template_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    st.session_state.ppt_templates[template_id] = {
+        'name': name,
+        'ppt_data': ppt_data,
+        'slide_texts': slide_texts,
+        'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'original_filename': filename,
+        'type': 'powerpoint'
+    }
+    
+    # Save to database
+    # save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+
+
+def show_word_preview(doc_bytes):
+    """Display Word document preview."""
+    from docx import Document
+    import io
+    
+    doc = Document(io.BytesIO(doc_bytes))
+    
+    st.markdown("""
+    <style>
+    .doc-preview {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 40px;
+        background: white;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    html_content = '<div class="doc-preview">'
+    for para in doc.paragraphs:
+        if para.text.strip():
+            html_content += f'<p>{para.text}</p>'
+    html_content += '</div>'
+    
+    st.markdown(html_content, unsafe_allow_html=True)
+
+
+def show_ppt_preview(prs):
+    """Display PowerPoint preview."""
+    st.markdown("""
+    <style>
+    .ppt-slide {
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    for slide_idx, slide in enumerate(prs.slides):
+        st.markdown(f'<div class="ppt-slide"><h4>Slide {slide_idx + 1}</h4>', unsafe_allow_html=True)
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                st.markdown(f'<p>{shape.text}</p>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+def use_uploaded_html_template(name, parsed_template):
+    """Use the uploaded HTML template immediately."""
+    resume_data = generate_resume_for_template()
+    
+    css = parsed_template.get('css', '')
+    html_content = generate_generic_html(resume_data)
+    
+    full_html = f"""
+    <div class="ats-page">
+        {html_content}
+    </div>
     """
-    Converts nested custom_sections into top-level keys.
-    Example: {"custom_sections": {"Languages": "..."}} → {"Languages": "..."}
-    """
-    if 'custom_sections' in data and isinstance(data['custom_sections'], dict):
-        custom_sections = data.pop('custom_sections')
-        for key, value in custom_sections.items():
-            if key not in data:  # Don't overwrite existing keys
-                data[key] = value
-    return data
+    
+    st.session_state.selected_template = name
+    st.session_state.template_preview_html = full_html
+    st.session_state.template_preview_css = css
+    st.session_state.final_resume_data = resume_data
+    st.session_state.show_template_selector = False
+    st.session_state.show_visual_editor = True
+    st.session_state.show_upload_modal = False
+    st.rerun()
 
-def main():
-    apply_custom_css()
-    data = st.session_state['enhanced_resume']
+def show_template_selector():
+    """Show template selection gallery with custom upload option and saved templates."""
+    # Check if we should show upload interface
+    if st.session_state.get('show_upload_interface', False):
+        show_upload_interface()
+        return
+    st.markdown("""
+    <style>
+    /* ================= HERO HEADER ================= */
+    .ats-main-wrapper {
+        background: linear-gradient(135deg, #fff9f5 0%, #ffffff 50%, #fff5f0 100%);
+        padding: 60px 0 30px;
+        position: center;
+    }
+
+    .ats-hero {
+        text-align: center;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .ats-hero-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #fff5f0 0%, #ffe8d6 100%);
+        color: #e87532;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        border: 1px solid rgba(232, 117, 50, 0.25);
+    }
+
+    .ats-main-title {
+        font-size: 2.6rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 12px;
+        letter-spacing: -1px;
+    }
+
+    .ats-main-title .highlight {
+        background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .ats-hero-description {
+        font-size: 1rem;
+        color: #64748b;
+        line-height: 1.6;
+        max-width: 620px;
+        margin-left: 120px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="ats-main-wrapper">
+        <div class="ats-hero">
+            <div class="ats-hero-badge">RESUME TEMPLATES</div>
+            <h1 class="ats-main-title">Download your <span class="highlight">Resume</span></h1>
+            <p class="ats-hero-description">
+               Choose from our professionally designed templates or upload your own
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Flatten custom_sections if they exist
-    data = flatten_custom_sections(data)
-    st.session_state['enhanced_resume'] = data
+    # Search bar
+    search_term = st.text_input("🔍 Search templates...", 
+                               placeholder="Search templates...",
+                               label_visibility="collapsed",
+                               key="template_search")
     
-    # Create 3 columns with different widths: narrow, medium, wider
-    col1, col3 = st.columns([3.5, 6], gap="large")
+    # Template categories
+    template_categories = {
+        "Minimalist (ATS Best)": "ATS",
+        "Horizontal Line": "Modern",
+        "Bold Title Accent": "Bold",
+        "Date Below": "Clean",
+        "Section Box Header": "Boxed",
+        "Times New Roman Classic": "Classic",
+        "Sophisticated Minimal": "Minimal",
+        "Clean Look": "Modern",
+        "Elegant": "Elegant",
+        "Modern Minimal": "Minimal",
+        "Two Coloumn": "Layout",
+    }
     
-    # LEFT PANEL - Tools Section
+    # Load all saved templates
+    current_user = st.session_state.logged_in_user
+    if 'uploaded_templates' not in st.session_state:
+        st.session_state.uploaded_templates = load_user_templates(current_user)
+    
+    if 'doc_templates' not in st.session_state:
+        st.session_state.doc_templates = load_user_doc_templates(current_user)
+    
+    if 'ppt_templates' not in st.session_state:
+        st.session_state.ppt_templates = load_user_ppt_templates(current_user)
+    
+    # Filter system templates
+    filtered_templates = {
+        name: config for name, config in SYSTEM_TEMPLATES.items()
+        if search_term.lower() in name.lower() or 
+        search_term.lower() in template_categories.get(name, "").lower()
+    }
+    
+    # Filter saved templates
+    filtered_html = {
+        tid: data for tid, data in st.session_state.uploaded_templates.items()
+        if search_term.lower() in data['name'].lower()
+    }
+    
+    filtered_doc = {
+        tid: data for tid, data in st.session_state.doc_templates.items()
+        if search_term.lower() in data['name'].lower()
+    }
+    
+    filtered_ppt = {
+        tid: data for tid, data in st.session_state.ppt_templates.items()
+        if search_term.lower() in data['name'].lower()
+    }
+    
+    # Create tabs for different template types
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 System Templates", "📄 HTML Templates", "📝 Word Templates", "📊 PowerPoint Templates"])
+    
+    # ========== SYSTEM TEMPLATES TAB ==========
+    with tab1:
+        templates_list = list(filtered_templates.items())
+        
+        # First row with Upload Custom Template card
+        cols = st.columns(3)
+        
+        # Upload Custom Template Card
+        with cols[0]:
+            st.markdown("""
+            <div class="create-blank-card" id="upload-template-card">
+                <div class="plus-icon">📤</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: #212529; margin-bottom: 0.5rem;">
+                    Upload Custom Template
+                </div>
+                <div style="font-size: 0.9rem; color: #6c757d; text-align: center;">
+                    Upload your own HTML, Word, or PowerPoint template
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("📤 Upload Template", key="upload_custom_btn", type="primary", use_container_width=True):
+                st.session_state.show_upload_interface = True
+                st.rerun()
+        
+        # Fill remaining slots in first row
+        for col_idx in range(1, min(3, len(templates_list) + 1)):
+            if col_idx - 1 < len(templates_list):
+                template_name, template_config = templates_list[col_idx - 1]
+                with cols[col_idx]:
+                    render_template_card(template_name, template_config, template_categories)
+        
+        # Render remaining templates in rows of 3
+        if len(templates_list) > 2:
+            remaining_templates = templates_list[2:]
+            for i in range(0, len(remaining_templates), 3):
+                cols = st.columns(3)
+                row_templates = remaining_templates[i:i + 3]
+                
+                for col_idx, (template_name, template_config) in enumerate(row_templates):
+                    with cols[col_idx]:
+                        render_template_card(template_name, template_config, template_categories)
+    
+    # ========== HTML TEMPLATES TAB ==========
+    with tab2:
+        if filtered_html:
+            # Display in grid format
+            html_list = list(filtered_html.items())
+            for i in range(0, len(html_list), 3):
+                cols = st.columns(3)
+                row_items = html_list[i:i + 3]
+                
+                for col_idx, (template_id, template_data) in enumerate(row_items):
+                    with cols[col_idx]:
+                        render_saved_html_template_card(template_id, template_data)
+        else:
+            st.info("📂 No HTML templates found. Upload one to get started!")
+            if st.button("📤 Upload HTML Template", key="upload_html_from_tab", type="primary"):
+                st.session_state.show_upload_interface = True
+                st.rerun()
+    
+    # ========== WORD TEMPLATES TAB ==========
+    with tab3:
+        if filtered_doc:
+            # Display in grid format
+            doc_list = list(filtered_doc.items())
+            for i in range(0, len(doc_list), 3):
+                cols = st.columns(3)
+                row_items = doc_list[i:i + 3]
+                
+                for col_idx, (template_id, template_data) in enumerate(row_items):
+                    with cols[col_idx]:
+                        render_saved_doc_template_card(template_id, template_data)
+        else:
+            st.info("📂 No Word templates found. Upload one to get started!")
+            if st.button("📤 Upload Word Template", key="upload_doc_from_tab", type="primary"):
+                st.session_state.show_upload_interface = True
+                st.rerun()
+    
+    # ========== POWERPOINT TEMPLATES TAB ==========
+    with tab4:
+        if filtered_ppt:
+            # Display in grid format
+            ppt_list = list(filtered_ppt.items())
+            for i in range(0, len(ppt_list), 3):
+                cols = st.columns(3)
+                row_items = ppt_list[i:i + 3]
+                
+                for col_idx, (template_id, template_data) in enumerate(row_items):
+                    with cols[col_idx]:
+                        render_saved_ppt_template_card(template_id, template_data)
+        else:
+            st.info("📂 No PowerPoint templates found. Upload one to get started!")
+            if st.button("📤 Upload PowerPoint Template", key="upload_ppt_from_tab", type="primary"):
+                st.session_state.show_upload_interface = True
+                st.rerun()
+
+def render_saved_html_template_card(template_id, template_data):
+    """Render a saved HTML template card."""
+    st.markdown(f"""
+    <div class="template-card">
+        <div class="template-preview">
+            <div style="width: 85%; height: 90%; background: white; 
+                 border-radius: 4px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="width: 60%; height: 10px; background: #FF6B35; 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+                <div style="width: 40%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 1rem;"></div>
+                <div style="width: 80%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+            </div>
+            <div class="template-badge">Custom HTML</div>
+        </div>
+        <div style="padding: 1rem;">
+            <div style="font-size: 1rem; font-weight: 600; color: #212529; 
+                 margin-bottom: 0.3rem;">📄 {template_data['name']}</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">
+                {template_data.get('uploaded_at', 'N/A')}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    
     with col1:
-        with st.container():
-            # st.markdown("<div class='panel-container left-panel'>", unsafe_allow_html=True)
-            st.title("Resume Tools 🛠️")
-            loading_placeholder = st.empty()
-            # ========= PREMIUM ATS GAUGE ==========
-            ats_data = st.session_state.get('ats_result', {})
+        if st.button("Use Template", key=f"use_html_{template_id}", type="primary", use_container_width=True):
+            try:
+                # Get resume data
+                user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
+                
+                # Ensure enhanced_resume is initialized
+                if st.session_state.get('enhanced_resume') is None:
+                    st.session_state['enhanced_resume'] = user_resume.copy()
+                
+                # Generate fresh resume data
+                resume_data = generate_resume_for_template()
+                
+                # Get template CSS and generate HTML
+                css = template_data.get('css', '')
+                html_content = generate_generic_html(resume_data)
+                
+                # Create full HTML preview
+                full_html = f"""
+                <div class="ats-page">
+                    {html_content}
+                </div>
+                """
+                
+                # Store everything in session state
+                st.session_state.selected_template = template_data['name']
+                st.session_state.template_preview_html = full_html
+                st.session_state.template_preview_css = css
+                st.session_state.final_resume_data = resume_data
+                st.session_state['enhanced_resume'] = resume_data
+                st.session_state['template_source'] = 'html_saved'  # Set template source
+                
+                # Calculate ATS score if job description exists
+                jd_data = st.session_state.get('job_description')
+                if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
+                    try:
+                        st.session_state['ats_result'] = ai_ats_score(resume_data, jd_data)
+                    except Exception as e:
+                        st.warning(f"Could not calculate ATS score: {str(e)}")
+                        st.session_state['ats_result'] = {}
+                else:
+                    st.session_state['ats_result'] = {}
+                
+                # Switch to visual editor
+                st.session_state.show_template_selector = False
+                st.session_state.show_visual_editor = True
+                
+                st.success(f"✅ Using template: {template_data['name']}")
+                time.sleep(0.5)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error loading template: {str(e)}")
+                import traceback
+                st.error(f"Details: {traceback.format_exc()}")
+    
+    with col2:
+        if st.button("🗑️", key=f"delete_html_{template_id}", use_container_width=True):
+            del st.session_state.uploaded_templates[template_id]
+            save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+            st.success(f"✅ Deleted '{template_data['name']}'")
+            time.sleep(0.5)
+            st.rerun()
 
-            if ats_data and ats_data.get("overall_score", 0) > 0:
+def render_saved_doc_template_card(template_id, template_data):
+    """Render a saved Word template card."""
+    st.markdown(f"""
+    <div class="template-card">
+        <div class="template-preview">
+            <div style="width: 85%; height: 90%; background: white; 
+                 border-radius: 4px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="width: 70%; height: 12px; background: #2B579A; 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+                <div style="width: 50%; height: 8px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 0.8rem;"></div>
+                <div style="width: 90%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px; margin-bottom: 0.4rem;"></div>
+                <div style="width: 85%; height: 6px; background: #E9ECEF; 
+                     border-radius: 2px;"></div>
+            </div>
+            <div class="template-badge">Word Doc</div>
+        </div>
+        <div style="padding: 1rem;">
+            <div style="font-size: 1rem; font-weight: 600; color: #212529; 
+                 margin-bottom: 0.3rem;">📝 {template_data['name']}</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">
+                {template_data.get('uploaded_at', 'N/A')}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        if st.button("Use Template", key=f"use_doc_{template_id}", type="primary", use_container_width=True):
+            try:
+                import io
+                
+                # Get resume data
+                final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
+                
+                # Ensure enhanced_resume is initialized
+                if st.session_state.get('enhanced_resume') is None:
+                    st.session_state['enhanced_resume'] = final_data.copy()
+                
+                # Generate fresh resume data
+                resume_data = generate_resume_for_template()
+                
+                # Get the ORIGINAL template bytes
+                template_bytes = template_data['doc_data']
+                
+                if not isinstance(template_bytes, bytes):
+                    st.error("❌ Invalid template data format")
+                    return
+                
+                with st.spinner("Processing template..."):
+                    # Extract text from template
+                    uploadtext = extract_temp_from_docx(io.BytesIO(template_bytes))
+                    
+                    # Generate mapping with user resume
+                    mapped_data = ask_ai_for_mapping(uploadtext, resume_data)
+                    
+                    # Ensure mapping is a dictionary
+                    if isinstance(mapped_data, list):
+                        mapped_data = {
+                            item["template"]: item["new"]
+                            for item in mapped_data
+                            if "template" in item and "new" in item
+                        }
+                    
+                    # Process the template with user data
+                    output_doc = auto_process_docx(
+                        io.BytesIO(template_bytes),
+                        mapped_data
+                    )
+                
+                # Store everything - CRITICAL
+                st.session_state['generated_docx'] = output_doc.getvalue()
+                st.session_state['enhanced_resume'] = resume_data
+                st.session_state.final_resume_data = resume_data
+                st.session_state.selected_doc_template_id = template_id
+                st.session_state.selected_doc_template = template_data
+                st.session_state.selected_template = template_data['name']
+                st.session_state['template_source'] = 'doc_saved'
+                st.session_state['doc_original_bytes'] = template_bytes
+                st.session_state['doc_original_filename'] = template_data['original_filename']
+                st.session_state['mapping'] = mapped_data
+                st.session_state['template_text'] = uploadtext
+                
+                # Calculate ATS score if job description exists
+                jd_data = st.session_state.get('job_description')
+                if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
+                    try:
+                        st.session_state['ats_result'] = ai_ats_score(resume_data, jd_data)
+                    except Exception as e:
+                        st.warning(f"Could not calculate ATS score: {str(e)}")
+                        st.session_state['ats_result'] = {}
+                else:
+                    st.session_state['ats_result'] = {}
+                
+                # Switch to visual editor to show preview
+                st.session_state.show_template_selector = False
+                st.session_state.show_visual_editor = True
+                
+                st.success(f"✅ Using template: {template_data['name']}")
+                time.sleep(0.5)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error loading template: {str(e)}")
+                import traceback
+                st.error(f"Details: {traceback.format_exc()}")
+    
+    with col2:
+        if st.button("🗑️", key=f"delete_doc_{template_id}", use_container_width=True):
+            del st.session_state.doc_templates[template_id]
+            save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
+            st.success(f"✅ Deleted '{template_data['name']}'")
+            time.sleep(0.5)
+            st.rerun()
+
+
+def render_saved_ppt_template_card(template_id, template_data):
+    """Render a saved PowerPoint template card."""
+    st.markdown(f"""
+    <div class="template-card">
+        <div class="template-preview">
+            <div style="width: 85%; height: 90%; background: linear-gradient(135deg, #D04A02 0%, #F97316 100%); 
+                 border-radius: 4px; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="width: 60%; height: 14px; background: white; 
+                     border-radius: 2px; margin-bottom: 0.7rem;"></div>
+                <div style="width: 80%; height: 8px; background: rgba(255,255,255,0.7); 
+                     border-radius: 2px; margin-bottom: 0.5rem;"></div>
+                <div style="width: 75%; height: 8px; background: rgba(255,255,255,0.7); 
+                     border-radius: 2px;"></div>
+            </div>
+            <div class="template-badge">PowerPoint</div>
+        </div>
+        <div style="padding: 1rem;">
+            <div style="font-size: 1rem; font-weight: 600; color: #212529; 
+                 margin-bottom: 0.3rem;">📊 {template_data['name']}</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">
+                {template_data.get('uploaded_at', 'N/A')}
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        if st.button("Use Template", key=f"use_ppt_{template_id}", type="primary", use_container_width=True):
+            try:
+                import io
+                from pptx import Presentation
+                
+                # Get resume data
+                user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
+                
+                # Ensure enhanced_resume is initialized
+                if st.session_state.get('enhanced_resume') is None:
+                    st.session_state['enhanced_resume'] = user_resume.copy()
+                
+                # Generate fresh resume data
+                resume_data = generate_resume_for_template()
+                
+                working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
+                prs = Presentation(io.BytesIO(template_data['ppt_data']))
+                
+                slide_texts = []
+                for slide_idx, slide in enumerate(prs.slides):
+                    text_blocks = []
+                    for shape_idx, shape in enumerate(slide.shapes):
+                        if shape.has_text_frame and shape.text.strip():
+                            text_blocks.append({
+                                "index": shape_idx,
+                                "text": shape.text.strip(),
+                                "position": {"x": shape.left, "y": shape.top}
+                            })
+                    
+                    if text_blocks:
+                        text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                        slide_texts.append({
+                            "slide_number": slide_idx + 1,
+                            "text_blocks": text_blocks
+                        })
+                
+                structured_slides = analyze_slide_structure(slide_texts)
+                generated_sections = generate_ppt_sections(resume_data, structured_slides)
+                
+                text_elements = template_data.get('text_elements', [])
+                if not text_elements:
+                    # Regenerate text elements if not stored
+                    text_elements = []
+                    for slide_idx, slide in enumerate(prs.slides):
+                        for shape_idx, shape in enumerate(slide.shapes):
+                            if shape.has_text_frame and shape.text.strip():
+                                text_elements.append({
+                                    'slide': slide_idx + 1,
+                                    'shape': shape_idx,
+                                    'original_text': shape.text.strip(),
+                                    'shape_type': type(shape).__name__
+                                })
+                
+                content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+                    text_elements, generated_sections, prs)
+                
+                edits = {}
+                for element in text_elements:
+                    key = f"{element['slide']}_{element['shape']}"
+                    if key not in heading_shapes:
+                        edits[key] = content_mapping.get(key, element['original_text'])
+                
+                for element in text_elements:
+                    key = f"{element['slide']}_{element['shape']}"
+                    if key not in heading_shapes and key in edits:
+                        slide_idx = element['slide'] - 1
+                        shape_idx = element['shape']
+                        
+                        if slide_idx < len(working_prs.slides):
+                            slide = working_prs.slides[slide_idx]
+                            if shape_idx < len(slide.shapes):
+                                shape = slide.shapes[shape_idx]
+                                if shape.has_text_frame:
+                                    clear_and_replace_text(shape, edits[key])
+                
+                output = io.BytesIO()
+                working_prs.save(output)
+                output.seek(0)
+                
+                # Store everything
+                st.session_state['generated_ppt'] = output.getvalue()
+                st.session_state['enhanced_resume'] = resume_data
+                st.session_state.final_resume_data = resume_data
+                st.session_state.selected_ppt_template_id = template_id
+                st.session_state.selected_ppt_template = template_data
+                st.session_state['template_source'] = 'ppt_saved'
+                st.session_state.selected_template = template_data['name']
+                
+                # Calculate ATS score if job description exists
+                jd_data = st.session_state.get('job_description')
+                if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
+                    try:
+                        st.session_state['ats_result'] = ai_ats_score(resume_data, jd_data)
+                    except Exception as e:
+                        st.warning(f"Could not calculate ATS score: {str(e)}")
+                        st.session_state['ats_result'] = {}
+                else:
+                    st.session_state['ats_result'] = {}
+                
+                # Switch to visual editor to show preview
+                st.session_state.show_template_selector = False
+                st.session_state.show_visual_editor = True
+                
+                st.success(f"✅ Using template: {template_data['name']}")
+                time.sleep(0.5)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"Error loading template: {str(e)}")
+                import traceback
+                st.error(f"Details: {traceback.format_exc()}")
+    
+    with col2:
+        if st.button("🗑️", key=f"delete_ppt_{template_id}", use_container_width=True):
+            del st.session_state.ppt_templates[template_id]
+            save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+            st.success(f"✅ Deleted '{template_data['name']}'")
+            time.sleep(0.5)
+            st.rerun()
+
+
+def show_visual_editor_with_tools():
+    """Show the visual editor with resume tools on the side."""
+    if not st.session_state.selected_template:
+        st.session_state.show_template_selector = True
+        st.session_state.show_visual_editor = False
+        st.rerun()
+        return
+
+    # Header
+    st.markdown('<div class="editor-header">', unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        if st.button("← Back to Templates", type="secondary", use_container_width=True):
+            st.session_state.show_template_selector = True
+            st.session_state.show_visual_editor = False
+            st.rerun()
+
+    with col2:
+        st.markdown(
+            f"<h3 style='margin: 0; color: #212529;'>📄 Resume Visual Editor - {st.session_state.selected_template}</h3>",
+            unsafe_allow_html=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    editor_col, tools_col = st.columns([7.5, 2.5], gap="medium")
+
+    with editor_col:
+        resume_data = st.session_state.final_resume_data or {}
+
+        if st.session_state.get('enhanced_resume') is None:
+            st.session_state['enhanced_resume'] = resume_data.copy()
+
+        resume_data = st.session_state['enhanced_resume']
+
+        is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+
+        with st.container():
+            st.markdown(
+                "<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>",
+                unsafe_allow_html=True
+            )
+
+            # ---------------- CONTENT EDITOR ----------------
+            render_basic_details(resume_data, is_edit=is_edit_mode)
+            st.session_state.resume_dirty = True if is_edit_mode else st.session_state.get("resume_dirty", False)
+
+            rendered_keys = set()
+            standard_keys = get_standard_keys()
+
+            for key in RESUME_ORDER:
+                if key in resume_data and resume_data[key]:
+                    rendered_keys.add(key)
+                    if key == "skills":
+                        render_skills_section(resume_data, is_edit=is_edit_mode)
+                    else:
+                        render_generic_section(key, resume_data[key], is_edit=is_edit_mode)
+
+            for key, value in resume_data.items():
+                if key not in rendered_keys and key not in standard_keys:
+                    if isinstance(value, list) and value:
+                        rendered_keys.add(key)
+                        render_generic_section(key, value, is_edit=is_edit_mode)
+
+            for key, value in resume_data.items():
+                if key not in rendered_keys and key not in standard_keys and isinstance(value, str):
+                    st.markdown("<div class='resume-section'>", unsafe_allow_html=True)
+                    st.markdown(f"<h3 class='custom-section-header'>{key}</h3>", unsafe_allow_html=True)
+
+                    if is_edit_mode:
+                        new_val = st.text_area(
+                            f"Edit {key}",
+                            value=value.strip(),
+                            key=f"edit_custom_{key}",
+                            height=200
+                        )
+                        resume_data[key] = new_val.strip()
+                        st.session_state['enhanced_resume'] = resume_data
+                        st.session_state.resume_dirty = True
+
+                        if st.button(f"🗑️ Delete '{key}' Section", key=f"delete_{key}", type="secondary"):
+                            del resume_data[key]
+                            st.session_state['enhanced_resume'] = resume_data
+                            st.session_state.resume_dirty = True
+                            st.rerun()
+                    else:
+                        st.markdown(
+                            f"<div class='custom-section-content'>{value.strip()}</div>",
+                            unsafe_allow_html=True
+                        )
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+        # ---------------- PREVIEW REGENERATION (ONLY FIX) ----------------
+        if st.session_state.get("resume_dirty"):
+            new_html, new_css = regenerate_live_preview()
+            if new_html:
+                st.session_state.template_preview_html = new_html
+                st.session_state.template_preview_css = new_css
+            st.session_state.resume_dirty = False
+
+        st.markdown("---")
+        st.markdown(
+            "<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>",
+            unsafe_allow_html=True
+        )
+
+        html_content = st.session_state.template_preview_html or ""
+        css_content = st.session_state.template_preview_css or ""
+
+        # Add separator
+        st.markdown("---")
+        
+        # Only show HTML visual editor for HTML templates
+        template_source = st.session_state.get('template_source', 'html_saved')
+        
+        if template_source == 'doc_saved':
+            st.info("""
+            📄 **Word Document Preview** is shown in the right panel.
+            
+            - Edit your resume content above
+            - Click **Save & Auto-Improve** to regenerate the document
+            - Download the updated document from the right panel
+            """)
+        elif template_source == 'ppt_saved':
+            st.info("""
+            📊 **PowerPoint Preview** is shown in the right panel.
+            
+            - Edit your resume content above
+            - Click **Save & Auto-Improve** to regenerate the presentation
+            - Download the updated presentation from the right panel
+            """)
+        else:
+            st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>", unsafe_allow_html=True)
+            
+            # Inject data into editor
+            editor_html_with_data = VISUAL_EDITOR_HTML
+            
+            inject_script = f"""
+            <script>
+                window.templateContent = `{html_content}`;
+                window.templateCss = `{css_content}`;
+                window.templateName = `{st.session_state.selected_template}`;
+            </script>
+            """
+            
+            editor_html_with_data = editor_html_with_data.replace('<body>', f'<body>\n{inject_script}')
+            
+            # Display the visual editor
+            components.html(editor_html_with_data, height=1400, scrolling=True)
+            
+            # Listen for content updates from iframe
+            if 'content_updated' in st.session_state:
+                if st.session_state.content_updated:
+                    st.session_state.content_updated = False
+
+
+
+    
+    with tools_col:
+        with st.container():
+            st.title("Resume Tools 🛠️")
+            
+            # ========== PREVIEW SECTION FOR WORD/PPT ==========
+            template_source = st.session_state.get('template_source', 'html_saved')
+            
+            # Show Word Document Preview
+            if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
+                st.markdown("### 📄 Document Preview")
+                try:
+                    preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
+                    st.components.v1.html(preview_html, height=600, scrolling=True)
+                except Exception as e:
+                    st.error(f"Preview error: {str(e)}")
+                
+                # Download button for Word
+                st.markdown("---")
+                filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                st.download_button(
+                    label="⬇️ Download Word Document",
+                    data=st.session_state['generated_docx'],
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    type="primary"
+                )
+                
+                st.markdown("---")
+            
+            # Show PowerPoint Preview
+            elif template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
+                st.markdown("### 📊 Presentation Preview")
+                show_ppt_preview_inline(st.session_state['generated_ppt'])
+                
+                # Download button for PowerPoint
+                st.markdown("---")
+                filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.pptx"
+                st.download_button(
+                    label="⬇️ Download PowerPoint",
+                    data=st.session_state['generated_ppt'],
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    use_container_width=True,
+                    type="primary"
+                )
+                
+                st.markdown("---")
+            
+            # ========== REST OF TOOLS SECTION ==========
+            loading_placeholder = st.empty()
+            
+            # Save & Auto-Improve button
+            if st.button("✨ **Save & Auto-Improve**", type="primary", use_container_width=True):
+                loading_placeholder.markdown("""
+                    <div id="overlay-loader">
+                        <div class="loader-spinner"></div>
+                        <p>Performing auto-improvement...</p>
+                    </div>
+                    <style>
+                        #overlay-loader {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100vw;
+                            height: 100vh;
+                            background: rgba(255, 255, 255, 0.95);
+                            backdrop-filter: blur(6px);
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 9999;
+                            font-size: 1.2rem;
+                            font-weight: 500;
+                        }
+                        .loader-spinner {
+                            border: 5px solid rgba(232, 117, 50, 0.2);
+                            border-top: 5px solid #e87532;
+                            border-radius: 50%;
+                            width: 70px;
+                            height: 70px;
+                            animation: spin 1s linear infinite;
+                            margin-bottom: 20px;
+                        }
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        #overlay-loader p {
+                            color: #1f2937;
+                            font-size: 1.1rem;
+                            letter-spacing: 0.5px;
+                        }
+                    </style>
+                    """, unsafe_allow_html=True)
+                save_custom_sections()
+                save_and_improve()
+                loading_placeholder.empty()
+        
+        # Rest of the tools section continues as before...
+        # (keep all the edit mode buttons, download buttons, ATS analysis, etc.)
+                
+
+            if not st.session_state.get('edit_toggle', False):
+                st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
+            else:
+                st.markdown("---")
+                st.subheader("➕ Add New Section Items")
+                st.button(
+                    "Add New Experience",
+                    on_click=add_new_item,
+                    args=('experience', {
+                        "position": "New Job Title",
+                        "company": "New Company",
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-12-31",
+                        "description": ["New responsibility 1."]
+                    }),
+                    type="secondary",
+                    use_container_width=True
+                )
+                st.button(
+                    "Add New Education",
+                    on_click=add_new_item,
+                    args=('education', {
+                        "institution": "New University",
+                        "degree": "New Degree",
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-12-31"
+                    }),
+                    type="secondary",
+                    use_container_width=True
+                )
+                st.button(
+                    "Add New Certification",
+                    on_click=add_new_item,
+                    args=('certifications', {
+                        "name": "New Certification Name",
+                        "issuer": "Issuing Body",
+                        "completed_date": "2025-01-01"
+                    }),
+                    type="secondary",
+                    use_container_width=True
+                )
+                st.button(
+                    "Add New Project",
+                    on_click=add_new_item,
+                    args=('projects', {
+                        "name": "New Project Title",
+                        "description": ["Project detail"]
+                    }),
+                    type="secondary",
+                    use_container_width=True
+                )
+        
+        st.markdown("---")
+        
+        # Download buttons
+        if st.button("⬇️ **Download PDF**", type="secondary", use_container_width=True):
+            st.info("PDF download functionality coming soon!")
+        
+        if st.button("📄 **Download HTML**", type="secondary", use_container_width=True):
+            # Create downloadable HTML
+            download_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Resume - {st.session_state.selected_template}</title>
+                <style>{css_content}</style>
+            </head>
+            <body style="margin: 0; padding: 0; background: #fff;">
+                <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 1in; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                    {html_content}
+                </div>
+            </body>
+            </html>
+            """
+            
+            st.download_button(
+                label="⬇️ Download HTML",
+                data=download_html,
+                file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
+                mime="text/html",
+                use_container_width=True,
+                type="secondary"
+            )
+        
+        st.markdown("---")
+        
+        # ats_data = st.session_state.get('ats_result', {})
+        # st.write("### ATS Analysis")
+        ats_data = st.session_state.get("ats_result", {})
+
+        if isinstance(ats_data, dict) and "overall_score" in ats_data:
+
+            # Strengths
+            st.markdown("### ✅ Strengths")
+            strengths = ats_data.get("strengths", [])
+            if strengths:
+                for s in strengths:
+                    st.markdown(f"- {s}")
+            else:
+                st.write("No strengths identified.")
+
+            # Weaknesses
+            st.markdown("### ⚠️ Weaknesses")
+            weaknesses = ats_data.get("weaknesses", [])
+            if weaknesses:
+                for w in weaknesses:
+                    st.markdown(f"- {w}")
+            else:
+                st.write("No weaknesses identified.")
+
+            # Explanation
+            explanation = ats_data.get("explanation")
+            if explanation:
+                st.markdown("### 🧠 Explanation")
+                st.write(explanation)
+
+        if ats_data and ats_data.get("overall_score", 0) > 0:
                 score = ats_data.get("overall_score", 0)  # Changed from "score" to "overall_score"
                 label = get_score_label(score)
                 color = get_score_color(score)
@@ -1121,228 +3544,20 @@ def main():
                         st.write(", ".join(missing))
                     else:
                         st.write("None")
-
-
-            if st.button("✨ **Save & Auto-Improve**", type="primary", width='stretch'):
-                loading_placeholder.markdown("""
-                    <div id="overlay-loader">
-                        <div class="loader-spinner"></div>
-                        <p>Performing auto-improvement...</p>
-                    </div>
-                    <style>
-                        #overlay-loader {
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            width: 100vw;
-                            height: 100vh;
-                            background: rgba(255, 255, 255, 0.95);
-                            backdrop-filter: blur(6px);
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
-                            align-items: center;
-                            z-index: 9999;
-                            font-size: 1.2rem;
-                            font-weight: 500;
-                        }
-
-                        .loader-spinner {
-                            border: 5px solid rgba(232, 117, 50, 0.2);
-                            border-top: 5px solid #e87532;
-                            border-radius: 50%;
-                            width: 70px;
-                            height: 70px;
-                            animation: spin 1s linear infinite;
-                            margin-bottom: 20px;
-                        }
-
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-
-                        #overlay-loader p {
-                            color: #1f2937;
-                            font-size: 1.1rem;
-                            letter-spacing: 0.5px;
-                        }
-                    </style>
-                    """, unsafe_allow_html=True)
-
-                save_custom_sections()
-                save_and_improve()
-                loading_placeholder.empty()
-                
-            if st.button("📄 **GENERATE RESUME**", type="primary", width='stretch'):
-                loading_placeholder.markdown("""
-                    <div id="overlay-loader">
-                        <div class="loader-spinner"></div>
-                        <p>Generating your resume...</p>
-                    </div>
-                    <style>
-                        #overlay-loader {
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            width: 100vw;
-                            height: 100vh;
-                            background: rgba(255, 255, 255, 0.95);
-                            backdrop-filter: blur(6px);
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
-                            align-items: center;
-                            z-index: 9999;
-                            font-size: 1.2rem;
-                            font-weight: 500;
-                        }
-
-                        .loader-spinner {
-                            border: 5px solid rgba(232, 117, 50, 0.2);
-                            border-top: 5px solid #e87532;
-                            border-radius: 50%;
-                            width: 70px;
-                            height: 70px;
-                            animation: spin 1s linear infinite;
-                            margin-bottom: 20px;
-                        }
-
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-
-                        #overlay-loader p {
-                            color: #1f2937;
-                            font-size: 1.1rem;
-                            letter-spacing: 0.5px;
-                        }
-                    </style>
-                    """, unsafe_allow_html=True)
-
-                generate_and_switch()
-                loading_placeholder.empty()
-
-            st.markdown("---")
-
-            is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
-
-            if not st.session_state.get('edit_toggle', False):
-                st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
-            else:
-                st.markdown("---")
-                st.subheader("➕ Add New Section Items")
-                st.button(
-                    "Add New Experience",
-                    on_click=add_new_item,
-                    args=('experience', {
-                        "position": "New Job Title",
-                        "company": "New Company",
-                        "start_date": "2025-01-01",
-                        "end_date": "2025-12-31",
-                        "description": ["New responsibility 1."]
-                    }),
-                    type="secondary"
-                )
-                st.button(
-                    "Add New Education",
-                    on_click=add_new_item,
-                    args=('education', {
-                        "institution": "New University",
-                        "degree": "New Degree",
-                        "start_date": "2025-01-01",
-                        "end_date": "2025-12-31"
-                    }),
-                    type="secondary"
-                )
-                st.button(
-                    "Add New Certification",
-                    on_click=add_new_item,
-                    args=('certifications', {
-                        "name": "New Certification Name",
-                        "issuer": "Issuing Body",
-                        "completed_date": "2025-01-01"
-                    }),
-                    type="secondary"
-                )
-                st.button(
-                    "Add New Project",
-                    on_click=add_new_item,
-                    args=('projects', {
-                        "name": "New Project Title",
-                        "description": ["Project detail"]
-                    }),
-                    type="secondary"
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
-           
-    # RIGHT PANEL - Live Preview
-    with col3:
-      
-        with st.container():
-            # st.markdown("<div class='panel-container middle-panel'>", unsafe_allow_html=True)
-            st.markdown("<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>", unsafe_allow_html=True)
-            
-            # Render basic details
-            render_basic_details(data, is_edit=is_edit_mode)
-
-            # Track rendered keys to avoid duplicates
-            rendered_keys = set()
-            standard_keys = get_standard_keys()
-            
-            # Render standard sections in order
-            for key in RESUME_ORDER:
-                if key in data and data[key]:
-                    rendered_keys.add(key)
-                    if key == "skills":
-                        render_skills_section(data, is_edit=is_edit_mode)
-                    else:
-                        render_generic_section(key, data[key], is_edit=is_edit_mode)
-
-            # Render other list-type sections that aren't in the standard order
-            for key, value in data.items():
-                if key not in rendered_keys and key not in standard_keys:
-                    if isinstance(value, list) and value:
-                        rendered_keys.add(key)
-                        render_generic_section(key, value, is_edit=is_edit_mode)
-
-            # Render Custom Text Sections (Languages, Licenses, etc.)
-            for key, value in data.items():
-                if key not in rendered_keys and key not in standard_keys and isinstance(value, str):
-                    st.markdown(f"<div class='resume-section'>", unsafe_allow_html=True)
-                    st.markdown(f"<h3 class='custom-section-header'>{key}</h3>", unsafe_allow_html=True)
-
-                    if is_edit_mode:
-                        new_val = st.text_area(
-                            f"Edit {key}",
-                            value=value.strip(),
-                            key=f"edit_custom_{key}",
-                            height=200,
-                            help="Edit your custom section content here"
-                        )
-
-                        data[key] = new_val.strip()
-                        st.session_state['enhanced_resume'] = data
-                        
-                        if st.button(f"🗑️ Delete '{key}' Section", key=f"delete_{key}", type="secondary"):
-                            del data[key]
-                            st.session_state['enhanced_resume'] = data
-                            st.rerun()
-                    else:
-                        st.markdown(
-                            f"<div class='custom-section-content'>{value.strip()}</div>",
-                            unsafe_allow_html=True
-                        )
-
-                    st.markdown("</div>", unsafe_allow_html=True)
-            
-            
-
-if __name__ == '__main__':
-    if 'job_description' not in st.session_state or 'resume_source' not in st.session_state:
-        st.error("Missing job description or resume source. Please go back to the main page.")
-        if st.button("Go to Home"):
-            switch_page("pages/main.py")
+# Main app flow
+def main():
+    # Check if user needs to be redirected to resume creation first
+    if not user_resume or len(user_resume) == 0:
+        st.warning("Please create a resume first!")
+        if st.button("Go to Resume Creator"):
+            st.switch_page("pages/main.py")
+        return
+    
+    # Determine what to show based on session state
+    if st.session_state.show_visual_editor:
+        show_visual_editor_with_tools()
     else:
-        main()
+        show_template_selector()
+
+if __name__ == "__main__":
+    main()

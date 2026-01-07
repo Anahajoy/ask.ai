@@ -5,15 +5,19 @@ import json
 from pptx import Presentation
 import time
 from datetime import datetime
+from io import BytesIO
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 from utils import (
     generate_generic_html, get_user_resume, get_score_color, render_skills_section,
     get_score_label, ai_ats_score, extract_temp_from_docx,render_generic_section,
     should_regenerate_resume, generate_enhanced_resume, extract_template_from_html,save_user_templates,
-    save_and_improve, add_new_item,generate_and_switch,render_basic_details,load_user_doc_templates,
+    save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
     docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
     match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
-    load_user_templates,load_user_ppt_templates,chatbot
+    load_user_templates,load_user_ppt_templates,chatbot,delete_user_doc_template
 )
 
 # Page config
@@ -1473,7 +1477,7 @@ def show_upload_interface():
     st.markdown('<div class="editor-header">', unsafe_allow_html=True)
     col1, col2 = st.columns([1, 5])
     with col1:
-        if st.button("← Back to Templates", type="secondary", use_container_width=True):
+        if st.button("← Back to Templates", type="primary", use_container_width=True):
             st.session_state.show_upload_interface = False
             # Clear ALL temporary upload states INCLUDING processing flags
             for key in ['temp_upload_html', 'temp_upload_css', 'temp_upload_preview', 
@@ -2956,11 +2960,22 @@ def render_saved_doc_template_card(template_id, template_data):
     
     with col2:
         if st.button("🗑️", key=f"delete_doc_{template_id}", use_container_width=True):
-            del st.session_state.doc_templates[template_id]
-            save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
-            st.success(f"✅ Deleted '{template_data['name']}'")
-            time.sleep(0.5)
-            st.rerun()
+
+            success = delete_user_doc_template(
+                st.session_state.logged_in_user,
+                template_id
+            )
+
+            if success:
+                # Reload from DB (single source of truth)
+                st.session_state.doc_templates = load_user_doc_templates(
+                    st.session_state.logged_in_user
+                )
+
+                st.success(f"✅ Deleted '{template_data['name']}'")
+                time.sleep(0.5)
+                st.rerun()
+
 
 
 def render_saved_ppt_template_card(template_id, template_data):
@@ -3106,12 +3121,105 @@ def render_saved_ppt_template_card(template_id, template_data):
     
     with col2:
         if st.button("🗑️", key=f"delete_ppt_{template_id}", use_container_width=True):
-            del st.session_state.ppt_templates[template_id]
-            save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
-            st.success(f"✅ Deleted '{template_data['name']}'")
-            time.sleep(0.5)
-            st.rerun()
 
+            success = delete_user_ppt_template(
+                st.session_state.logged_in_user,
+                template_id
+            )
+
+            if success:
+                # Reload templates from DB (source of truth)
+                st.session_state.ppt_templates = load_user_ppt_templates(
+                    st.session_state.logged_in_user
+                )
+
+                st.success(f"✅ Deleted '{template_data['name']}'")
+                time.sleep(0.5)
+                st.rerun()
+
+
+def generate_basic_docx(resume_data):
+    """Generate a basic DOCX from resume data."""
+    doc = Document()
+    
+    # Header - Name
+    name = doc.add_paragraph(resume_data.get('name', 'Your Name'))
+    name.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    name.runs[0].font.size = Pt(16)
+    name.runs[0].font.bold = True
+    
+    # Contact Info
+    contact_parts = []
+    if resume_data.get('email'):
+        contact_parts.append(resume_data['email'])
+    if resume_data.get('phone'):
+        contact_parts.append(resume_data['phone'])
+    if resume_data.get('location'):
+        contact_parts.append(resume_data['location'])
+    
+    if contact_parts:
+        contact = doc.add_paragraph(' | '.join(contact_parts))
+        contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        contact.runs[0].font.size = Pt(10)
+    
+    doc.add_paragraph()  # Spacing
+    
+    # Summary
+    if resume_data.get('summary'):
+        doc.add_heading('Professional Summary', level=2)
+        doc.add_paragraph(resume_data['summary'])
+    
+    # Experience
+    if resume_data.get('experience'):
+        doc.add_heading('Experience', level=2)
+        for exp in resume_data['experience']:
+            p = doc.add_paragraph()
+            p.add_run(f"{exp.get('position', '')} - {exp.get('company', '')}").bold = True
+            p.add_run(f"\n{exp.get('start_date', '')} to {exp.get('end_date', '')}")
+            
+            if exp.get('description'):
+                for desc in exp['description']:
+                    doc.add_paragraph(desc, style='List Bullet')
+    
+    # Education
+    if resume_data.get('education'):
+        doc.add_heading('Education', level=2)
+        for edu in resume_data['education']:
+            p = doc.add_paragraph()
+            p.add_run(f"{edu.get('degree', '')}").bold = True
+            p.add_run(f"\n{edu.get('institution', '')}")
+            p.add_run(f"\n{edu.get('start_date', '')} to {edu.get('end_date', '')}")
+    
+    # Skills
+    if resume_data.get('skills'):
+        doc.add_heading('Skills', level=2)
+        skills_text = ', '.join(resume_data['skills'])
+        doc.add_paragraph(skills_text)
+    
+    # Projects
+    if resume_data.get('projects'):
+        doc.add_heading('Projects', level=2)
+        for proj in resume_data['projects']:
+            p = doc.add_paragraph()
+            p.add_run(proj.get('name', '')).bold = True
+            if proj.get('description'):
+                for desc in proj['description']:
+                    doc.add_paragraph(desc, style='List Bullet')
+    
+    # Certifications
+    if resume_data.get('certifications'):
+        doc.add_heading('Certifications', level=2)
+        for cert in resume_data['certifications']:
+            doc.add_paragraph(
+                f"{cert.get('name', '')} - {cert.get('issuer', '')} ({cert.get('completed_date', '')})",
+                style='List Bullet'
+            )
+    
+    # Save to BytesIO
+    output = BytesIO()
+    doc.save(output)
+    output.seek(0)
+    return output.getvalue()
 
 def show_visual_editor_with_tools():
     """Show the visual editor with resume tools on the side."""
@@ -3148,61 +3256,62 @@ def show_visual_editor_with_tools():
         resume_data = st.session_state['enhanced_resume']
 
         is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+        if is_edit_mode:
+            # st.session_state['enhanced_resume'] = resume_data.copy()
+            with st.container():
+                st.markdown(
+                    "<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>",
+                    unsafe_allow_html=True
+                )
 
-        with st.container():
-            st.markdown(
-                "<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>",
-                unsafe_allow_html=True
-            )
+                # ---------------- CONTENT EDITOR ----------------
+                render_basic_details(resume_data, is_edit=is_edit_mode)
+                st.session_state.resume_dirty = True if is_edit_mode else st.session_state.get("resume_dirty", False)
 
-            # ---------------- CONTENT EDITOR ----------------
-            render_basic_details(resume_data, is_edit=is_edit_mode)
-            st.session_state.resume_dirty = True if is_edit_mode else st.session_state.get("resume_dirty", False)
+                rendered_keys = set()
+                standard_keys = get_standard_keys()
 
-            rendered_keys = set()
-            standard_keys = get_standard_keys()
-
-            for key in RESUME_ORDER:
-                if key in resume_data and resume_data[key]:
-                    rendered_keys.add(key)
-                    if key == "skills":
-                        render_skills_section(resume_data, is_edit=is_edit_mode)
-                    else:
-                        render_generic_section(key, resume_data[key], is_edit=is_edit_mode)
-
-            for key, value in resume_data.items():
-                if key not in rendered_keys and key not in standard_keys:
-                    if isinstance(value, list) and value:
+                for key in RESUME_ORDER:
+                    if key in resume_data and resume_data[key]:
                         rendered_keys.add(key)
-                        render_generic_section(key, value, is_edit=is_edit_mode)
+                        if key == "skills":
+                            render_skills_section(resume_data, is_edit=is_edit_mode)
+                        else:
+                            render_generic_section(key, resume_data[key], is_edit=is_edit_mode)
 
-            for key, value in resume_data.items():
-                if key not in rendered_keys and key not in standard_keys and isinstance(value, str):
-                    st.markdown("<div class='resume-section'>", unsafe_allow_html=True)
-                    st.markdown(f"<h3 class='custom-section-header'>{key}</h3>", unsafe_allow_html=True)
+                for key, value in resume_data.items():
+                    if key not in rendered_keys and key not in standard_keys:
+                        if isinstance(value, list) and value:
+                            rendered_keys.add(key)
+                            render_generic_section(key, value, is_edit=is_edit_mode)
 
-                    if is_edit_mode:
-                        new_val = st.text_area(
-                            f"Edit {key}",
-                            value=value.strip(),
-                            key=f"edit_custom_{key}",
-                            height=200
-                        )
-                        resume_data[key] = new_val.strip()
-                        st.session_state['enhanced_resume'] = resume_data
-                        st.session_state.resume_dirty = True
+                for key, value in resume_data.items():
+                    if key not in rendered_keys and key not in standard_keys and isinstance(value, str):
+                        st.markdown("<div class='resume-section'>", unsafe_allow_html=True)
+                        st.markdown(f"<h3 class='custom-section-header'>{key}</h3>", unsafe_allow_html=True)
 
-                        if st.button(f"🗑️ Delete '{key}' Section", key=f"delete_{key}", type="secondary"):
-                            del resume_data[key]
+                        if is_edit_mode:
+                            new_val = st.text_area(
+                                f"Edit {key}",
+                                value=value.strip(),
+                                key=f"edit_custom_{key}",
+                                height=200
+                            )
+                            resume_data[key] = new_val.strip()
                             st.session_state['enhanced_resume'] = resume_data
                             st.session_state.resume_dirty = True
-                            st.rerun()
-                    else:
-                        st.markdown(
-                            f"<div class='custom-section-content'>{value.strip()}</div>",
-                            unsafe_allow_html=True
-                        )
-                    st.markdown("</div>", unsafe_allow_html=True)
+
+                            if st.button(f"🗑️ Delete '{key}' Section", key=f"delete_{key}", type="secondary"):
+                                del resume_data[key]
+                                st.session_state['enhanced_resume'] = resume_data
+                                st.session_state.resume_dirty = True
+                                st.rerun()
+                        else:
+                            st.markdown(
+                                f"<div class='custom-section-content'>{value.strip()}</div>",
+                                unsafe_allow_html=True
+                            )
+                        st.markdown("</div>", unsafe_allow_html=True)
 
         # ---------------- PREVIEW REGENERATION (ONLY FIX) ----------------
         if st.session_state.get("resume_dirty"):
@@ -3212,11 +3321,11 @@ def show_visual_editor_with_tools():
                 st.session_state.template_preview_css = new_css
             st.session_state.resume_dirty = False
 
-        st.markdown("---")
-        st.markdown(
-            "<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>",
-            unsafe_allow_html=True
-        )
+        # st.markdown("---")
+        # st.markdown(
+        #     "<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>",
+        #     unsafe_allow_html=True
+        # )
 
         html_content = st.session_state.template_preview_html or ""
         css_content = st.session_state.template_preview_css or ""
@@ -3429,12 +3538,12 @@ def show_visual_editor_with_tools():
         st.markdown("---")
         
         # Download buttons
-        if st.button("⬇️ **Download PDF**", type="secondary", use_container_width=True):
+        if st.button("⬇️ **Download PDF**", type="primary", use_container_width=True):
             st.info("PDF download functionality coming soon!")
         
-        if st.button("📄 **Download HTML**", type="secondary", use_container_width=True):
+       
             # Create downloadable HTML
-            download_html = f"""
+        download_html = f"""
             <!DOCTYPE html>
             <html>
             <head>
@@ -3451,15 +3560,63 @@ def show_visual_editor_with_tools():
             </html>
             """
             
-            st.download_button(
+        st.download_button(
                 label="⬇️ Download HTML",
                 data=download_html,
                 file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
                 mime="text/html",
                 use_container_width=True,
-                type="secondary"
+                type="primary"
             )
+        # Download buttons section (around line 3800)
+   
+
+        # DOCX Download Button
+        # DOCX Download Button
         
+        try:
+                template_source = st.session_state.get('template_source', 'html_saved')
+                
+                if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
+                    # Already have DOCX from saved template
+                    docx_data = st.session_state['generated_docx']
+                else:
+                    # Generate DOCX from current template with proper styling
+                    with st.spinner("Generating styled DOCX..."):
+                        resume_data = st.session_state.get('enhanced_resume', {})
+                        template_name = st.session_state.selected_template
+                        
+                        # Get template config
+                        template_config = SYSTEM_TEMPLATES.get(template_name)
+                        
+                        if template_config and 'docx_generator' in template_config:
+                            # Get selected color (you may want to add color selection UI)
+                            selected_color = ATS_COLORS["Professional Blue (Default)"]
+                            
+                            # Generate DOCX with template styling
+                            docx_data = template_config['docx_generator'](resume_data, selected_color)
+                        else:
+                            # Fallback: generate basic DOCX
+                            docx_data = generate_basic_docx(resume_data)
+                
+                # Create filename
+                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                
+                # Download button
+                st.download_button(
+                    label="⬇️ Download DOCX",
+                    data=docx_data,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    type="primary",
+                    key="download_docx_main"
+                )
+                
+        except Exception as e:
+                st.error(f"Error generating DOCX: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
         st.markdown("---")
         
         # ats_data = st.session_state.get('ats_result', {})

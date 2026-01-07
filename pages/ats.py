@@ -462,7 +462,7 @@ textarea::placeholder {{
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">ResumeIQ</div>
+        <div class="logo">Catalyst</div>
         <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
             <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
@@ -660,13 +660,23 @@ if analyze_btn:
                 parsed_data = extract_details_from_text(extracted_text)
                 structured_jd = extract_details_from_jd(job_description)
                 ats_data = ai_ats_score(parsed_data, structured_jd)
-                
-                if ats_data and ats_data.get("overall_score", 0) > 0:
+                # st.write(ats_data)  # For debugging purposes
+                # Replace the results display section in your main Streamlit file
+                # Find the section after: if uploaded_file and job_description:
+                # Replace everything inside the try block after getting ats_data
+
+                # After you get ats_data from: ats_data = ai_ats_score(parsed_data, structured_jd)
+                # Use this complete display code:
+
+                if isinstance(ats_data, dict) and "overall_score" in ats_data:
                     score = ats_data.get("overall_score", 0)
                     label = get_score_label(score)
                     color = get_score_color(score)
                     
-                    st.markdown('<div style="height: 3rem;"></div>', unsafe_allow_html=True)
+                    # ============================================================================
+                    # MAIN SCORE DISPLAY
+                    # ============================================================================
+                    st.markdown('<div style="height: 2rem;"></div>', unsafe_allow_html=True)
                     st.markdown("""
                     <div style="text-align: center; margin: 2rem 0;">
                         <h2 style="font-size: 2rem; font-weight: 800; color: #0a0f14;">
@@ -675,6 +685,7 @@ if analyze_btn:
                     </div>
                     """, unsafe_allow_html=True)
                     
+                    # Score Circle with Label
                     st.markdown(f"""
                     <div style="max-width: 500px; margin: 0 auto 3rem; text-align: center; padding: 2.5rem; background: white; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 2px solid {color}20;">
                         <div style="position: relative; width: 160px; height: 160px; margin: auto;">
@@ -691,15 +702,291 @@ if analyze_btn:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    st.success("✅ Analysis complete!")
-            except:
-                st.error("Please upload a valid resume and job description.")
-    elif not uploaded_file and not job_description:
-        st.error("⚠️ Please upload your resume and paste the job description")
-    elif not uploaded_file:
-        st.warning("⚠️ Please upload your resume")
-    else:
-        st.warning("⚠️ Please paste the job description")
+                    # ============================================================================
+                    # SCORE BREAKDOWN CARDS
+                    # ============================================================================
+                    st.markdown("""
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; max-width: 1200px; margin: 0 auto 3rem;">
+                    """, unsafe_allow_html=True)
+                    
+                    scores_data = [
+                        ("🎯", "Skill Match", ats_data.get("skill_match_score", 0)),
+                        ("💼", "Experience Match", ats_data.get("experience_match_score", 0)),
+                        ("🧠", "Semantic Alignment", ats_data.get("semantic_alignment_score", 0))
+                    ]
+                    
+                    for icon, title, subscore in scores_data:
+                        subscore_color = get_score_color(subscore)
+                        st.markdown(f"""
+                        <div style="background: white; padding: 1.5rem; border-radius: 16px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 2px solid {subscore_color}20;">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>
+                            <div style="font-size: 0.85rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">{title}</div>
+                            <div style="font-size: 2rem; font-weight: 800; color: {subscore_color};">{subscore}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # TECHNICAL SKILLS COMPARISON
+                    # ============================================================================
+                    tech_skills = ats_data.get("technical_skills", {})
+                    tech_matched = tech_skills.get("matched", [])
+                    tech_missing = tech_skills.get("missing", [])
+                    tech_percentage = tech_skills.get("match_percentage", 0)
+                    
+                    st.markdown(f"""
+                    <div style="max-width: 1200px; margin: 0 auto 2rem;">
+                        <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">💻</div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #0a0f14;">Technical Skills Analysis</h3>
+                                    <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Match Rate: <strong style="color: #3b82f6;">{tech_percentage}%</strong></p>
+                                </div>
+                            </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("""
+                        <div style="background: #ecfdf5; padding: 1.25rem; border-radius: 12px; border-left: 4px solid #10b981;">
+                            <h4 style="margin: 0 0 1rem 0; color: #065f46; font-size: 1.1rem; font-weight: 700;">✅ Matched Skills</h4>
+                        """, unsafe_allow_html=True)
+                        
+                        if tech_matched:
+                            for skill in tech_matched:
+                                st.markdown(f"""
+                                <div style="background: white; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #065f46; font-weight: 500; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.1);">
+                                    ✓ {skill}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic; margin: 0;">No matched technical skills identified</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown("""
+                        <div style="background: #fef2f2; padding: 1.25rem; border-radius: 12px; border-left: 4px solid #ef4444;">
+                            <h4 style="margin: 0 0 1rem 0; color: #991b1b; font-size: 1.1rem; font-weight: 700;">⚠️ Missing Skills</h4>
+                        """, unsafe_allow_html=True)
+                        
+                        if tech_missing:
+                            for skill in tech_missing:
+                                st.markdown(f"""
+                                <div style="background: white; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #991b1b; font-weight: 500; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.1);">
+                                    ✗ {skill}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic; margin: 0;">All required technical skills present</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("</div></div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # SOFT SKILLS COMPARISON
+                    # ============================================================================
+                    soft_skills = ats_data.get("soft_skills", {})
+                    soft_matched = soft_skills.get("matched", [])
+                    soft_missing = soft_skills.get("missing", [])
+                    soft_percentage = soft_skills.get("match_percentage", 0)
+                    
+                    st.markdown(f"""
+                    <div style="max-width: 1200px; margin: 0 auto 2rem;">
+                        <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🤝</div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #0a0f14;">Soft Skills Analysis</h3>
+                                    <p style="margin: 0; color: #64748b; font-size: 0.9rem;">Match Rate: <strong style="color: #8b5cf6;">{soft_percentage}%</strong></p>
+                                </div>
+                            </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("""
+                        <div style="background: #f0fdf4; padding: 1.25rem; border-radius: 12px; border-left: 4px solid #22c55e;">
+                            <h4 style="margin: 0 0 1rem 0; color: #166534; font-size: 1.1rem; font-weight: 700;">✅ Demonstrated</h4>
+                        """, unsafe_allow_html=True)
+                        
+                        if soft_matched:
+                            for skill in soft_matched:
+                                st.markdown(f"""
+                                <div style="background: white; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #166534; font-weight: 500; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1);">
+                                    ✓ {skill}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic; margin: 0;">No soft skills identified in resume</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown("""
+                        <div style="background: #fff7ed; padding: 1.25rem; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                            <h4 style="margin: 0 0 1rem 0; color: #92400e; font-size: 1.1rem; font-weight: 700;">⚠️ Could Improve</h4>
+                        """, unsafe_allow_html=True)
+                        
+                        if soft_missing:
+                            for skill in soft_missing:
+                                st.markdown(f"""
+                                <div style="background: white; padding: 0.75rem 1rem; margin-bottom: 0.5rem; border-radius: 8px; color: #92400e; font-weight: 500; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);">
+                                    ⚡ {skill}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic; margin: 0;">All soft skills adequately demonstrated</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("</div></div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # EXPERIENCE ANALYSIS
+                    # ============================================================================
+                    exp_analysis = ats_data.get("experience_analysis", {})
+                    
+                    st.markdown(f"""
+                    <div style="max-width: 1200px; margin: 0 auto 2rem;">
+                        <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">📊</div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: #0a0f14;">Experience Analysis</h3>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div style="background: #f0f9ff; padding: 1rem; border-radius: 10px;">
+                                    <div style="color: #0369a1; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem;">REQUIRED</div>
+                                    <div style="color: #0c4a6e; font-size: 1.1rem; font-weight: 700;">{exp_analysis.get('years_required', 'N/A')}</div>
+                                </div>
+                                <div style="background: #f0f9ff; padding: 1rem; border-radius: 10px;">
+                                    <div style="color: #0369a1; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem;">YOUR EXPERIENCE</div>
+                                    <div style="color: #0c4a6e; font-size: 1.1rem; font-weight: 700;">{exp_analysis.get('years_present', 'N/A')}</div>
+                                </div>
+                                <div style="background: #f0f9ff; padding: 1rem; border-radius: 10px;">
+                                    <div style="color: #0369a1; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem;">LEVEL MATCH</div>
+                                    <div style="color: #0c4a6e; font-size: 1.1rem; font-weight: 700;">{exp_analysis.get('level_match', 'N/A')}</div>
+                                </div>
+                            </div>
+                    """, unsafe_allow_html=True)
+                    
+                    relevant_exp = exp_analysis.get('relevant_experience', [])
+                    if relevant_exp:
+                        st.markdown("""
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 10px; border-left: 3px solid #0891b2;">
+                            <h4 style="margin: 0 0 0.75rem 0; color: #0c4a6e; font-size: 0.9rem; font-weight: 700;">RELEVANT EXPERIENCE HIGHLIGHTS</h4>
+                        """, unsafe_allow_html=True)
+                        
+                        for exp in relevant_exp:
+                            st.markdown(f"""
+                            <div style="color: #475569; font-size: 0.85rem; margin-bottom: 0.5rem; padding-left: 1rem; position: relative;">
+                                <span style="position: absolute; left: 0; color: #0891b2;">•</span> {exp}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("</div></div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # STRENGTHS & WEAKNESSES
+                    # ============================================================================
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.markdown("""
+                        <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06); height: 100%;">
+                            <h3 style="margin: 0 0 1.5rem 0; font-size: 1.3rem; font-weight: 700; color: #0a0f14; display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.5rem;">✅</span> Key Strengths
+                            </h3>
+                        """, unsafe_allow_html=True)
+                        
+                        strengths = ats_data.get("strengths", [])
+                        if strengths:
+                            for strength in strengths:
+                                st.markdown(f"""
+                                <div style="background: #ecfdf5; padding: 1rem; margin-bottom: 0.75rem; border-radius: 10px; border-left: 3px solid #10b981;">
+                                    <p style="margin: 0; color: #065f46; font-weight: 500; line-height: 1.5;">{strength}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic;">No strengths identified</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    with col2:
+                        st.markdown("""
+                        <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06); height: 100%;">
+                            <h3 style="margin: 0 0 1.5rem 0; font-size: 1.3rem; font-weight: 700; color: #0a0f14; display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.5rem;">⚠️</span> Areas for Improvement
+                            </h3>
+                        """, unsafe_allow_html=True)
+                        
+                        weaknesses = ats_data.get("weaknesses", [])
+                        if weaknesses:
+                            for weakness in weaknesses:
+                                st.markdown(f"""
+                                <div style="background: #fef2f2; padding: 1rem; margin-bottom: 0.75rem; border-radius: 10px; border-left: 3px solid #ef4444;">
+                                    <p style="margin: 0; color: #991b1b; font-weight: 500; line-height: 1.5;">{weakness}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.markdown('<p style="color: #6b7280; font-style: italic;">No significant weaknesses identified</p>', unsafe_allow_html=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # RECOMMENDATIONS
+                    # ============================================================================
+                    recommendations = ats_data.get("recommendations", [])
+                    if recommendations:
+                        st.markdown("""
+                        <div style="max-width: 1200px; margin: 2rem auto;">
+                            <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 2px solid #f59e0b;">
+                                <h3 style="margin: 0 0 1.5rem 0; font-size: 1.3rem; font-weight: 700; color: #78350f; display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.5rem;">💡</span> Actionable Recommendations
+                                </h3>
+                        """, unsafe_allow_html=True)
+                        
+                        for i, rec in enumerate(recommendations, 1):
+                            st.markdown(f"""
+                            <div style="background: white; padding: 1rem 1.25rem; margin-bottom: 0.75rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.1);">
+                                <p style="margin: 0; color: #78350f; font-weight: 500; line-height: 1.6;"><strong style="color: #f59e0b; font-size: 1.1rem;">{i}.</strong> {rec}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("</div></div>", unsafe_allow_html=True)
+                    
+                    # ============================================================================
+                    # DETAILED EXPLANATION
+                    # ============================================================================
+                    explanation = ats_data.get("explanation")
+                    if explanation:
+                        st.markdown(f"""
+                        <div style="max-width: 1200px; margin: 2rem auto;">
+                            <div style="background: white; border-radius: 20px; padding: 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                                <h3 style="margin: 0 0 1rem 0; font-size: 1.3rem; font-weight: 700; color: #0a0f14; display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.5rem;">🧠</span> Detailed Analysis
+                                </h3>
+                                <div style="color: #475569; line-height: 1.8; font-size: 0.95rem;">
+                                    {explanation}
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Success message
+                    st.success("✅ Analysis complete! Review your results above.")
+                    
+                else:
+                    st.error("❌ Unable to analyze resume. Please try again.")
 
-if clear_btn:
-    st.rerun()
+            except Exception as e:
+                st.error(f"An error occurrd during analysis: {str(e)}")

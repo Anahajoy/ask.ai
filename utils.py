@@ -32,6 +32,7 @@ import requests
 import json
 from lxml import etree
 import mammoth
+from system import get_connection
 
 
 # Recommended models:
@@ -1309,7 +1310,7 @@ def call_llm_api(prompt: str, max_tokens: int = 200) -> str:
   
 
     payload = {
-        "model": "meta/llama-3.1-70b-instruct",
+        "model": FAST_MODEL,
         "messages": [
             {"role": "system", "content": "You are an expert AI assistant for resume optimization and job matching."},
             {"role": "user", "content": prompt}
@@ -1796,125 +1797,221 @@ def is_valid_phone(phone):
     return re.match(pattern, phone) is not None
 
 
-def save_user_resume(email, resume_data, input_method=None):
-    """Save or update a user's resume without affecting other users"""
-    # user_data_file = "user_resume_data.json"
 
-    # Convert date objects to strings
+
+def save_user_resume(email, resume_data, input_method=None):
+
     def convert_dates(obj):
         if isinstance(obj, dict):
             return {k: convert_dates(v) for k, v in obj.items()}
         elif isinstance(obj, list):
             return [convert_dates(item) for item in obj]
-        elif hasattr(obj, 'isoformat'):  # date/datetime
+        elif hasattr(obj, "isoformat"):
             return obj.isoformat()
         return obj
 
     resume_data = convert_dates(resume_data)
 
-    # ✅ Inject input_method into resume data
-    if input_method:
-        resume_data["input_method"] = input_method
-
-    # Load existing data
     try:
-        if user_data_file.exists():
-            with open(user_data_file, 'r', encoding='utf-8') as f:
-                all_data = json.load(f)
-        else:
-            all_data = {}
-    except Exception as e:
-        st.error(f"Error loading user data: {e}")
-        all_data = {}
+        conn = get_connection()
+        cur = conn.cursor()
 
-    # Update only this user
-    all_data[email] = resume_data
+        cur.execute("""
+            INSERT INTO user_resumes (email, resume_data, input_method)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (email)
+            DO UPDATE SET
+                resume_data = EXCLUDED.resume_data,
+                input_method = EXCLUDED.input_method,
+                updated_at = NOW()
+        """, (email, json.dumps(resume_data), input_method))
 
-    # Save back
-    try:
-        with open(user_data_file, 'w', encoding='utf-8') as f:
-            json.dump(all_data, f, indent=2)
+        conn.commit()
+        cur.close()
+        conn.close()
         return True
+
     except Exception as e:
         st.error(f"Error saving resume data: {e}")
         return False
+
+
+
+def get_user_template_path(email):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT template_key, template_name, html, css, uploaded_at, original_filename
+        FROM user_templates
+        WHERE email = %s
+        ORDER BY uploaded_at DESC
+    """, (email,))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    templates = {}
+    for r in rows:
+        templates[r[0]] = {
+            "name": r[1],
+            "html": r[2],
+            "css": r[3],
+            "uploaded_at": r[4],
+            "original_filename": r[5]
+        }
+
+    return templates
+
+
+# def get_user_template_path(user_email):
+#     """Return the JSON path for the given user's templates."""
+#     if not user_email:
+#         raise ValueError("❌ user_email is None — make sure the user is logged in before saving templates.")
     
-def get_user_template_path(user_email):
-    """Return the JSON path for the given user's templates."""
-    if not user_email:
-        raise ValueError("❌ user_email is None — make sure the user is logged in before saving templates.")
-    
-    os.makedirs(TEMPLATES_DIR, exist_ok=True)
-    safe_email = user_email.replace("@", "_at_").replace(".", "_dot_")
-    return os.path.join(TEMPLATES_DIR, f"{safe_email}.json")
+#     os.makedirs(TEMPLATES_DIR, exist_ok=True)
+#     safe_email = user_email.replace("@", "_at_").replace(".", "_dot_")
+#     return os.path.join(TEMPLATES_DIR, f"{safe_email}.json")
 
 
 
 
 
-import base64
 
-def get_user_ppt_template_path(user_email):
-    """Get the file path for user's PPT templates."""
-    return os.path.join("user_data", f"{user_email}_ppt_templates.json")
 
 def load_user_templates(user_email):
-    """Load templates from JSON file for the logged-in user."""
-    path = get_user_template_path(user_email)
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+    """Load templates for the logged-in user from database."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT template_key,
+                   template_name,
+                   html,
+                   css,
+                   uploaded_at,
+                   original_filename
+            FROM user_templates
+            WHERE email = %s
+            ORDER BY uploaded_at DESC
+        """, (user_email,))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        templates = {}
+        for r in rows:
+            templates[r[0]] = {
+                "name": r[1],
+                "html": r[2],
+                "css": r[3],
+                "uploaded_at": r[4],
+                "original_filename": r[5]
+            }
+
+        return templates
+
+    except Exception as e:
+        st.error(f"Error loading templates: {e}")
+        return {}
+
 
 def save_user_templates(user_email, templates):
-    """Save templates to JSON file for the logged-in user."""
-    path = get_user_template_path(user_email)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(templates, f, indent=4, ensure_ascii=False)
+    """Save or update templates for the logged-in user in database."""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
 
-def load_user_ppt_templates(user_email):
-    """Load PowerPoint templates from JSON file for the logged-in user."""
-    path = get_user_ppt_template_path(user_email)
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            templates = json.load(f)
-            # Convert base64 back to binary for ppt_data and convert lists back to sets
-            for key in templates:
-                if 'ppt_data' in templates[key]:
-                    templates[key]['ppt_data'] = base64.b64decode(templates[key]['ppt_data'])
-                # Convert lists back to sets
-                if 'heading_shapes' in templates[key]:
-                    templates[key]['heading_shapes'] = set(templates[key]['heading_shapes'])
-                if 'basic_info_shapes' in templates[key]:
-                    templates[key]['basic_info_shapes'] = set(templates[key]['basic_info_shapes'])
-            return templates
-    return {}
+        for template_key, data in templates.items():
+            cur.execute("""
+                INSERT INTO user_templates (
+                    email,
+                    template_key,
+                    template_name,
+                    html,
+                    css,
+                    uploaded_at,
+                    original_filename
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (email, template_key)
+                DO UPDATE SET
+                    template_name = EXCLUDED.template_name,
+                    html = EXCLUDED.html,
+                    css = EXCLUDED.css,
+                    uploaded_at = EXCLUDED.uploaded_at,
+                    original_filename = EXCLUDED.original_filename,
+                    updated_at = NOW()
+            """, (
+                user_email,
+                template_key,
+                data.get("name"),
+                data.get("html"),
+                data.get("css"),
+                data.get("uploaded_at"),
+                data.get("original_filename")
+            ))
 
-def save_user_ppt_templates(user_email, templates):
-    """Save PowerPoint templates to JSON file for the logged-in user."""
-    path = get_user_ppt_template_path(user_email)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        st.error(f"Error saving templates: {e}")
+        return False
     
-    # Create a copy to avoid modifying the original
-    templates_copy = {}
-    for key, val in templates.items():
-        templates_copy[key] = val.copy()
-        # Convert binary ppt_data to base64 for JSON storage
-        if 'ppt_data' in val and isinstance(val['ppt_data'], bytes):
-            templates_copy[key]['ppt_data'] = base64.b64encode(val['ppt_data']).decode('utf-8')
-        # Convert sets to lists for JSON serialization
-        if 'heading_shapes' in val and isinstance(val['heading_shapes'], set):
-            templates_copy[key]['heading_shapes'] = list(val['heading_shapes'])
-        if 'basic_info_shapes' in val and isinstance(val['basic_info_shapes'], set):
-            templates_copy[key]['basic_info_shapes'] = list(val['basic_info_shapes'])
+
+# import base64
+
+# def get_user_ppt_template_path(user_email):
+#     """Get the file path for user's PPT templates."""
+#     return os.path.join("user_data", f"{user_email}_ppt_templates.json")
+
+# def load_user_ppt_templates(user_email):
+#     """Load PowerPoint templates from JSON file for the logged-in user."""
+#     path = get_user_ppt_template_path(user_email)
+#     if os.path.exists(path):
+#         with open(path, "r", encoding="utf-8") as f:
+#             templates = json.load(f)
+#             # Convert base64 back to binary for ppt_data and convert lists back to sets
+#             for key in templates:
+#                 if 'ppt_data' in templates[key]:
+#                     templates[key]['ppt_data'] = base64.b64decode(templates[key]['ppt_data'])
+#                 # Convert lists back to sets
+#                 if 'heading_shapes' in templates[key]:
+#                     templates[key]['heading_shapes'] = set(templates[key]['heading_shapes'])
+#                 if 'basic_info_shapes' in templates[key]:
+#                     templates[key]['basic_info_shapes'] = set(templates[key]['basic_info_shapes'])
+#             return templates
+#     return {}
+
+# def save_user_ppt_templates(user_email, templates):
+#     """Save PowerPoint templates to JSON file for the logged-in user."""
+#     path = get_user_ppt_template_path(user_email)
+#     os.makedirs(os.path.dirname(path), exist_ok=True)
     
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(templates_copy, f, indent=4, ensure_ascii=False)
+#     # Create a copy to avoid modifying the original
+#     templates_copy = {}
+#     for key, val in templates.items():
+#         templates_copy[key] = val.copy()
+#         # Convert binary ppt_data to base64 for JSON storage
+#         if 'ppt_data' in val and isinstance(val['ppt_data'], bytes):
+#             templates_copy[key]['ppt_data'] = base64.b64encode(val['ppt_data']).decode('utf-8')
+#         # Convert sets to lists for JSON serialization
+#         if 'heading_shapes' in val and isinstance(val['heading_shapes'], set):
+#             templates_copy[key]['heading_shapes'] = list(val['heading_shapes'])
+#         if 'basic_info_shapes' in val and isinstance(val['basic_info_shapes'], set):
+#             templates_copy[key]['basic_info_shapes'] = list(val['basic_info_shapes'])
+    
+#     with open(path, "w", encoding="utf-8") as f:
+#         json.dump(templates_copy, f, indent=4, ensure_ascii=False)
 
 
-import json
-import re
 
 
 def extract_json(text):
@@ -1986,12 +2083,16 @@ def call_llm_for_json(prompt: str, max_tokens: int = 2000) -> dict:
         print(f"\n❌ Error in call_llm_for_json: {str(e)}")
         raise
 
-def ai_ats_score(resume_text, jd_text):
+# Add this to your utils.py file
+
+import json
+
+def ai_ats_score(resume_text, jd_text, max_retries=3):
     """
-    Evaluates resume-job fit using AI and returns structured scores.
+    Evaluates resume-job fit using AI and returns structured scores with detailed skill breakdown.
+    Includes validation and retry logic for consistency.
     """
     
-    # Safe truncation with type checking
     def safe_truncate(text, max_length=3000):
         """Safely convert to string and truncate"""
         if text is None:
@@ -2003,7 +2104,6 @@ def ai_ats_score(resume_text, jd_text):
     resume_truncated = safe_truncate(resume_text)
     jd_truncated = safe_truncate(jd_text)
     
-    # Validate we have content
     if not resume_truncated.strip():
         raise ValueError("Resume text is empty")
     if not jd_truncated.strip():
@@ -2013,30 +2113,57 @@ def ai_ats_score(resume_text, jd_text):
 You are an ATS scoring engine designed to evaluate resume–job fit using semantic understanding.
 
 Your job is to:
-1. Compare the resume with the job description.
-2. Score the match on a scale of 0–100.
-3. Identify matched skills, missing skills, and experience relevance.
-4. Evaluate semantic similarity, not keyword overlap.
-5. Consider:
-   - technical skills match
-   - responsibilities match
-   - seniority/experience level
-   - domain knowledge relevance
-   - transferable skills
+1. Compare the resume with the job description comprehensively
+2. Score the match on a scale of 0–100
+3. Categorize skills into technical and soft skills
+4. Identify matched and missing skills in both categories
+5. Evaluate semantic similarity, not just keyword overlap
+6. Consider experience level and relevance
 
 Return ONLY valid JSON in the following format:
 
 {{
-  "overall_score": number,
-  "skill_match_score": number,
-  "experience_match_score": number,
-  "semantic_alignment_score": number,
-  "matched_skills": [string],
-  "missing_skills": [string],
-  "strengths": [string],
-  "weaknesses": [string],
-  "explanation": string
+  "overall_score": number (0-100),
+  "skill_match_score": number (0-100),
+  "experience_match_score": number (0-100),
+  "semantic_alignment_score": number (0-100),
+  "technical_skills": {{
+    "matched": [string] (list of technical skills found in resume that match JD),
+    "missing": [string] (list of technical skills from JD not found in resume),
+    "match_percentage": number (0-100)
+  }},
+  "soft_skills": {{
+    "matched": [string] (list of soft skills demonstrated in resume),
+    "missing": [string] (list of soft skills from JD not demonstrated),
+    "match_percentage": number (0-100)
+  }},
+  "experience_analysis": {{
+    "years_required": string (e.g., "5-7 years"),
+    "years_present": string (e.g., "6 years"),
+    "level_match": string (e.g., "Good Match", "Senior Level", "Entry Level"),
+    "relevant_experience": [string] (list of relevant work experiences)
+  }},
+  "strengths": [string] (3-5 key strengths of the resume),
+  "weaknesses": [string] (3-5 areas that need improvement),
+  "recommendations": [string] (5-7 specific actionable recommendations),
+  "explanation": string (2-3 paragraph detailed explanation of the analysis)
 }}
+
+Guidelines:
+- Technical skills include: programming languages, frameworks, tools, technologies, platforms, databases, methodologies
+- Soft skills include: leadership, communication, teamwork, problem-solving, time management, adaptability
+- Be thorough and specific in identifying skills
+- Provide actionable, specific recommendations
+- Consider industry context and role requirements
+
+CRITICAL REQUIREMENTS FOR SCORE CONSISTENCY:
+- The overall_score MUST be logically consistent with matched skills
+- If matched technical_skills is empty or has fewer than 3 items, overall_score should be below 40
+- If overall_score is above 60, there MUST be at least 5+ matched technical skills
+- If overall_score is above 80, there MUST be at least 10+ matched technical skills
+- The match_percentage in technical_skills and soft_skills must align with the number of matched vs missing skills
+- Ensure the response is COMPLETE with all fields properly filled
+- Double-check all scores for logical consistency before returning
 
 Resume:
 {resume_truncated}
@@ -2044,62 +2171,170 @@ Resume:
 Job Description:
 {jd_truncated}
 
-IMPORTANT: Return ONLY the JSON object. No markdown formatting, no explanation text, no other content.
+IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, no explanation text.
 """
 
-    try:
-        result = call_llm_for_json(prompt, max_tokens=2500)
-        
-        # Validate and fix the result
-        required_fields = {
-            "overall_score": 0,
-            "skill_match_score": 0,
-            "experience_match_score": 0,
-            "semantic_alignment_score": 0,
-            "matched_skills": [],
-            "missing_skills": [],
-            "strengths": [],
-            "weaknesses": [],
-            "explanation": "Analysis completed"
-        }
-        
-        # Ensure all fields exist with proper defaults
-        for field, default in required_fields.items():
-            if field not in result:
-                result[field] = default
-            # Fix None values
-            elif result[field] is None:
-                result[field] = default
-            # Fix empty strings in lists
-            elif isinstance(default, list) and not result[field]:
-                result[field] = []
-        
-        # Debug output
-        print("\n" + "=" * 80)
-        print("✅ ATS Analysis Results:")
-        print(f"Overall Score: {result['overall_score']}")
-        print(f"Matched Skills: {len(result['matched_skills'])} items - {result['matched_skills']}")
-        print(f"Missing Skills: {len(result['missing_skills'])} items - {result['missing_skills']}")
-        print("=" * 80)
-        
-        return result
-        
-    except Exception as e:
-        print(f"\n❌ Error in ai_ats_score: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
-        return {
-            "overall_score": 0,
-            "skill_match_score": 0,
-            "experience_match_score": 0,
-            "semantic_alignment_score": 0,
-            "matched_skills": [],
-            "missing_skills": [],
-            "strengths": ["Unable to complete analysis"],
-            "weaknesses": ["API error occurred"],
-            "explanation": f"Error: {str(e)}"
-        }
+    for attempt in range(max_retries):
+        try:
+            print(f"\n🔄 ATS Analysis Attempt {attempt + 1}/{max_retries}")
+            
+            # Increased max_tokens to prevent truncation
+            result = call_llm_for_json(prompt, max_tokens=4500)
+            
+            # Validate and set defaults for all required fields
+            required_fields = {
+                "overall_score": 0,
+                "skill_match_score": 0,
+                "experience_match_score": 0,
+                "semantic_alignment_score": 0,
+                "technical_skills": {
+                    "matched": [],
+                    "missing": [],
+                    "match_percentage": 0
+                },
+                "soft_skills": {
+                    "matched": [],
+                    "missing": [],
+                    "match_percentage": 0
+                },
+                "experience_analysis": {
+                    "years_required": "Not specified",
+                    "years_present": "Not specified",
+                    "level_match": "Unknown",
+                    "relevant_experience": []
+                },
+                "strengths": [],
+                "weaknesses": [],
+                "recommendations": [],
+                "explanation": "Analysis completed"
+            }
+            
+            # Ensure all fields exist with proper defaults
+            for field, default in required_fields.items():
+                if field not in result or result[field] is None:
+                    result[field] = default
+                elif isinstance(default, dict):
+                    # For nested dicts, ensure sub-fields exist
+                    for sub_field, sub_default in default.items():
+                        if sub_field not in result[field] or result[field][sub_field] is None:
+                            result[field][sub_field] = sub_default
+            
+            # Check if response is complete
+            is_complete = (
+                len(result.get('explanation', '')) > 50 and
+                len(result.get('recommendations', [])) >= 3 and
+                len(result.get('strengths', [])) >= 2
+            )
+            
+            if not is_complete:
+                print(f"⚠️ Incomplete response detected on attempt {attempt + 1}")
+                if attempt < max_retries - 1:
+                    continue
+            
+            # Validate score consistency
+            tech_matched = len(result['technical_skills']['matched'])
+            soft_matched = len(result['soft_skills']['matched'])
+            overall_score = result['overall_score']
+            
+            # Check for logical inconsistencies
+            inconsistent = False
+            
+            if overall_score > 60 and tech_matched < 5:
+                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                inconsistent = True
+            
+            if overall_score > 80 and tech_matched < 10:
+                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                inconsistent = True
+            
+            if overall_score < 40 and tech_matched > 10:
+                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but {tech_matched} technical skills matched")
+                inconsistent = True
+            
+            if tech_matched == 0 and soft_matched == 0 and overall_score > 30:
+                print(f"⚠️ Major Inconsistency: Overall={overall_score}% but NO skills matched")
+                inconsistent = True
+            
+            # If inconsistent and not last attempt, retry
+            if inconsistent and attempt < max_retries - 1:
+                print(f"🔄 Retrying due to score inconsistency...")
+                continue
+            
+            # Calculate a more accurate overall score based on components
+            if inconsistent:
+                print("⚙️ Recalculating overall score based on skill matches...")
+                
+                # Calculate match percentages if not set
+                tech_total = tech_matched + len(result['technical_skills']['missing'])
+                soft_total = soft_matched + len(result['soft_skills']['missing'])
+                
+                tech_match_pct = (tech_matched / tech_total * 100) if tech_total > 0 else 0
+                soft_match_pct = (soft_matched / soft_total * 100) if soft_total > 0 else 0
+                
+                result['technical_skills']['match_percentage'] = round(tech_match_pct)
+                result['soft_skills']['match_percentage'] = round(soft_match_pct)
+                
+                # Weighted calculation: 50% technical, 20% soft, 30% experience
+                calculated_overall = (
+                    tech_match_pct * 0.50 +
+                    soft_match_pct * 0.20 +
+                    result['experience_match_score'] * 0.30
+                )
+                
+                result['overall_score'] = round(calculated_overall)
+                result['skill_match_score'] = round((tech_match_pct * 0.7) + (soft_match_pct * 0.3))
+                
+                print(f"✅ Adjusted Overall Score: {result['overall_score']}%")
+            
+            # Debug output
+            print("\n" + "=" * 80)
+            print("✅ ATS Analysis Results:")
+            print(f"Overall Score: {result['overall_score']}%")
+            print(f"Technical Skills - Matched: {tech_matched}, Missing: {len(result['technical_skills']['missing'])}")
+            print(f"Soft Skills - Matched: {soft_matched}, Missing: {len(result['soft_skills']['missing'])}")
+            print(f"Recommendations: {len(result['recommendations'])}")
+            print(f"Explanation Length: {len(result['explanation'])} characters")
+            print("=" * 80)
+            
+            return result
+            
+        except Exception as e:
+            print(f"\n❌ Error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                print("🔄 Retrying...")
+                continue
+            else:
+                import traceback
+                traceback.print_exc()
+                
+                # Return error structure with all required fields
+                return {
+                    "overall_score": 0,
+                    "skill_match_score": 0,
+                    "experience_match_score": 0,
+                    "semantic_alignment_score": 0,
+                    "technical_skills": {
+                        "matched": [],
+                        "missing": [],
+                        "match_percentage": 0
+                    },
+                    "soft_skills": {
+                        "matched": [],
+                        "missing": [],
+                        "match_percentage": 0
+                    },
+                    "experience_analysis": {
+                        "years_required": "Error",
+                        "years_present": "Error",
+                        "level_match": "Error",
+                        "relevant_experience": []
+                    },
+                    "strengths": ["Unable to complete analysis"],
+                    "weaknesses": ["API error occurred"],
+                    "recommendations": ["Please try again or contact support"],
+                    "explanation": f"Error occurred during analysis after {max_retries} attempts: {str(e)}"
+                }
+
 
 def get_score_color(score):
     """Return color based on score."""
@@ -2123,6 +2358,40 @@ def get_score_label(score):
         return "Fair Match"
     else:
         return "Needs Improvement"
+
+
+def validate_ats_result(result):
+    """
+    Additional validation function to check ATS result consistency.
+    Returns (is_valid, issues_list)
+    """
+    issues = []
+    
+    overall = result.get('overall_score', 0)
+    tech_matched = len(result.get('technical_skills', {}).get('matched', []))
+    soft_matched = len(result.get('soft_skills', {}).get('matched', []))
+    
+    # Rule 1: High score requires matched skills
+    if overall > 60 and tech_matched < 5:
+        issues.append(f"Overall score {overall}% is too high for only {tech_matched} matched technical skills")
+    
+    # Rule 2: Low score with many matched skills
+    if overall < 40 and tech_matched > 8:
+        issues.append(f"Overall score {overall}% is too low for {tech_matched} matched technical skills")
+    
+    # Rule 3: No matched skills with moderate/high score
+    if tech_matched == 0 and soft_matched == 0 and overall > 30:
+        issues.append(f"Overall score {overall}% but no skills matched at all")
+    
+    # Rule 4: Check if explanation is meaningful
+    if len(result.get('explanation', '')) < 50:
+        issues.append("Explanation is too short or missing")
+    
+    # Rule 5: Check recommendations
+    if len(result.get('recommendations', [])) < 3:
+        issues.append("Insufficient recommendations provided")
+    
+    return len(issues) == 0, issues
 
 def analyze_slide_structure(slide_texts):
     """Use LLM to find headings, subheadings, and related contents - INCLUDING BASIC INFO"""
@@ -3049,158 +3318,244 @@ def replace_content(doc, structure, final_data):
     
     return output, replaced_count, len(paragraphs_to_remove)
 
-import json
-import os
-import base64
-
-# ============= DOC TEMPLATE STORAGE FUNCTIONS =============
-
-def get_user_doc_templates_path(username):
-    """Get the path for user's document templates JSON file"""
-    templates_dir = "user_doc_templates"
-    os.makedirs(templates_dir, exist_ok=True)
-    return os.path.join(templates_dir, f"{username}_doc_templates.json")
-
 def load_user_doc_templates(username):
-    """Load user's saved document templates"""
-    filepath = get_user_doc_templates_path(username)
-    
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                templates = json.load(f)
-                
-                # Convert binary data back from base64
-                for template_id, template_data in templates.items():
-                    if 'doc_data_b64' in template_data:
-                        templates[template_id]['doc_data'] = base64.b64decode(template_data['doc_data_b64'])
-                        del templates[template_id]['doc_data_b64']
-                
-                return templates
-        except Exception as e:
-            print(f"Error loading doc templates: {str(e)}")
-            return {}
-    
-    return {}
+    """Load user's saved document templates from database"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT template_key,
+                   template_name,
+                   doc_data,
+                   doc_text,
+                   uploaded_at,
+                   original_filename
+            FROM user_doc_templates
+            WHERE email = %s
+            ORDER BY uploaded_at DESC
+        """, (username,))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        templates = {}
+
+        for r in rows:
+            # Decide which content to return
+            if r[2] is not None:
+                doc_content = bytes(r[2])
+            else:
+                doc_content = r[3]
+
+            templates[r[0]] = {
+                "name": r[1],
+                "doc_data": doc_content,
+                "uploaded_at": r[4],
+                "original_filename": r[5]
+            }
+
+        return templates
+
+    except Exception as e:
+        print(f"Error loading doc templates: {e}")
+        return {}
+
+
+import psycopg2
 
 def save_user_doc_templates(username, templates):
-    """Save user's document templates to JSON (supports bytes or text safely)"""
-    filepath = get_user_doc_templates_path(username)
-
+    """Save user's document templates to database"""
     try:
-        templates_to_save = {}
+        conn = get_connection()
+        cur = conn.cursor()
 
         for template_id, template_data in templates.items():
-            templates_to_save[template_id] = template_data.copy()
+            doc_data = template_data.get("doc_data")
 
-            if 'doc_data' in template_data:
-                doc_data = template_data['doc_data']
+            # Decide storage
+            if isinstance(doc_data, (bytes, bytearray)):
+                doc_binary = psycopg2.Binary(doc_data)
+                doc_text = None
+            else:
+                doc_binary = None
+                doc_text = doc_data
 
-                # ✅ CASE 1: If bytes → base64 encode
-                if isinstance(doc_data, (bytes, bytearray)):
-                    templates_to_save[template_id]['doc_data_b64'] = (
-                        base64.b64encode(doc_data).decode('utf-8')
-                    )
+            cur.execute("""
+                INSERT INTO user_doc_templates (
+                    email,
+                    template_key,
+                    template_name,
+                    doc_data,
+                    doc_text,
+                    uploaded_at,
+                    original_filename
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (email, template_key)
+                DO UPDATE SET
+                    template_name = EXCLUDED.template_name,
+                    doc_data = EXCLUDED.doc_data,
+                    doc_text = EXCLUDED.doc_text,
+                    uploaded_at = EXCLUDED.uploaded_at,
+                    original_filename = EXCLUDED.original_filename,
+                    updated_at = NOW()
+            """, (
+                username,
+                template_id,
+                template_data.get("name"),
+                doc_binary,
+                doc_text,
+                template_data.get("uploaded_at"),
+                template_data.get("original_filename")
+            ))
 
-                # ✅ CASE 2: If list → save directly as text
-                elif isinstance(doc_data, list):
-                    templates_to_save[template_id]['doc_data_text'] = doc_data
-
-                # ✅ CASE 3: If string → save directly
-                elif isinstance(doc_data, str):
-                    templates_to_save[template_id]['doc_data_text'] = doc_data
-
-                # ✅ Remove raw doc_data from JSON
-                del templates_to_save[template_id]['doc_data']
-
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(templates_to_save, f, indent=2, ensure_ascii=False)
-
+        conn.commit()
+        cur.close()
+        conn.close()
         return True
 
     except Exception as e:
-        print(f"❌ Error saving doc templates: {str(e)}")
+        print(f"❌ Error saving doc templates: {e}")
         return False
 
 
 def delete_user_doc_template(username, template_id):
-    """Delete a specific doc template"""
-    templates = load_user_doc_templates(username)
-    
-    if template_id in templates:
-        del templates[template_id]
-        save_user_doc_templates(username, templates)
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            DELETE FROM user_doc_templates
+            WHERE email = %s AND template_key = %s
+        """, (username, template_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
         return True
-    
-    return False
+
+    except Exception as e:
+        print(f"Error deleting doc template: {e}")
+        return False
 
 
 # ============= PPT TEMPLATE STORAGE FUNCTIONS =============
 
-def get_user_ppt_templates_path(username):
-    """Get the path for user's PPT templates JSON file"""
-    templates_dir = "user_ppt_templates"
-    os.makedirs(templates_dir, exist_ok=True)
-    return os.path.join(templates_dir, f"{username}_ppt_templates.json")
-
 def load_user_ppt_templates(username):
-    """Load user's saved PPT templates"""
-    filepath = get_user_ppt_templates_path(username)
-    
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                templates = json.load(f)
-                
-                # Convert binary data back from base64
-                for template_id, template_data in templates.items():
-                    if 'ppt_data_b64' in template_data:
-                        templates[template_id]['ppt_data'] = base64.b64decode(template_data['ppt_data_b64'])
-                        del templates[template_id]['ppt_data_b64']
-                    
-                    # Convert sets back from lists
-                    if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], list):
-                        templates[template_id]['heading_shapes'] = set(template_data['heading_shapes'])
-                    
-                    if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], list):
-                        templates[template_id]['basic_info_shapes'] = set(template_data['basic_info_shapes'])
-                
-                return templates
-        except Exception as e:
-            print(f"Error loading PPT templates: {str(e)}")
-            return {}
-    
-    return {}
+    """Load user's saved PPT templates from database"""
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT template_key,
+                   template_name,
+                   ppt_data,
+                   heading_shapes,
+                   basic_info_shapes,
+                   uploaded_at,
+                   original_filename
+            FROM user_ppt_templates
+            WHERE email = %s
+            ORDER BY uploaded_at DESC
+        """, (username,))
+
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        templates = {}
+
+        for r in rows:
+            templates[r[0]] = {
+                "name": r[1],
+                "ppt_data": bytes(r[2]),
+                "heading_shapes": set(r[3]) if r[3] else set(),
+                "basic_info_shapes": set(r[4]) if r[4] else set(),
+                "uploaded_at": r[5],
+                "original_filename": r[6]
+            }
+
+        return templates
+
+    except Exception as e:
+        print(f"Error loading PPT templates: {e}")
+        return {}
+
+
+import psycopg2
 
 def save_user_ppt_templates(username, templates):
-    """Save user's PPT templates to JSON"""
-    filepath = get_user_ppt_templates_path(username)
-    
+    """Save user's PPT templates to database"""
     try:
-        templates_to_save = {}
-        
+        conn = get_connection()
+        cur = conn.cursor()
+
         for template_id, template_data in templates.items():
-            templates_to_save[template_id] = template_data.copy()
-            
-            # Convert binary ppt_data to base64
-            if 'ppt_data' in template_data:
-                templates_to_save[template_id]['ppt_data_b64'] = base64.b64encode(template_data['ppt_data']).decode('utf-8')
-                del templates_to_save[template_id]['ppt_data']
-            
-            # Convert sets to lists for JSON
-            if 'heading_shapes' in template_data and isinstance(template_data['heading_shapes'], set):
-                templates_to_save[template_id]['heading_shapes'] = list(template_data['heading_shapes'])
-            
-            if 'basic_info_shapes' in template_data and isinstance(template_data['basic_info_shapes'], set):
-                templates_to_save[template_id]['basic_info_shapes'] = list(template_data['basic_info_shapes'])
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(templates_to_save, f, indent=2)
-        
+            cur.execute("""
+                INSERT INTO user_ppt_templates (
+                    email,
+                    template_key,
+                    template_name,
+                    ppt_data,
+                    heading_shapes,
+                    basic_info_shapes,
+                    uploaded_at,
+                    original_filename
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (email, template_key)
+                DO UPDATE SET
+                    template_name = EXCLUDED.template_name,
+                    ppt_data = EXCLUDED.ppt_data,
+                    heading_shapes = EXCLUDED.heading_shapes,
+                    basic_info_shapes = EXCLUDED.basic_info_shapes,
+                    uploaded_at = EXCLUDED.uploaded_at,
+                    original_filename = EXCLUDED.original_filename,
+                    updated_at = NOW()
+            """, (
+                username,
+                template_id,
+                template_data.get("name"),
+                psycopg2.Binary(template_data.get("ppt_data")),
+                list(template_data.get("heading_shapes", [])),
+                list(template_data.get("basic_info_shapes", [])),
+                template_data.get("uploaded_at"),
+                template_data.get("original_filename")
+            ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
         return True
+
     except Exception as e:
-        print(f"Error saving PPT templates: {str(e)}")
+        print(f"Error saving PPT templates: {e}")
         return False
+
+
+
+def delete_user_ppt_template(username, template_id):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            DELETE FROM user_ppt_templates
+            WHERE email = %s AND template_key = %s
+        """, (username, template_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+
+    except Exception as e:
+        st.error(f"Error deleting PPT template: {e}")
+        return False
+
 
 
 def get_resume_hash(resume_data):
@@ -3723,39 +4078,81 @@ def image_to_base64_local(image):
 
 def load_users():
     try:
-        if users_file.exists():
-            with open(users_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("SELECT email, password_hash, name FROM users")
+        rows = cur.fetchall()
+
+        users = {
+            email: {"password": pwd, "name": name}
+            for email, pwd, name in rows
+        }
+
+        cur.close()
+        conn.close()
+        return users
+
     except Exception as e:
+        st.error(e)
         return {}
+
     
 def save_users(users):
     try:
-        with open(users_file, 'w', encoding='utf-8') as f:
-            json.dump(users, f, indent=2)
+        conn = get_connection()
+        cur = conn.cursor()
+
+        for email, data in users.items():
+            cur.execute("""
+                INSERT INTO users (email, password_hash, name)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (email)
+                DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    name = EXCLUDED.name
+            """, (email, data["password"], data["name"]))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
     except Exception as e:
-        st.error(f"Error saving users: {e}")
+        st.error(e)
 
 
-def load_user_resume_data():
-    """Load all users' resume data"""
-    try:
-        if user_data_file.exists():
-            with open(user_data_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        return {}
-    except Exception as e:
-        return {}
+
+def load_user_resume_data(email):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT resume_data, input_method
+        FROM user_resumes
+        WHERE email = %s
+    """, (email,))
+
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if row:
+        return {
+            "resume_data": row[0],
+            "input_method": row[1]
+        }
+    return None
+
 
 def get_user_resume(email):
     """Get resume data for a specific user"""
-    all_data = load_user_resume_data()
-    user_resume = all_data.get(email, None)
-    
-    if user_resume and isinstance(user_resume, dict) and len(user_resume) > 0:
-        return user_resume
+
+    resume_data = load_user_resume_data(email)
+
+    if resume_data and isinstance(resume_data, dict):
+        return resume_data
+
     return None
+
 
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'

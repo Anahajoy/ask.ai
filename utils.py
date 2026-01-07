@@ -1022,31 +1022,71 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     but DO NOT add new fake roles, skills, or projects that
     are not present in user's resume. Only highlight and optimize.
     """
-    rewritten_resume = resume_data.copy()
-    rewritten_resume.pop("input_method", None)
+    # ============================================
+    # 🔧 SAFETY CHECK
+    # ============================================
+    if resume_data is None:
+        raise ValueError("resume_data cannot be None")
+    
+    if not isinstance(resume_data, dict):
+        raise ValueError(f"resume_data must be a dictionary, got {type(resume_data)}")
+    
+    if jd_data is None:
+        jd_data = {}
+    
+    # ============================================
+    # 🔧 FIX: Handle nested structure
+    # If resume_data contains a nested "resume_data" key, flatten it
+    # ============================================
+    if "resume_data" in resume_data and isinstance(resume_data["resume_data"], dict):
+        print("⚠️ Detected nested structure, flattening...")
+        actual_resume = resume_data["resume_data"]
+    else:
+        actual_resume = resume_data
+    
+    # ============================================
+    # START WITH COMPLETELY NEW DICT
+    # ============================================
+    rewritten_resume = {}
 
-    # --- 1. Separate education and certifications (unchanged) ---
-    education_all = resume_data.get("education", [])
-    education_list, certification_list = [], []
+    # ============================================
+    # PRESERVE BASIC INFO - NEVER CHANGE THESE
+    # ============================================
+    rewritten_resume["name"] = actual_resume.get("name", "")
+    rewritten_resume["email"] = actual_resume.get("email", "")
+    rewritten_resume["phone"] = actual_resume.get("phone", "")
+    rewritten_resume["location"] = actual_resume.get("location", "")
+    rewritten_resume["url"] = actual_resume.get("url", "")
+
+    # ============================================
+    # 1. SEPARATE EDUCATION AND CERTIFICATIONS
+    # ============================================
+    education_all = actual_resume.get("education", [])
+    education_list = []
+    certification_list = []
+    
     for item in education_all:
-        if any(k in item for k in ["duration", "gpa", "degree"]):
+        if any(k in item for k in ["duration", "gpa", "degree", "course", "university", "institution"]):
             education_list.append(item)
-        elif any(k in item for k in ["issuer", "name"]):
+        elif any(k in item for k in ["issuer", "name", "provider_name", "certificate_name"]):
             certification_list.append(item)
         else:
             education_list.append(item)
 
-    cert_data = resume_data.get("certifications", [])
+    # Add certifications from separate field
+    cert_data = actual_resume.get("certifications", []) or actual_resume.get("certificate", [])
     if isinstance(cert_data, list):
         certification_list.extend(cert_data)
 
     rewritten_resume["education"] = education_list
     rewritten_resume["certifications"] = certification_list
 
-    # --- 2. Normalize candidate skills (unchanged logic) ---
-    candidate_skills = resume_data.get("skills", [])
+    # ============================================
+    # 2. NORMALIZE CANDIDATE SKILLS
+    # ============================================
+    candidate_skills = actual_resume.get("skills", [])
     if isinstance(candidate_skills, list) and candidate_skills:
-        if isinstance(candidate_skills[0], dict):
+        if candidate_skills and isinstance(candidate_skills[0], dict):
             flat_skills = []
             for group in candidate_skills:
                 if isinstance(group, dict):
@@ -1059,9 +1099,11 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     else:
         candidate_skills = []
 
-    # --- 3. Experience + Projects (unchanged) ---
-    experience = resume_data.get("experience", [])
-    projects = resume_data.get("projects", [])
+    # ============================================
+    # 3. GET EXPERIENCE AND PROJECTS
+    # ============================================
+    experience = actual_resume.get("experience", [])
+    projects = actual_resume.get("projects", []) or actual_resume.get("project", [])
 
     all_exp_desc = []
     for exp in experience:
@@ -1070,223 +1112,212 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
             desc = [line.strip() for line in desc.split("\n") if line.strip()]
         all_exp_desc.extend(desc if isinstance(desc, list) else [])
 
-    # --- 4. JD extraction (unchanged) ---
+    # ============================================
+    # 4. EXTRACT JD INFO
+    # ============================================
     job_title = jd_data.get("job_title", "")
-    job_summary = jd_data.get("job_summary", "")
     responsibilities = jd_data.get("responsibilities", [])
     required_skills = jd_data.get("required_skills", [])
 
     responsibilities = [str(r) for r in responsibilities if r] if isinstance(responsibilities, list) else []
     required_skills = [str(s) for s in required_skills if s] if isinstance(required_skills, list) else []
 
-    # ==========================================================
-    # 🚀 UPDATED PROMPT -> SUMMARY: Highlight only existing skills
-    # ==========================================================
-    summary_prompt = f"""
+    # ============================================
+    # 5. REWRITE SUMMARY
+    # ============================================
+    original_summary = actual_resume.get("summary", "")
+    
+    if original_summary or candidate_skills or all_exp_desc:
+        summary_prompt = f"""
 Rewrite this resume summary for a {job_title} position. 
 
-CRITICAL RULES - READ TWICE:
+CRITICAL RULES:
 1. Write in THIRD PERSON - NO "I", "my", "me" anywhere
-2. Use PAST TENSE for describing experience (e.g., "worked with", "built", "tested")
+2. Use PAST TENSE for experience (e.g., "worked with", "built", "tested")
 3. Write 2-3 sentences MAXIMUM
 4. Only mention what's actually in their resume - no fake skills
+5. DO NOT include any preamble - return ONLY the summary text
+6. DO NOT use [Name] placeholder - just describe the person's experience
 
-WRONG TONE (do NOT write like this):
-"I am a results-driven professional leveraging cutting-edge technologies to drive transformative solutions. I have a proven track record of spearheading initiatives that maximize ROI."
-
-RIGHT TONE (write like THIS):
-"QA tester with 3 years testing web applications using JavaScript and React. Worked closely with development teams to identify bugs and improve product quality. Looking to apply testing methodology skills to a new challenge."
-
-ANOTHER GOOD EXAMPLE:
-"Background in manual and automated testing for e-learning platforms. Familiar with API testing, test case design, and working with cross-functional teams. Experience with HTML, CSS, JavaScript, and SQL for test validation."
-
-THEIR ACTUAL RESUME INFO:
-Name: {resume_data.get('name','')}
-Current Summary: {resume_data.get('summary','')}
+THEIR RESUME INFO:
+Name: {actual_resume.get('name','')}
+Current Summary: {original_summary}
 Work Experience: {all_exp_desc[:10]}
 Skills: {', '.join(candidate_skills[:15])}
 
-JD Context (only use skills from their resume that match these needs):
-{', '.join(required_skills[:10])}
+JD Context: {', '.join(required_skills[:10])}
 
-Write the summary now. Return ONLY the summary text, nothing else.
+Return ONLY the summary text, nothing else.
 """
 
-    rewritten_resume["summary"] = call_llm_api(summary_prompt, 200)
-    rewritten_resume["job_title"] = job_title
+        raw_summary = call_llm_api(summary_prompt, 200)
+        
+        # Clean up AI preambles
+        clean_summary = raw_summary.strip()
+        
+        preambles = [
+            "Here is the rewritten summary:",
+            "Here's the rewritten summary:",
+            "The rewritten summary:",
+            "Rewritten summary:",
+            "Summary:",
+        ]
+        
+        for preamble in preambles:
+            if clean_summary.lower().startswith(preamble.lower()):
+                clean_summary = clean_summary[len(preamble):].strip()
+        
+        clean_summary = clean_summary.strip('"\'')
+        
+        rewritten_resume["summary"] = clean_summary
+    else:
+        rewritten_resume["summary"] = ""
+    
+    rewritten_resume["job_title"] = job_title if job_title else actual_resume.get("job_title", "")
 
-    # ==========================================================
-    # 🚀 UPDATED PROMPT -> EXPERIENCE: No creation, only highlight
-    # ==========================================================
-    if experience:
+    # ============================================
+    # 6. REWRITE EXPERIENCE (ONLY IF EXISTS)
+    # ============================================
+    if experience and len(experience) > 0:
         exp_prompt = f"""
 Rewrite work experience bullet points for a {job_title} application.
 
 ABSOLUTE REQUIREMENTS:
-1. THIRD PERSON ONLY - ZERO usage of "I", "my", "me", "we"
-2. Start bullets with PAST TENSE VERBS: "Developed", "Tested", "Created", "Worked", "Built"
-3. Keep original facts - only improve clarity and relevance
-4. NO PERCENTAGES unless they were in the original
-5. Keep it factual and straightforward - no marketing fluff
+1. THIRD PERSON ONLY - NO "I", "my", "me", "we"
+2. Start bullets with PAST TENSE VERBS: "Transported", "Maintained", "Ensured", "Provided"
+3. Keep company names, positions, dates, locations EXACTLY as original
+4. Only improve description bullets
+5. Keep any numbers/percentages from original
+6. Return ONLY JSON array, no markdown, no explanation
 
-BAD EXAMPLES (NEVER write like this):
-❌ "I spearheaded a transformative initiative that drove 40% efficiency gains"
-❌ "I leveraged cutting-edge technologies to facilitate seamless integration"
-❌ "I was responsible for testing various applications"
-
-GOOD EXAMPLES (write like THIS):
-✅ "Created and executed test cases for web-based biology curriculum, achieving 99% test coverage"
-✅ "Worked with developers to identify and resolve critical bugs, reducing defect density by 30%"
-✅ "Built automated test scripts using JavaScript to speed up regression testing"
-✅ "Tested API endpoints using Postman and documented integration issues"
-✅ "Reviewed functional requirements and translated them into detailed test plans"
-
-STRUCTURE FOR EACH BULLET:
-[Action verb] + [What you did] + [Tools/technologies used] + [Result if it existed in original]
-
-ORIGINAL EXPERIENCE TO REWRITE:
+ORIGINAL EXPERIENCE:
 {json.dumps(experience, indent=2)}
 
-JD CONTEXT (only emphasize skills they actually used):
-Responsibilities: {', '.join(responsibilities[:8])}
-Required Skills: {', '.join(required_skills[:10])}
+JD CONTEXT:
+{', '.join(required_skills[:10])}
 
-OUTPUT FORMAT - Return this exact JSON structure:
+Return ONLY this JSON (no ```json``` wrapper):
 [
   {{
-    "position": "exact position title from original",
-    "company": "exact company name from original",
-    "duration": "exact duration from original",
-    "description": [
-      "Bullet point 1 starting with past tense verb",
-      "Bullet point 2 starting with past tense verb",
-      "Bullet point 3 starting with past tense verb"
-    ]
+    "position": "exact from original",
+    "company": "exact from original",
+    "start_date": "exact from original",
+    "end_date": "exact from original",
+    "location": "exact from original",
+    "description": ["improved bullet 1", "improved bullet 2", "improved bullet 3"]
   }}
 ]
-
-Return ONLY valid JSON, no markdown, no extra text.
 """
-        rewritten_exp_text = call_llm_api(exp_prompt, 500)
+        rewritten_exp_text = call_llm_api(exp_prompt, 600)
         try:
+            rewritten_exp_text = rewritten_exp_text.strip().replace("```json", "").replace("```", "").strip()
             json_start = rewritten_exp_text.find('[')
             json_end = rewritten_exp_text.rfind(']') + 1
-            rewritten_experience = json.loads(rewritten_exp_text[json_start:json_end])
-            rewritten_resume["experience"] = rewritten_experience
-        except:
+            
+            if json_start >= 0 and json_end > json_start:
+                rewritten_resume["experience"] = json.loads(rewritten_exp_text[json_start:json_end])
+            else:
+                rewritten_resume["experience"] = experience
+        except Exception as e:
+            print(f"Error parsing experience: {e}")
             rewritten_resume["experience"] = experience
+    else:
+        rewritten_resume["experience"] = experience if experience else []
 
-    # ==========================================================
-    # 🚀 UPDATED PROMPT -> PROJECTS: Only enhance existing ones
-    # ==========================================================
-    if projects:
+    # ============================================
+    # 7. REWRITE PROJECTS (ONLY IF EXISTS)
+    # ============================================
+    if projects and len(projects) > 0:
         proj_prompt = f"""
-Rewrite project descriptions for a {job_title} role application.
+Rewrite project descriptions for a {job_title} role.
 
-MANDATORY RULES:
-1. THIRD PERSON - No "I", "my", "me", "we" anywhere
-2. Start with PAST TENSE VERBS: "Built", "Created", "Developed", "Tested", "Designed"
-3. Be specific about WHAT you built and HOW
-4. Only describe what actually happened - no embellishment
-5. Keep metrics only if they were in the original
-
-WRONG WAY (do NOT write like this):
-❌ "I spearheaded the development of an innovative platform leveraging React"
-❌ "I was tasked with creating test cases for the application"
-❌ "My role involved facilitating testing processes"
-
-RIGHT WAY (write like THIS):
-✅ "Built automated testing framework for e-learning platform using JavaScript and Selenium"
-✅ "Created 150+ test cases covering user authentication, course navigation, and payment flows"
-✅ "Tested API endpoints and documented integration issues between frontend and backend"
-✅ "Set up CI/CD pipeline for running automated tests on each deployment"
-✅ "Worked with designers to test responsive layouts across mobile and desktop browsers"
-
-FORMULA FOR EACH BULLET:
-[Past tense verb] + [Specific technical detail] + [Technology/tool used] + [Concrete outcome]
+RULES:
+1. THIRD PERSON - No "I", "my", "me", "we"
+2. Start with PAST TENSE VERBS
+3. Keep project names exactly as original
+4. Only improve description bullets
+5. Return ONLY JSON array, no markdown
 
 ORIGINAL PROJECTS:
 {json.dumps(projects, indent=2)}
 
-JD SKILLS TO HIGHLIGHT (only if they actually appear in the projects):
-{', '.join(required_skills[:10])}
-
-OUTPUT - Return this JSON structure:
+Return ONLY this JSON:
 [
   {{
-    "name": "Project Name",
-    "description": [
-      "Specific bullet starting with action verb",
-      "Another specific bullet with technical details",
-      "Third bullet with concrete outcome"
-    ]
+    "name": "exact from original",
+    "description": ["improved bullet 1", "improved bullet 2"]
   }}
 ]
-
-Return ONLY the JSON array, nothing else.
 """
         rewritten_proj_text = call_llm_api(proj_prompt, 400)
         try:
+            rewritten_proj_text = rewritten_proj_text.strip().replace("```json", "").replace("```", "").strip()
             json_start = rewritten_proj_text.find('[')
             json_end = rewritten_proj_text.rfind(']') + 1
-            rewritten_resume["projects"] = json.loads(rewritten_proj_text[json_start:json_end])
-        except:
+            
+            if json_start >= 0 and json_end > json_start:
+                rewritten_resume["projects"] = json.loads(rewritten_proj_text[json_start:json_end])
+            else:
+                rewritten_resume["projects"] = projects
+        except Exception as e:
+            print(f"Error parsing projects: {e}")
             rewritten_resume["projects"] = projects
+    else:
+        rewritten_resume["projects"] = projects if projects else []
 
-    # ==========================================================
-    # 🚀 UPDATED PROMPT -> SKILLS: ONLY enhance, NO new skills
-    # ==========================================================
-    skills_prompt = f"""
-    Organize the candidate's existing skills into logical categories for a {job_title} role.
+    # ============================================
+    # 8. CATEGORIZE SKILLS (NO NEW SKILLS)
+    # ============================================
+    if candidate_skills and len(candidate_skills) > 0:
+        skills_prompt = f"""
+Organize these exact skills into categories. DO NOT add any new skills.
 
-    APPROACH:
-    - Simply categorize what they already know - don't oversell or add things
-    - Put the most relevant skills for this job toward the top of each category
-    - Keep it straightforward - this is just organizing, not marketing
-    - If a skill matches what the job needs and they have it, prioritize it naturally
+THEIR SKILLS (use ONLY these):
+{', '.join(candidate_skills)}
 
-    STRICT RULES:
-    - ONLY use skills that are ALREADY in their resume
-    - DO NOT add any new tools, languages, or technologies
-    - DO NOT assume they know something just because it's related to what they know
-    - If a JD skill isn't in their actual skillset, leave it out completely
-    - Just reorganize what exists, don't expand or embellish
+Return ONLY this JSON (no markdown):
+{{
+  "technicalSkills": ["skill1"],
+  "tools": ["tool1"],
+  "softSkills": ["soft1"]
+}}
 
-    THEIR ACTUAL SKILLS:
-    {', '.join(candidate_skills[:30])}
+Only include categories with items from above list.
+"""
+        skills_text = call_llm_api(skills_prompt, 300)
+        try:
+            skills_text = skills_text.strip().replace("```json", "").replace("```", "").strip()
+            json_start = skills_text.find('{')
+            json_end = skills_text.rfind('}') + 1
+            
+            if json_start >= 0 and json_end > json_start:
+                parsed_skills = json.loads(skills_text[json_start:json_end])
+                rewritten_resume["skills"] = {k: v for k, v in parsed_skills.items() if v}
+            else:
+                rewritten_resume["skills"] = candidate_skills
+        except Exception as e:
+            print(f"Error parsing skills: {e}")
+            rewritten_resume["skills"] = candidate_skills
+    else:
+        rewritten_resume["skills"] = candidate_skills if candidate_skills else []
 
-    JD REQUIREMENTS (only prioritize these IF they're already in the list above):
-    {', '.join(required_skills)}
+    # ============================================
+    # 9. PRESERVE OTHER FIELDS
+    # ============================================
+    if "custom_sections" in actual_resume:
+        rewritten_resume["custom_sections"] = actual_resume["custom_sections"]
+    
+    if "achievements" in actual_resume:
+        rewritten_resume["achievements"] = actual_resume["achievements"]
+    
+    if "languages" in actual_resume:
+        rewritten_resume["languages"] = actual_resume["languages"]
 
-    CATEGORIES TO USE:
-    - technicalSkills: core technical abilities, methodologies, concepts
-    - tools: specific software, platforms, applications they've used
-    - cloudSkills: cloud platforms and services (only if they have them)
-    - softSkills: communication, teamwork, problem-solving abilities
-    - languages: programming languages, query languages
-
-    OUTPUT:
-    Return a simple JSON object:
-    {{
-    "technicalSkills": ["skill1", "skill2", ...],
-    "tools": ["tool1", "tool2", ...],
-    "cloudSkills": ["cloud1", "cloud2", ...],
-    "softSkills": ["soft1", "soft2", ...],
-    "languages": ["lang1", "lang2", ...]
-    }}
-
-    Only include categories that have items. Return ONLY the JSON object, nothing else.
-    """
-    skills_text = call_llm_api(skills_prompt, 300)
-    try:
-        json_start = skills_text.find('{')
-        json_end = skills_text.rfind('}') + 1
-        parsed_skills = json.loads(skills_text[json_start:json_end])
-        categorized_skills = {k: parsed_skills.get(k, []) for k in 
-                              ["technicalSkills","tools","cloudSkills","softSkills","languages"]}
-        rewritten_resume["skills"] = {k: v for k,v in categorized_skills.items() if v}
-    except:
-        rewritten_resume["skills"] = candidate_skills
+    # ============================================
+    # FINAL: Ensure no nested structure
+    # ============================================
+    if "resume_data" in rewritten_resume:
+        del rewritten_resume["resume_data"]
 
     return rewritten_resume
 
@@ -3593,67 +3624,137 @@ def generate_enhanced_resume():
     jd_data = st.session_state.get('job_description')
     current_user = st.session_state.get('logged_in_user') or st.query_params.get('user', '')
     
-    # If resume_data is None, try to fetch it from user's stored data
-    if resume_data is None and current_user:
-        try:
-            users = load_users()
-            user_entry = users.get(current_user)
-            
-            if isinstance(user_entry, dict):
-                user_resume = get_user_resume(current_user)
+    # ============================================
+    # 🔧 FIX: Ensure resume_data is loaded
+    # ============================================
+    # If resume_data is None, try multiple sources
+    if resume_data is None:
+        # Try final_resume_data first
+        resume_data = st.session_state.get('final_resume_data')
+        
+        # Try enhanced_resume next
+        if resume_data is None:
+            resume_data = st.session_state.get('enhanced_resume')
+        
+        # Finally, try to fetch from database
+        if resume_data is None and current_user:
+            try:
+                users = load_users()
+                user_entry = users.get(current_user)
                 
-                if user_resume and len(user_resume) > 0:
-                    resume_data = user_resume
-                    st.session_state['resume_source'] = user_resume
-                    st.session_state['input_method'] = user_resume.get("input_method", "Manual Entry")
-                    st.session_state['username'] = current_user.split('@')[0]
+                if isinstance(user_entry, dict):
+                    user_resume = get_user_resume(current_user)
+                    
+                    if user_resume and len(user_resume) > 0:
+                        resume_data = user_resume
+                        st.session_state['resume_source'] = user_resume
+                        st.session_state['final_resume_data'] = user_resume  # Also set this
+                        st.session_state['input_method'] = user_resume.get("input_method", "Manual Entry")
+                        st.session_state['username'] = current_user.split('@')[0]
+                    else:
+                        st.error(f"No resume data found for user: {current_user}. Please create a resume first.")
+                        if st.button("Go to Home"):
+                            st.query_params["home"] = "true"
+                            st.query_params["user"] = current_user
+                            st.rerun()
+                        st.stop()
                 else:
-                    st.error(f"No resume data found for user: {current_user}. Please create a resume first.")
-                    if st.button("Go to Home"):
-                        st.query_params["home"] = "true"
-                        st.query_params["user"] = current_user
-                        st.rerun()
+                    st.error(f"User not found: {current_user}")
                     st.stop()
-            else:
-                st.error(f"User not found: {current_user}")
+            except Exception as e:
+                st.error(f"Error fetching resume data: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
                 st.stop()
-        except Exception as e:
-            st.error(f"Error fetching resume data: {str(e)}")
+        elif resume_data is None:
+            st.error("No resume data found and no user logged in. Please go back to the main page.")
+            if st.button("Go to Login"):
+                st.switch_page("pages/main.py")
             st.stop()
-    elif resume_data is None:
-        st.error("No resume data found and no user logged in. Please go back to the main page.")
-        if st.button("Go to Login"):
-            st.switch_page("pages/main.py")
+    
+    # ============================================
+    # CRITICAL: Verify resume_data is not None before proceeding
+    # ============================================
+    if resume_data is None:
+        st.error("❌ Failed to load resume data from any source!")
+        st.write("Debug info:")
+        st.write(f"- resume_source: {st.session_state.get('resume_source')}")
+        st.write(f"- final_resume_data: {st.session_state.get('final_resume_data')}")
+        st.write(f"- enhanced_resume: {st.session_state.get('enhanced_resume')}")
+        st.write(f"- current_user: {current_user}")
         st.stop()
     
-    # If jd_data is still None, you might want to handle it
-    # if jd_data is None:
-    #     st.warning("No job description found. Using default optimization.")
-    #     jd_data = {}  # or fetch default JD if you have one
+    # Verify it's a dictionary
+    if not isinstance(resume_data, dict):
+        st.error(f"❌ Resume data is not a dictionary! Type: {type(resume_data)}")
+        st.write("Data:", resume_data)
+        st.stop()
+    
+    # If jd_data is None, use empty dict
+    if jd_data is None:
+        st.warning("⚠️ No job description found. Using default optimization.")
+        jd_data = {}
     
     # Safely get input_method with fallback
     input_method = st.session_state.get(
         "input_method", 
-        resume_data.get("input_method", "Manual Entry") if isinstance(resume_data, dict) else "Manual Entry"
+        resume_data.get("input_method", "Manual Entry")
     )
    
-    if input_method == "Manual Entry":
-        enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
-    else:
-        enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
-
-    st.session_state['enhanced_resume'] = enhanced_resume
-    st.session_state['last_resume_user'] = current_user
-    st.session_state['last_resume_hash'] = get_resume_hash(resume_data) if resume_data else None
-    st.session_state['last_jd_hash'] = get_resume_hash(jd_data) if jd_data else None
-
-    st.query_params["enhanced_resume"] = json.dumps(enhanced_resume)
-    st.query_params["last_resume_hash"] = st.session_state['last_resume_hash'] or ""
-    st.query_params["last_jd_hash"] = st.session_state['last_jd_hash'] or ""
-    st.query_params["last_resume_user"] = current_user
-
-    chatbot(enhanced_resume)
-    return enhanced_resume
+    # ============================================
+    # Call the appropriate rewrite function
+    # ============================================
+    try:
+        if input_method == "Manual Entry":
+            enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
+        else:
+            enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
+            st.write("inside upload entry")
+            st.write(enhanced_resume)
+        
+        # ============================================
+        # 🔧 FIX: Flatten nested structure if present
+        # ============================================
+        if enhanced_resume and 'resume_data' in enhanced_resume:
+            original_data = enhanced_resume.pop('resume_data')
+            for key, value in original_data.items():
+                if key not in enhanced_resume or not enhanced_resume[key]:
+                    enhanced_resume[key] = value
+        
+        # Ensure critical fields exist
+        if not enhanced_resume.get('name'):
+            enhanced_resume['name'] = resume_data.get('name', 'Your Name')
+        if not enhanced_resume.get('email'):
+            enhanced_resume['email'] = resume_data.get('email', '')
+        if not enhanced_resume.get('phone'):
+            enhanced_resume['phone'] = resume_data.get('phone', '')
+        if not enhanced_resume.get('location'):
+            enhanced_resume['location'] = resume_data.get('location', '')
+        
+        # Store in session state
+        st.session_state['enhanced_resume'] = enhanced_resume
+        st.session_state['last_resume_user'] = current_user
+        st.session_state['last_resume_hash'] = get_resume_hash(resume_data)
+        st.session_state['last_jd_hash'] = get_resume_hash(jd_data)
+        
+        # Store in query params
+        try:
+            st.query_params["enhanced_resume"] = json.dumps(enhanced_resume)
+            st.query_params["last_resume_hash"] = st.session_state['last_resume_hash'] or ""
+            st.query_params["last_jd_hash"] = st.session_state['last_jd_hash'] or ""
+            st.query_params["last_resume_user"] = current_user
+        except:
+            pass  # Query params can fail if data is too large
+        
+        chatbot(enhanced_resume)
+        
+        return enhanced_resume
+        
+    except Exception as e:
+        st.error(f"❌ Error generating enhanced resume: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
+        st.stop()
 
 
 def format_section_title(key):

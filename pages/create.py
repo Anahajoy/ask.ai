@@ -141,7 +141,7 @@ else:
 if st.session_state.enhanced_resume is None and user_resume:
     st.session_state.enhanced_resume = user_resume.copy()
 
-chatbot(user_resume)
+# chatbot(user_resume)
 
 resume_data = st.session_state.get('enhanced_resume')
 jd_data = st.session_state.get('job_description')
@@ -1683,7 +1683,7 @@ def generate_resume_for_template():
     
     # Get resume data - enhanced if available, otherwise original
     resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume
-    
+    st.write(resume_data)
     if not resume_data:
         st.error("No resume data found. Please create a resume first.")
         return {}
@@ -2535,6 +2535,7 @@ def use_uploaded_html_template(name, parsed_template):
 def show_template_selector():
     """Show template selection gallery with custom upload option and saved templates."""
     # Check if we should show upload interface
+    generate_enhanced_resume()
     if st.session_state.get('show_upload_interface', False):
         show_upload_interface()
         return

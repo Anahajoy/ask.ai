@@ -17,7 +17,7 @@ from utils import (
     save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
     docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
     match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
-    load_user_templates,load_user_ppt_templates,chatbot,delete_user_doc_template
+    load_user_templates,load_user_ppt_templates,delete_user_doc_template
 )
 
 # Page config
@@ -1683,7 +1683,7 @@ def generate_resume_for_template():
     
     # Get resume data - enhanced if available, otherwise original
     resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume
-    st.write(resume_data)
+    # st.write(resume_data)
     if not resume_data:
         st.error("No resume data found. Please create a resume first.")
         return {}
@@ -3477,6 +3477,9 @@ def show_visual_editor_with_tools():
                     </style>
                     """, unsafe_allow_html=True)
                 save_custom_sections()
+                st.session_state.final_resume_data = st.session_state.enhanced_resume.copy()
+    
+    # Now improve
                 save_and_improve()
                 loading_placeholder.empty()
         
@@ -3536,44 +3539,65 @@ def show_visual_editor_with_tools():
                     use_container_width=True
                 )
         
+# In your show_visual_editor_with_tools() function, replace the PDF download section with:
+
         st.markdown("---")
-        
-        # Download buttons
-        if st.button("⬇️ **Download PDF**", type="primary", use_container_width=True):
-            st.info("PDF download functionality coming soon!")
-        
-       
-            # Create downloadable HTML
-        download_html = f"""
+
+        html_content = st.session_state.template_preview_html or ""
+        css_content = st.session_state.template_preview_css or ""
+        template_source = st.session_state.get('template_source', 'html_saved')
+
+        if template_source in ['html_saved', 'temp_upload', None]:
+            # Single HTML for both downloads
+            download_html = f"""
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Resume - {st.session_state.selected_template}</title>
-                <style>{css_content}</style>
+                <style>
+                    @page {{ size: A4; margin: 0.5in; }}
+                    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+                    {css_content}
+                </style>
             </head>
             <body style="margin: 0; padding: 0; background: #fff;">
-                <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 1in; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 1in;">
                     {html_content}
                 </div>
+                <script>
+                    window.onload = function() {{ setTimeout(function() {{ window.print(); }}, 500); }};
+                </script>
             </body>
             </html>
             """
             
-        st.download_button(
-                label="⬇️ Download HTML",
-                data=download_html,
-                file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
-                mime="text/html",
-                use_container_width=True,
-                type="primary"
-            )
-        # Download buttons section (around line 3800)
-   
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.download_button(
+                    label="⬇️ Download HTML",
+                    data=download_html,
+                    file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
+                    mime="text/html",
+                    use_container_width=True,
+                    type="secondary",
+                    key="download_html_btn"
+                )
+            
+            with col2:
+                st.download_button(
+                    label="📄 Get PDF",
+                    data=download_html,
+                    file_name=f"resume_pdf_{st.session_state.selected_template.replace(' ', '_')}.html",
+                    mime="text/html",
+                    use_container_width=True,
+                    type="primary",
+                    key="download_pdf_btn"
+                )
+            
+            st.info("📄 **To save as PDF:** Open downloaded file → Print dialog appears → Select 'Save as PDF' → Save")
 
-        # DOCX Download Button
-        # DOCX Download Button
+        st.markdown("---")
         
         try:
                 template_source = st.session_state.get('template_source', 'html_saved')

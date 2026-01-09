@@ -871,7 +871,7 @@ Job Description:
             print(f"🔄 Parsing JD - Attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)...")
             
             payload = {
-                "model": FAST_MODEL,
+                "model": HEAVY_MODEL,
                 "messages": [
                     {
                         "role": "system",
@@ -941,8 +941,176 @@ Job Description:
                 return _fallback_parse_jd(job_description)
 
 
+def extract_details_from_jd(job_description: str, max_retries: int = 3) -> Dict[str, Any]:
+    """
+    Extract structured details from job description with retry logic.
+    """
+    
+    # Truncate if too long
+    if len(job_description) > 10000:
+        print(f"⚠️ JD truncated from {len(job_description)} to 10000 characters")
+        job_description = job_description[:10000]
+    
+    SCHEMA_DEFINITION = """{
+  "job_title": "string",
+  "company": "string or null",
+  "location": "string or null",
+  "required_skills": ["array of strings - technical and soft skills"],
+  "required_experience": "string or null (e.g., '3-5 years')",
+  "education": "string or null (e.g., 'Bachelor's in CS')",
+  "responsibilities": ["array of strings - main duties"],
+  "qualifications": ["array of strings - requirements"],
+  "nice_to_have": ["array of strings - optional skills"],
+  "benefits": "string or null"
+}"""
+
+    # ✅ FIXED: More explicit prompt with examples
+    prompt = f"""You are a JSON parser. Extract job description information and return ONLY a valid JSON object.
+
+CRITICAL RULES:
+- Return ONLY the JSON object, nothing else
+- No markdown, no code blocks, no explanations
+- No ```json``` tags
+- Start with {{ and end with }}
+
+SCHEMA:
+{SCHEMA_DEFINITION}
+
+EXAMPLE OUTPUT:
+{{
+  "job_title": "Software Engineer",
+  "company": "Tech Corp",
+  "location": "Remote",
+  "required_skills": ["Python", "Django", "REST APIs"],
+  "required_experience": "3-5 years",
+  "education": "Bachelor's in Computer Science",
+  "responsibilities": ["Build APIs", "Write tests"],
+  "qualifications": ["Strong Python skills", "Team player"],
+  "nice_to_have": ["AWS experience"],
+  "benefits": "Health insurance, 401k"
+}}
+
+Now extract from this job description:
+{job_description}
+
+Return only the JSON object:"""
+
+    for attempt in range(max_retries):
+        try:
+            timeout = 30 + (attempt * 15)
+            print(f"🔄 Parsing JD - Attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)...")
+            
+            # ✅ FIXED: Check if URL and headers are properly configured
+            if not url or not headers:
+                print("❌ API configuration missing (url or headers)")
+                return _fallback_parse_jd(job_description)
+            
+            payload = {
+                "model": HEAVY_MODEL,  # ⚠️ Make sure this is correct (e.g., "meta/llama-3.1-70b-instruct")
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a JSON extraction tool. You ONLY output valid JSON objects. Never use markdown or code blocks."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.1,
+                "max_tokens": 2000,
+                "top_p": 0.7
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=timeout)
+            
+            # ✅ FIXED: Better error handling
+            if response.status_code == 404:
+                print(f"❌ API endpoint not found (404). Check your URL and model name.")
+                print(f"   URL: {url}")
+                print(f"   Model: {HEAVY_MODEL}")
+                return _fallback_parse_jd(job_description)
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            if 'choices' not in result or not result['choices']:
+                raise ValueError("API returned empty response")
+            
+            response_text = result['choices'][0]['message']['content'].strip()
+            
+            # ✅ FIXED: Better JSON extraction
+            # Remove common wrapper patterns
+            response_text = response_text.replace('```json', '').replace('```', '').strip()
+            response_text = re.sub(r'^[^{]*', '', response_text)  # Remove everything before first {
+            response_text = re.sub(r'[^}]*$', '', response_text)  # Remove everything after last }
+            
+            # Find JSON boundaries
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
+            
+            if json_start == -1 or json_end <= json_start:
+                print(f"⚠️ No JSON found in response. First 200 chars: {response_text[:200]}")
+                raise ValueError("No valid JSON found")
+
+            json_str = response_text[json_start:json_end]
+            
+            # ✅ FIXED: Try to fix common JSON issues
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                print(f"⚠️ JSON decode error: {str(e)}")
+                print(f"   Problematic JSON: {json_str[:500]}")
+                raise
+
+            # Ensure all fields exist
+            list_fields = ["required_skills", "responsibilities", "qualifications", "nice_to_have"]
+            for field in list_fields:
+                if field not in data:
+                    data[field] = []
+                elif not isinstance(data[field], list):
+                    data[field] = [data[field]] if data[field] else []
+
+            string_fields = ["job_title", "company", "location", "required_experience", "education", "benefits"]
+            for field in string_fields:
+                if field not in data:
+                    data[field] = ""
+                elif data[field] is None:
+                    data[field] = ""
+
+            print(f"✅ Successfully parsed JD on attempt {attempt + 1}")
+            print(f"   Extracted {len(data.get('required_skills', []))} skills")
+            return data
+
+        except requests.exceptions.Timeout:
+            print(f"⏱️ JD timeout on attempt {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                return _fallback_parse_jd(job_description)
+        
+        except requests.exceptions.HTTPError as e:
+            print(f"❌ HTTP error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                return _fallback_parse_jd(job_description)
+        
+        except Exception as e:
+            print(f"❌ JD parse error on attempt {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                return _fallback_parse_jd(job_description)
+
+
 def _fallback_parse_jd(text: str) -> Dict[str, Any]:
-    """Fallback parser for job descriptions."""
+    """
+    Enhanced fallback parser for job descriptions.
+    """
     import re
     
     print("🔧 Using fallback JD parser...")
@@ -960,37 +1128,133 @@ def _fallback_parse_jd(text: str) -> Dict[str, Any]:
         "benefits": ""
     }
     
-    # Extract job title (usually first line or after "Job Title:")
     lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
+    # ✅ FIXED: Better job title extraction
     if lines:
-        data["job_title"] = lines[0]
+        # Try to find "Job Title:" or similar
+        for i, line in enumerate(lines[:5]):
+            if any(keyword in line.lower() for keyword in ['job title', 'position', 'role']):
+                if ':' in line:
+                    data["job_title"] = line.split(':', 1)[1].strip()
+                elif i + 1 < len(lines):
+                    data["job_title"] = lines[i + 1]
+                break
+        if not data["job_title"]:
+            data["job_title"] = lines[0]
     
-    # Extract skills using common patterns
-    keywords = ["Python", "SQL", "Excel", "Tableau", "Power BI", "Azure", "AWS", 
-                "Machine Learning", "Data Analysis", "ETL", "JavaScript", "React",
-                "Java", "C++", "Docker", "Kubernetes", "Git"]
+    # ✅ FIXED: Enhanced skill extraction
+    # Expanded skill keywords
+    tech_skills = [
+        # Programming
+        "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "Ruby", "Go", "Rust", "PHP", "Swift", "Kotlin",
+        # Web
+        "React", "Angular", "Vue", "Node.js", "Express", "Django", "Flask", "FastAPI", "Spring", "ASP.NET",
+        # Data
+        "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Cassandra", "Elasticsearch",
+        "Pandas", "NumPy", "Scikit-learn", "TensorFlow", "PyTorch", "Keras",
+        # Cloud & DevOps
+        "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Jenkins", "GitLab", "CircleCI", "Terraform",
+        # Tools
+        "Git", "Jira", "Confluence", "Tableau", "Power BI", "Excel", "Figma", "Postman",
+        # Concepts
+        "Machine Learning", "Deep Learning", "Data Analysis", "ETL", "CI/CD", "Microservices",
+        "REST API", "GraphQL", "Agile", "Scrum", "TDD", "DevOps"
+    ]
     
-    found_skills = []
+    soft_skills = [
+        "Communication", "Leadership", "Problem Solving", "Team Player", "Analytical",
+        "Critical Thinking", "Creativity", "Adaptability", "Time Management"
+    ]
+    
+    all_skills = tech_skills + soft_skills
+    found_skills = set()
+    
     text_lower = text.lower()
-    for keyword in keywords:
-        if keyword.lower() in text_lower:
-            found_skills.append(keyword)
+    text_words = set(re.findall(r'\b\w+\b', text_lower))
     
-    data["required_skills"] = found_skills[:15]
+    # ✅ FIXED: Better matching
+    for skill in all_skills:
+        skill_lower = skill.lower()
+        # Check exact phrase match or word match
+        if skill_lower in text_lower or any(word in text_words for word in skill_lower.split()):
+            found_skills.add(skill)
     
-    # Extract experience requirement
-    exp_match = re.search(r'(\d+[\+\-]?\s*(?:to\s*)?\d*\s*years?)', text, re.IGNORECASE)
-    if exp_match:
-        data["required_experience"] = exp_match.group(1)
+    # ✅ FIXED: Extract custom skills from text
+    # Look for bullet points or lines that might contain skills
+    skill_sections = re.findall(
+        r'(?:skills?|technologies?|requirements?|qualifications?)[\s:]*\n((?:[-•*]\s*.+\n?)+)',
+        text,
+        re.IGNORECASE | re.MULTILINE
+    )
     
-    # Extract education
-    edu_keywords = ["bachelor", "master", "degree", "phd", "diploma"]
-    for keyword in edu_keywords:
-        if keyword in text.lower():
-            data["education"] = f"{keyword.title()} degree required"
+    for section in skill_sections:
+        # Extract items from bullets
+        items = re.findall(r'[-•*]\s*(.+)', section)
+        for item in items:
+            # Clean and add if looks like a skill
+            item = item.strip().rstrip('.,;')
+            if 3 <= len(item) <= 50 and not any(word in item.lower() for word in ['year', 'degree', 'bachelor']):
+                found_skills.add(item)
+    
+    data["required_skills"] = list(found_skills)[:30]  # Limit to 30 skills
+    
+    # ✅ FIXED: Better experience extraction
+    exp_patterns = [
+        r'(\d+[\+\-]?\s*(?:to\s+)?\d*\s*years?)',
+        r'(\d+\+?\s*years?)',
+        r'(minimum\s+\d+\s+years?)',
+        r'(at least\s+\d+\s+years?)'
+    ]
+    for pattern in exp_patterns:
+        exp_match = re.search(pattern, text, re.IGNORECASE)
+        if exp_match:
+            data["required_experience"] = exp_match.group(1)
             break
     
-    print(f"✅ Fallback JD parser extracted: {len(data['required_skills'])} skills")
+        # ✅ FIXED: Better education extraction
+    edu_patterns = [
+        r"(bachelor's?\s+(?:degree\s+)?(?:in\s+)?[\w\s]+)",
+        r"(master's?\s+(?:degree\s+)?(?:in\s+)?[\w\s]+)",
+        r"(phd\s+(?:in\s+)?[\w\s]+)",
+        r"(degree\s+in\s+[\w\s]+)"
+    ]
+
+    for pattern in edu_patterns:
+        edu_match = re.search(pattern, text, re.IGNORECASE)
+        if edu_match:
+            data["education"] = edu_match.group(1).strip()
+            break
+    
+    # ✅ FIXED: Extract responsibilities
+    resp_section = re.search(
+        r"(?:responsibilities|duties|what you'll do)[\s:]*\n((?:[-•*]\s*.+\n?)+)",
+        text,
+        re.IGNORECASE | re.MULTILINE
+    )
+
+    if resp_section:
+        data["responsibilities"] = [
+            r.strip().rstrip('.,;') 
+            for r in re.findall(r'[-•*]\s*(.+)', resp_section.group(1))
+        ][:10]
+    
+    # ✅ FIXED: Extract qualifications
+    qual_section = re.search(
+        r'(?:qualifications|requirements|must have)[\s:]*\n((?:[-•*]\s*.+\n?)+)',
+        text,
+        re.IGNORECASE | re.MULTILINE
+    )
+    if qual_section:
+        data["qualifications"] = [
+            q.strip().rstrip('.,;') 
+            for q in re.findall(r'[-•*]\s*(.+)', qual_section.group(1))
+        ][:10]
+    
+    print(f"✅ Fallback JD parser extracted:")
+    print(f"   - {len(data['required_skills'])} skills")
+    print(f"   - {len(data['responsibilities'])} responsibilities")
+    print(f"   - {len(data['qualifications'])} qualifications")
     
     return data
 
@@ -1022,6 +1286,8 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     but DO NOT add new fake roles, skills, or projects that
     are not present in user's resume. Only highlight and optimize.
     """
+    # st.write(resume_data)
+    # st.write(jd_data)
     # ============================================
     # 🔧 SAFETY CHECK
     # ============================================
@@ -1038,9 +1304,22 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     # 🔧 FIX: Handle nested structure
     # If resume_data contains a nested "resume_data" key, flatten it
     # ============================================
-    if "resume_data" in resume_data and isinstance(resume_data["resume_data"], dict):
-        print("⚠️ Detected nested structure, flattening...")
-        actual_resume = resume_data["resume_data"]
+    # ============================================
+# 🔧 FIX: Handle nested structure
+    # ============================================
+    if "resume_data" in resume_data:
+        nested_data = resume_data["resume_data"]
+        
+        # If it's a string, parse it as JSON
+        if isinstance(nested_data, str):
+            print("⚠️ Detected JSON string, parsing...")
+            actual_resume = json.loads(nested_data)
+        # If it's already a dict, use it
+        elif isinstance(nested_data, dict):
+            print("⚠️ Detected nested dict, flattening...")
+            actual_resume = nested_data
+        else:
+            actual_resume = resume_data
     else:
         actual_resume = resume_data
     
@@ -1830,6 +2109,7 @@ def is_valid_phone(phone):
 
 
 
+
 def save_user_resume(email, resume_data, input_method=None):
 
     def convert_dates(obj):
@@ -1845,55 +2125,82 @@ def save_user_resume(email, resume_data, input_method=None):
 
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
-            INSERT INTO user_resumes (email, resume_data, input_method)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (email)
-            DO UPDATE SET
-                resume_data = EXCLUDED.resume_data,
-                input_method = EXCLUDED.input_method,
-                updated_at = NOW()
-        """, (email, json.dumps(resume_data), input_method))
+        cursor.execute("""
+            MERGE user_resumes AS target
+            USING (
+                SELECT 
+                    ? AS email,
+                    ? AS resume_data,
+                    ? AS input_method
+            ) AS source
+            ON target.email = source.email
+            WHEN MATCHED THEN
+                UPDATE SET
+                    resume_data = source.resume_data,
+                    input_method = source.input_method,
+                    updated_at = SYSDATETIME()
+            WHEN NOT MATCHED THEN
+                INSERT (email, resume_data, input_method, created_at, updated_at)
+                VALUES (
+                    source.email,
+                    source.resume_data,
+                    source.input_method,
+                    SYSDATETIME(),
+                    SYSDATETIME()
+                );
+        """,
+        email,
+        json.dumps(resume_data),
+        input_method
+        )
 
         conn.commit()
-        cur.close()
-        conn.close()
         return True
 
     except Exception as e:
         st.error(f"Error saving resume data: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
 
 
 def get_user_template_path(email):
     conn = get_connection()
-    cur = conn.cursor()
+    cursor = conn.cursor()
 
-    cur.execute("""
+    cursor.execute("""
         SELECT template_key, template_name, html, css, uploaded_at, original_filename
         FROM user_templates
-        WHERE email = %s
+        WHERE email = ?
         ORDER BY uploaded_at DESC
-    """, (email,))
+    """, email)
 
-    rows = cur.fetchall()
-    cur.close()
+    rows = cursor.fetchall()
+
+    cursor.close()
     conn.close()
 
     templates = {}
-    for r in rows:
-        templates[r[0]] = {
-            "name": r[1],
-            "html": r[2],
-            "css": r[3],
-            "uploaded_at": r[4],
-            "original_filename": r[5]
+    for row in rows:
+        templates[row[0]] = {
+            "name": row[1],
+            "html": row[2],
+            "css": row[3],
+            "uploaded_at": row[4],
+            "original_filename": row[5]
         }
 
     return templates
+
 
 
 # def get_user_template_path(user_email):
@@ -1911,13 +2218,16 @@ def get_user_template_path(email):
 
 
 
+
 def load_user_templates(user_email):
     """Load templates for the logged-in user from database."""
+    templates = {}
+
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
+        cursor.execute("""
             SELECT template_key,
                    template_name,
                    html,
@@ -1925,77 +2235,110 @@ def load_user_templates(user_email):
                    uploaded_at,
                    original_filename
             FROM user_templates
-            WHERE email = %s
+            WHERE email = ?
             ORDER BY uploaded_at DESC
-        """, (user_email,))
+        """, user_email)
 
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
-
-        templates = {}
-        for r in rows:
-            templates[r[0]] = {
-                "name": r[1],
-                "html": r[2],
-                "css": r[3],
-                "uploaded_at": r[4],
-                "original_filename": r[5]
+        for row in cursor.fetchall():
+            templates[row[0]] = {
+                "name": row[1],
+                "html": row[2],
+                "css": row[3],
+                "uploaded_at": row[4],
+                "original_filename": row[5]
             }
-
-        return templates
 
     except Exception as e:
         st.error(f"Error loading templates: {e}")
-        return {}
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+    return templates
+
+
 
 
 def save_user_templates(user_email, templates):
     """Save or update templates for the logged-in user in database."""
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
         for template_key, data in templates.items():
-            cur.execute("""
-                INSERT INTO user_templates (
-                    email,
-                    template_key,
-                    template_name,
-                    html,
-                    css,
-                    uploaded_at,
-                    original_filename
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (email, template_key)
-                DO UPDATE SET
-                    template_name = EXCLUDED.template_name,
-                    html = EXCLUDED.html,
-                    css = EXCLUDED.css,
-                    uploaded_at = EXCLUDED.uploaded_at,
-                    original_filename = EXCLUDED.original_filename,
-                    updated_at = NOW()
-            """, (
-                user_email,
-                template_key,
-                data.get("name"),
-                data.get("html"),
-                data.get("css"),
-                data.get("uploaded_at"),
-                data.get("original_filename")
-            ))
+            cursor.execute("""
+                MERGE user_templates AS target
+                USING (
+                    SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS html,
+                        ? AS css,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        html = source.html,
+                        css = source.css,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
+                        template_key,
+                        template_name,
+                        html,
+                        css,
+                        uploaded_at,
+                        original_filename,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.html,
+                        source.css,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            user_email,
+            template_key,
+            data.get("name"),
+            data.get("html"),
+            data.get("css"),
+            data.get("uploaded_at"),
+            data.get("original_filename")
+            )
 
         conn.commit()
-        cur.close()
-        conn.close()
-
         return True
 
     except Exception as e:
         st.error(f"Error saving templates: {e}")
         return False
-    
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
 
 # import base64
 
@@ -3349,13 +3692,17 @@ def replace_content(doc, structure, final_data):
     
     return output, replaced_count, len(paragraphs_to_remove)
 
+
+
 def load_user_doc_templates(username):
     """Load user's saved document templates from database"""
+    templates = {}
+
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
+        cursor.execute("""
             SELECT template_key,
                    template_name,
                    doc_data,
@@ -3363,124 +3710,176 @@ def load_user_doc_templates(username):
                    uploaded_at,
                    original_filename
             FROM user_doc_templates
-            WHERE email = %s
+            WHERE email = ?
             ORDER BY uploaded_at DESC
-        """, (username,))
+        """, username)
 
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        rows = cursor.fetchall()
 
-        templates = {}
+        for row in rows:
+            template_key = row[0]
+            template_name = row[1]
+            doc_data = row[2]
+            doc_text = row[3]
+            uploaded_at = row[4]
+            original_filename = row[5]
 
-        for r in rows:
             # Decide which content to return
-            if r[2] is not None:
-                doc_content = bytes(r[2])
+            if doc_data is not None:
+                doc_content = bytes(doc_data)   # VARBINARY → bytes
             else:
-                doc_content = r[3]
+                doc_content = doc_text           # NVARCHAR text
 
-            templates[r[0]] = {
-                "name": r[1],
+            templates[template_key] = {
+                "name": template_name,
                 "doc_data": doc_content,
-                "uploaded_at": r[4],
-                "original_filename": r[5]
+                "uploaded_at": uploaded_at,
+                "original_filename": original_filename
             }
-
-        return templates
 
     except Exception as e:
         print(f"Error loading doc templates: {e}")
-        return {}
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+    return templates
 
 
 import psycopg2
+
 
 def save_user_doc_templates(username, templates):
     """Save user's document templates to database"""
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
         for template_id, template_data in templates.items():
             doc_data = template_data.get("doc_data")
 
-            # Decide storage
+            # Decide storage (SQL Server)
             if isinstance(doc_data, (bytes, bytearray)):
-                doc_binary = psycopg2.Binary(doc_data)
+                doc_binary = doc_data          # VARBINARY(MAX)
                 doc_text = None
             else:
                 doc_binary = None
-                doc_text = doc_data
+                doc_text = doc_data            # NVARCHAR(MAX)
 
-            cur.execute("""
-                INSERT INTO user_doc_templates (
-                    email,
-                    template_key,
-                    template_name,
-                    doc_data,
-                    doc_text,
-                    uploaded_at,
-                    original_filename
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (email, template_key)
-                DO UPDATE SET
-                    template_name = EXCLUDED.template_name,
-                    doc_data = EXCLUDED.doc_data,
-                    doc_text = EXCLUDED.doc_text,
-                    uploaded_at = EXCLUDED.uploaded_at,
-                    original_filename = EXCLUDED.original_filename,
-                    updated_at = NOW()
-            """, (
-                username,
-                template_id,
-                template_data.get("name"),
-                doc_binary,
-                doc_text,
-                template_data.get("uploaded_at"),
-                template_data.get("original_filename")
-            ))
+            cursor.execute("""
+                MERGE user_doc_templates AS target
+                USING (
+                    SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS doc_data,
+                        ? AS doc_text,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        doc_data = source.doc_data,
+                        doc_text = source.doc_text,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
+                        template_key,
+                        template_name,
+                        doc_data,
+                        doc_text,
+                        uploaded_at,
+                        original_filename,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.doc_data,
+                        source.doc_text,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            username,
+            template_id,
+            template_data.get("name"),
+            doc_binary,
+            doc_text,
+            template_data.get("uploaded_at"),
+            template_data.get("original_filename")
+            )
 
         conn.commit()
-        cur.close()
-        conn.close()
         return True
 
     except Exception as e:
         print(f"❌ Error saving doc templates: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
+
 
 def delete_user_doc_template(username, template_id):
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
+        cursor.execute("""
             DELETE FROM user_doc_templates
-            WHERE email = %s AND template_key = %s
-        """, (username, template_id))
+            WHERE email = ? AND template_key = ?
+        """, username, template_id)
 
         conn.commit()
-        cur.close()
-        conn.close()
         return True
 
     except Exception as e:
         print(f"Error deleting doc template: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
 
 # ============= PPT TEMPLATE STORAGE FUNCTIONS =============
 
+
+
 def load_user_ppt_templates(username):
     """Load user's saved PPT templates from database"""
+    templates = {}
+
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
+        cursor.execute("""
             SELECT template_key,
                    template_name,
                    ppt_data,
@@ -3489,103 +3888,166 @@ def load_user_ppt_templates(username):
                    uploaded_at,
                    original_filename
             FROM user_ppt_templates
-            WHERE email = %s
+            WHERE email = ?
             ORDER BY uploaded_at DESC
-        """, (username,))
+        """, username)
 
-        rows = cur.fetchall()
-        cur.close()
-        conn.close()
+        rows = cursor.fetchall()
 
-        templates = {}
+        for row in rows:
+            template_key = row[0]
+            template_name = row[1]
+            ppt_data = row[2]
+            heading_shapes_json = row[3]
+            basic_info_shapes_json = row[4]
+            uploaded_at = row[5]
+            original_filename = row[6]
 
-        for r in rows:
-            templates[r[0]] = {
-                "name": r[1],
-                "ppt_data": bytes(r[2]),
-                "heading_shapes": set(r[3]) if r[3] else set(),
-                "basic_info_shapes": set(r[4]) if r[4] else set(),
-                "uploaded_at": r[5],
-                "original_filename": r[6]
+            templates[template_key] = {
+                "name": template_name,
+                "ppt_data": bytes(ppt_data),  # VARBINARY → bytes
+                "heading_shapes": set(json.loads(heading_shapes_json)) if heading_shapes_json else set(),
+                "basic_info_shapes": set(json.loads(basic_info_shapes_json)) if basic_info_shapes_json else set(),
+                "uploaded_at": uploaded_at,
+                "original_filename": original_filename
             }
-
-        return templates
 
     except Exception as e:
         print(f"Error loading PPT templates: {e}")
-        return {}
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+    return templates
 
 
 import psycopg2
+
+
 
 def save_user_ppt_templates(username, templates):
     """Save user's PPT templates to database"""
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
         for template_id, template_data in templates.items():
-            cur.execute("""
-                INSERT INTO user_ppt_templates (
-                    email,
-                    template_key,
-                    template_name,
-                    ppt_data,
-                    heading_shapes,
-                    basic_info_shapes,
-                    uploaded_at,
-                    original_filename
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (email, template_key)
-                DO UPDATE SET
-                    template_name = EXCLUDED.template_name,
-                    ppt_data = EXCLUDED.ppt_data,
-                    heading_shapes = EXCLUDED.heading_shapes,
-                    basic_info_shapes = EXCLUDED.basic_info_shapes,
-                    uploaded_at = EXCLUDED.uploaded_at,
-                    original_filename = EXCLUDED.original_filename,
-                    updated_at = NOW()
-            """, (
-                username,
-                template_id,
-                template_data.get("name"),
-                psycopg2.Binary(template_data.get("ppt_data")),
-                list(template_data.get("heading_shapes", [])),
-                list(template_data.get("basic_info_shapes", [])),
-                template_data.get("uploaded_at"),
-                template_data.get("original_filename")
-            ))
+            ppt_bytes = template_data.get("ppt_data")
+
+            # Convert sets/lists → JSON strings for SQL Server
+            heading_shapes_json = json.dumps(
+                list(template_data.get("heading_shapes", []))
+            )
+            basic_info_shapes_json = json.dumps(
+                list(template_data.get("basic_info_shapes", []))
+            )
+
+            cursor.execute("""
+                MERGE user_ppt_templates AS target
+                USING (
+                    SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS ppt_data,
+                        ? AS heading_shapes,
+                        ? AS basic_info_shapes,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        ppt_data = source.ppt_data,
+                        heading_shapes = source.heading_shapes,
+                        basic_info_shapes = source.basic_info_shapes,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
+                        template_key,
+                        template_name,
+                        ppt_data,
+                        heading_shapes,
+                        basic_info_shapes,
+                        uploaded_at,
+                        original_filename,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.ppt_data,
+                        source.heading_shapes,
+                        source.basic_info_shapes,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            username,
+            template_id,
+            template_data.get("name"),
+            ppt_bytes,                      # VARBINARY(MAX)
+            heading_shapes_json,            # JSON string
+            basic_info_shapes_json,         # JSON string
+            template_data.get("uploaded_at"),
+            template_data.get("original_filename")
+            )
 
         conn.commit()
-        cur.close()
-        conn.close()
         return True
 
     except Exception as e:
         print(f"Error saving PPT templates: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
+
+
 
 
 def delete_user_ppt_template(username, template_id):
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("""
+        cursor.execute("""
             DELETE FROM user_ppt_templates
-            WHERE email = %s AND template_key = %s
-        """, (username, template_id))
+            WHERE email = ? AND template_key = ?
+        """, username, template_id)
 
         conn.commit()
-        cur.close()
-        conn.close()
         return True
 
     except Exception as e:
         st.error(f"Error deleting PPT template: {e}")
         return False
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
 
 
@@ -3709,8 +4171,8 @@ def generate_enhanced_resume():
             enhanced_resume = rewrite_resume_for_job_manual(resume_data, jd_data)
         else:
             enhanced_resume = rewrite_resume_for_job(resume_data, jd_data)
-            st.write("inside upload entry")
-            st.write(enhanced_resume)
+            # st.write("inside upload entry")
+            # st.write(enhanced_resume)
         
         # ============================================
         # 🔧 FIX: Flatten nested structure if present

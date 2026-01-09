@@ -32,7 +32,7 @@ import requests
 import json
 from lxml import etree
 import mammoth
-from system import get_connection
+from configuration.db import get_connection
 
 
 # Recommended models:
@@ -4177,62 +4177,87 @@ def image_to_base64_local(image):
     return img_str
 
 
+
 def load_users():
+    users = {}
+
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
-        cur.execute("SELECT email, password_hash, name FROM users")
-        rows = cur.fetchall()
+        cursor.execute(
+            "SELECT email, password_hash, name FROM users"
+        )
 
-        users = {
-            email: {"password": pwd, "name": name}
-            for email, pwd, name in rows
-        }
-
-        cur.close()
-        conn.close()
-        return users
+        for row in cursor.fetchall():
+            email, password_hash, name = row
+            users[email] = {
+                "password": password_hash,
+                "name": name
+            }
 
     except Exception as e:
-        st.error(e)
-        return {}
+        st.error(f"Failed to load users: {e}")
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+    return users
+
 
     
+
+
 def save_users(users):
     try:
         conn = get_connection()
-        cur = conn.cursor()
+        cursor = conn.cursor()
 
         for email, data in users.items():
-            cur.execute("""
-                INSERT INTO users (email, password_hash, name)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (email)
-                DO UPDATE SET
-                    password_hash = EXCLUDED.password_hash,
-                    name = EXCLUDED.name
-            """, (email, data["password"], data["name"]))
+            cursor.execute("""
+                MERGE users AS target
+                USING (SELECT ? AS email, ? AS password_hash, ? AS name) AS source
+                ON target.email = source.email
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        password_hash = source.password_hash,
+                        name = source.name
+                WHEN NOT MATCHED THEN
+                    INSERT (email, password_hash, name)
+                    VALUES (source.email, source.password_hash, source.name);
+            """, email, data["password"], data["name"])
 
         conn.commit()
-        cur.close()
-        conn.close()
 
     except Exception as e:
-        st.error(e)
+        st.error(f"Failed to save users: {e}")
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
 
 
 
 def load_user_resume_data(email):
     conn = get_connection()
     cur = conn.cursor()
+
     cur.execute("""
         SELECT resume_data, input_method
         FROM user_resumes
-        WHERE email = %s
-    """, (email,))
+        WHERE email = ?
+    """, email)
 
     row = cur.fetchone()
+
     cur.close()
     conn.close()
 
@@ -4241,7 +4266,9 @@ def load_user_resume_data(email):
             "resume_data": row[0],
             "input_method": row[1]
         }
+
     return None
+
 
 
 def get_user_resume(email):

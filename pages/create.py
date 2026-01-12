@@ -154,7 +154,34 @@ resume_data = st.session_state.get('enhanced_resume')
 # st.write(resume_data)
 jd_data = st.session_state.get('job_description')
 
-generate_enhanced_resume(resume_data,jd_data)
+# Initialize enhanced_resume if it doesn't exist
+if 'enhanced_resume' not in st.session_state or st.session_state.enhanced_resume is None:
+    # Use the original user resume as the starting point
+    user_resume = get_user_resume(email)
+    if user_resume:
+        st.session_state.enhanced_resume = user_resume.copy()
+
+# Only enhance when user explicitly requests it OR when JD first added
+jd_data = st.session_state.get('job_description')
+
+# Check if we should enhance (only once per JD)
+if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
+    # Track if we've already enhanced for this JD
+    if 'last_enhanced_jd' not in st.session_state:
+        st.session_state.last_enhanced_jd = None
+    
+    # Create a hash of the JD to detect changes
+    import hashlib
+    jd_hash = hashlib.md5(str(jd_data).encode()).hexdigest()
+    
+    # Only enhance if JD changed OR user explicitly requested
+    if st.session_state.last_enhanced_jd != jd_hash or st.session_state.get('force_enhance', False):
+        resume_data = st.session_state.enhanced_resume
+        generate_enhanced_resume(resume_data, jd_data)
+        st.session_state.last_enhanced_jd = jd_hash
+        st.session_state.force_enhance = False
+
+resume_data = st.session_state.get('enhanced_resume')
 
 # ============= ATS SCORING WITH PROPER CHECKS =============
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:

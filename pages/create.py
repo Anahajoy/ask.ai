@@ -94,6 +94,13 @@ if 'show_upload_modal' not in st.session_state:
     st.session_state.show_upload_modal = False
 if 'uploaded_templates' not in st.session_state:
     st.session_state.uploaded_templates = {}
+# Add these with your other session state initializations
+if 'generated_docx' not in st.session_state:
+    st.session_state.generated_docx = None
+if 'generated_docx_temp' not in st.session_state:
+    st.session_state.generated_docx_temp = None
+if 'generated_ppt' not in st.session_state:
+    st.session_state.generated_ppt = None
 
 # ============= JOB DESCRIPTION PERSISTENCE FIX =============
 # ============= JOB DESCRIPTION PERSISTENCE FIX =============
@@ -144,14 +151,17 @@ if st.session_state.enhanced_resume is None and user_resume:
 # chatbot(user_resume)
 
 resume_data = st.session_state.get('enhanced_resume')
+# st.write(resume_data)
 jd_data = st.session_state.get('job_description')
+
+generate_enhanced_resume(resume_data,jd_data)
 
 # ============= ATS SCORING WITH PROPER CHECKS =============
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
     try:
         # Only calculate if we don't already have a score OR if data changed
         if not st.session_state.ats_result or st.session_state.ats_result.get('overall_score', 0) == 0:
-            st.session_state.ats_result = ai_ats_score(resume_data, jd_data)
+            st.session_state.ats_result = ai_ats_score(st.session_state.enhanced_resume, jd_data)
     except Exception as e:
         st.warning(f"Could not calculate ATS score: {str(e)}")
         st.session_state.ats_result = {}
@@ -1039,9 +1049,10 @@ def process_ppt_upload(uploaded_file, final_data):
             st.session_state.temp_ppt_structure = slide_texts
             
             # Generate content with user's resume data
+            print("inside the ppt funtion")
             structured_slides = analyze_slide_structure(slide_texts)
             generated_sections = generate_ppt_sections(final_data, structured_slides)
-            
+            print("every ai model analysis is completed")
             # Create text elements list
             text_elements = []
             for slide_idx, slide in enumerate(prs.slides):
@@ -1059,7 +1070,7 @@ def process_ppt_upload(uploaded_file, final_data):
             # Match content
             content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
                 text_elements, generated_sections, prs)
-            
+            print("compled content mapping")
             # Generate preview
             working_prs = Presentation(io.BytesIO(ppt_data))
             edits = {}
@@ -1082,7 +1093,7 @@ def process_ppt_upload(uploaded_file, final_data):
                             shape = slide.shapes[shape_idx]
                             if shape.has_text_frame:
                                 clear_and_replace_text(shape, edits[key])
-            
+                                print(f"Updated Slide {element['slide']} Shape {shape_idx} with new text.")
             # Save output
             output = io.BytesIO()
             working_prs.save(output)
@@ -1670,16 +1681,16 @@ def generate_resume_for_template():
     
     # Check if we should regenerate (only if job description exists)
     jd_data = st.session_state.get('job_description')
-    has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
+    # has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
     
     # Only regenerate if JD exists and edit mode is off
-    if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
-        try:
-            generate_enhanced_resume()
-        except Exception as e:
-            st.warning(f"Could not enhance resume: {str(e)}")
-            # Fall back to original resume
-            pass
+    # if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
+    #     try:
+    #         generate_enhanced_resume(resume_data,jd_data)
+    #     except Exception as e:
+    #         st.warning(f"Could not enhance resume: {str(e)}")
+    #         # Fall back to original resume
+    #         pass
     
     # Get resume data - enhanced if available, otherwise original
     resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume
@@ -2535,7 +2546,7 @@ def use_uploaded_html_template(name, parsed_template):
 def show_template_selector():
     """Show template selection gallery with custom upload option and saved templates."""
     # Check if we should show upload interface
-    generate_enhanced_resume()
+   
     if st.session_state.get('show_upload_interface', False):
         show_upload_interface()
         return
@@ -3022,7 +3033,7 @@ def render_saved_ppt_template_card(template_id, template_data):
                 
                 # Generate fresh resume data
                 resume_data = generate_resume_for_template()
-                
+                st.spinner("Processing template...")
                 working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
                 prs = Presentation(io.BytesIO(template_data['ppt_data']))
                 
@@ -3332,27 +3343,33 @@ def show_visual_editor_with_tools():
         css_content = st.session_state.template_preview_css or ""
 
         # Add separator
+        # Add separator
         st.markdown("---")
-        
+
         # Only show HTML visual editor for HTML templates
         template_source = st.session_state.get('template_source', 'html_saved')
-        
+
         if template_source == 'doc_saved':
-            st.info("""
-            📄 **Word Document Preview** is shown in the right panel.
+            st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📄 Word Document Preview</h3>", unsafe_allow_html=True)
             
-            - Edit your resume content above
-            - Click **Save & Auto-Improve** to regenerate the document
-            - Download the updated document from the right panel
-            """)
+            # Add safety check here
+            if st.session_state.get('generated_docx'):
+                try:
+                    preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
+                    st.components.v1.html(preview_html, height=800, scrolling=True)
+                except Exception as e:
+                    st.error(f"Preview error: {str(e)}")
+            else:
+                st.info("📄 Click **'Save & Auto-Improve'** to generate the Word document.")
+
         elif template_source == 'ppt_saved':
-            st.info("""
-            📊 **PowerPoint Preview** is shown in the right panel.
+            st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📊 PowerPoint Preview</h3>", unsafe_allow_html=True)
             
-            - Edit your resume content above
-            - Click **Save & Auto-Improve** to regenerate the presentation
-            - Download the updated presentation from the right panel
-            """)
+            if st.session_state.get('generated_ppt'):
+                show_ppt_preview_inline(st.session_state['generated_ppt'])
+            else:
+                st.warning("No presentation generated yet. Click 'Save & Auto-Improve' to generate.")
+
         else:
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>", unsafe_allow_html=True)
             
@@ -3376,6 +3393,7 @@ def show_visual_editor_with_tools():
             if 'content_updated' in st.session_state:
                 if st.session_state.content_updated:
                     st.session_state.content_updated = False
+        
 
 
 
@@ -3384,19 +3402,11 @@ def show_visual_editor_with_tools():
         with st.container():
             st.title("Resume Tools 🛠️")
             
-            # ========== PREVIEW SECTION FOR WORD/PPT ==========
+            # ========== CONDITIONAL DOWNLOAD BUTTONS ==========
             template_source = st.session_state.get('template_source', 'html_saved')
             
-            # Show Word Document Preview
+            # Download button for Word (only if document exists)
             if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
-                st.markdown("### 📄 Document Preview")
-                try:
-                    preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
-                    st.components.v1.html(preview_html, height=600, scrolling=True)
-                except Exception as e:
-                    st.error(f"Preview error: {str(e)}")
-                
-                # Download button for Word
                 st.markdown("---")
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.docx"
                 st.download_button(
@@ -3407,16 +3417,10 @@ def show_visual_editor_with_tools():
                     use_container_width=True,
                     type="primary"
                 )
-                
-                st.markdown("---")
+            st.markdown("---")
             
             # Show PowerPoint Preview
-            elif template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
-                st.markdown("### 📊 Presentation Preview")
-                show_ppt_preview_inline(st.session_state['generated_ppt'])
-                
-                # Download button for PowerPoint
-                st.markdown("---")
+            if template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.pptx"
                 st.download_button(
                     label="⬇️ Download PowerPoint",
@@ -3426,8 +3430,7 @@ def show_visual_editor_with_tools():
                     use_container_width=True,
                     type="primary"
                 )
-                
-                st.markdown("---")
+            st.markdown("---")
             
             # ========== REST OF TOOLS SECTION ==========
             loading_placeholder = st.empty()
@@ -3598,24 +3601,40 @@ def show_visual_editor_with_tools():
             st.info("📄 **To save as PDF:** Open downloaded file → Print dialog appears → Select 'Save as PDF' → Save")
 
         st.markdown("---")
-        
+
         try:
-                template_source = st.session_state.get('template_source', 'html_saved')
+            template_source = st.session_state.get('template_source', 'html_saved')
+            resume_data = st.session_state.get('enhanced_resume', {})
+            
+            # Check if we have a Word document to download
+            if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
+                # Already have DOCX from saved template
+                docx_data = st.session_state['generated_docx']
                 
-                if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
-                    # Already have DOCX from saved template
-                    docx_data = st.session_state['generated_docx']
-                else:
-                    # Generate DOCX from current template with proper styling
-                    with st.spinner("Generating styled DOCX..."):
-                        resume_data = st.session_state.get('enhanced_resume', {})
+                # Create filename
+                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                
+                # Download button
+                st.download_button(
+                    label="⬇️ Download Word Document",
+                    data=docx_data,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    use_container_width=True,
+                    type="primary",
+                    key="download_doc_saved"
+                )
+            else:
+                # Generate DOCX from current template
+                if st.button("📄 Generate & Download DOCX", use_container_width=True, type="primary", key="generate_docx_btn"):
+                    with st.spinner("Generating DOCX..."):
                         template_name = st.session_state.selected_template
                         
                         # Get template config
                         template_config = SYSTEM_TEMPLATES.get(template_name)
                         
                         if template_config and 'docx_generator' in template_config:
-                            # Get selected color (you may want to add color selection UI)
+                            # Get selected color
                             selected_color = ATS_COLORS["Professional Blue (Default)"]
                             
                             # Generate DOCX with template styling
@@ -3623,25 +3642,30 @@ def show_visual_editor_with_tools():
                         else:
                             # Fallback: generate basic DOCX
                             docx_data = generate_basic_docx(resume_data)
+                        
+                        # Store in session state
+                        st.session_state['generated_docx_temp'] = docx_data
+                        st.success("✅ DOCX generated! Click download below.")
+                        st.rerun()
                 
-                # Create filename
-                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
-                
-                # Download button
-                st.download_button(
-                    label="⬇️ Download DOCX",
-                    data=docx_data,
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True,
-                    type="primary",
-                    key="download_docx_main"
-                )
-                
+                # Show download button if temp DOCX exists
+                if st.session_state.get('generated_docx_temp'):
+                    filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                    
+                    st.download_button(
+                        label="⬇️ Download DOCX",
+                        data=st.session_state['generated_docx_temp'],
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                        type="secondary",
+                        key="download_docx_temp"
+                    )
+            
         except Exception as e:
-                st.error(f"Error generating DOCX: {str(e)}")
-                import traceback
-                st.error(traceback.format_exc())
+            st.error(f"Error with DOCX: {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
         st.markdown("---")
         
         # ats_data = st.session_state.get('ats_result', {})
@@ -3711,21 +3735,41 @@ def show_visual_editor_with_tools():
 
                 # ================= Keyword Table Expander ====================
                 with st.expander("🔎 View ATS Keyword Analysis"):
-                    st.markdown("### 🟢 Matched Keywords")
-                    # Changed from matched_keywords to matched_skills
-                    matched = ats_data.get("matched_skills", [])
-                    if matched:
-                        st.write(", ".join(matched))
+                    # ---------- Technical Skills ----------
+                    st.markdown("## 🛠 Technical Skills")
+
+                    st.markdown("### 🟢 Matched")
+                    tech_matched = ats_data.get("technical_skills", {}).get("matched", [])
+                    if tech_matched:
+                        st.write(", ".join(tech_matched))
                     else:
                         st.write("None")
-                    
-                    st.markdown("### 🔴 Missing Keywords")
-                    # Changed from missing_keywords to missing_skills
-                    missing = ats_data.get("missing_skills", [])
-                    if missing:
-                        st.write(", ".join(missing))
+
+                    st.markdown("### 🔴 Missing")
+                    tech_missing = ats_data.get("technical_skills", {}).get("missing", [])
+                    if tech_missing:
+                        st.write(", ".join(tech_missing))
                     else:
                         st.write("None")
+
+                    # ---------- Soft Skills ----------
+                    st.markdown("---")
+                    st.markdown("## 🤝 Soft Skills")
+
+                    st.markdown("### 🟢 Matched")
+                    soft_matched = ats_data.get("soft_skills", {}).get("matched", [])
+                    if soft_matched:
+                        st.write(", ".join(soft_matched))
+                    else:
+                        st.write("None")
+
+                    st.markdown("### 🔴 Missing")
+                    soft_missing = ats_data.get("soft_skills", {}).get("missing", [])
+                    if soft_missing:
+                        st.write(", ".join(soft_missing))
+                    else:
+                        st.write("None")
+
 # Main app flow
 def main():
     # Check if user needs to be redirected to resume creation first

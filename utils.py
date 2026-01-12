@@ -2769,6 +2769,7 @@ def validate_ats_result(result):
 
 def analyze_slide_structure(slide_texts):
     """Use LLM to find headings, subheadings, and related contents - INCLUDING BASIC INFO"""
+    print("analysing slide structure with basic info...")
     system_prompt = """
 You are a presentation content analyzer.
 
@@ -2849,6 +2850,7 @@ def analyze_content_length(text):
 
 def generate_ppt_sections(resume_data, structured_slides):
     """Generate AI content for ALL sections including basic info"""
+    print("generating ppt sections with basic info...")
     sections = []
     for slide in structured_slides:
         for section in slide.get("sections", []):
@@ -3007,6 +3009,7 @@ def match_generated_to_original(original_elements, generated_sections, prs):
     Smart matching system that maps generated content to original PPT positions
     NOW ALLOWS BASIC INFO TO BE EDITABLE
     """
+    print("started content mapping")
     content_mapping = {}
     heading_shapes = set()
     basic_info_shapes = set()
@@ -3078,6 +3081,7 @@ def match_generated_to_original(original_elements, generated_sections, prs):
 
 def clear_and_replace_text(shape, new_text):
     """Replace text while preserving formatting"""
+    print("replacing the text")
     if not shape.has_text_frame:
         return
     
@@ -4080,12 +4084,13 @@ def should_regenerate_resume():
     
     return False
 
-def generate_enhanced_resume():
+def generate_enhanced_resume(resume_data=None, jd_data=None):
     """Generate enhanced resume and store metadata"""
-    resume_data = st.session_state.get('resume_source')
-    jd_data = st.session_state.get('job_description')
+    # resume_data = st.session_state.get('resume_source')
+    # jd_data = st.session_state.get('job_description')
     current_user = st.session_state.get('logged_in_user') or st.query_params.get('user', '')
-    
+    # st.write(resume_data)
+    # st.write(jd_data)
     # ============================================
     # 🔧 FIX: Ensure resume_data is loaded
     # ============================================
@@ -4179,9 +4184,20 @@ def generate_enhanced_resume():
         # ============================================
         if enhanced_resume and 'resume_data' in enhanced_resume:
             original_data = enhanced_resume.pop('resume_data')
-            for key, value in original_data.items():
-                if key not in enhanced_resume or not enhanced_resume[key]:
-                    enhanced_resume[key] = value
+
+            # If resume_data is JSON string → parse it
+            if isinstance(original_data, str):
+                try:
+                    original_data = json.loads(original_data)
+                except Exception:
+                    original_data = {}
+
+            # Only iterate if it's a dict
+            if isinstance(original_data, dict):
+                for key, value in original_data.items():
+                    if key not in enhanced_resume or not enhanced_resume[key]:
+                        enhanced_resume[key] = value
+
         
         # Ensure critical fields exist
         if not enhanced_resume.get('name'):
@@ -6361,7 +6377,7 @@ NOW MAP ALL CONTENT PARAGRAPHS:
 """
     
     payload = {
-        "model": "meta/llama-3.1-70b-instruct",
+        "model":HEAVY_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
         "max_tokens": 8192

@@ -1384,7 +1384,7 @@ if st.session_state.logged_in_user:
                             # Clear the flag
                             st.session_state.from_template_button = False
                             # Navigate to template.py with the parsed data
-                            st.switch_page("pages/template_preview.py")
+                            st.switch_page("pages/job.py")
                         else:
                             if 'logged_in_user' in st.session_state:
                                 st.session_state.input_method = "Manual Entry"
@@ -1585,7 +1585,7 @@ if st.session_state.logged_in_user:
                                 st.query_params["user"] = st.session_state.logged_in_user
                                 st.success("✅ Resume processed! Redirecting to templates...")
                                 time.sleep(0.5)
-                                st.switch_page("pages/template_preview.py")
+                                st.switch_page("pages/job.py")
                             else:
                                 # Normal flow - save and go to job page
                                 save_success = save_user_resume(

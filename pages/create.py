@@ -1152,7 +1152,7 @@ def show_inline_doc_mapping_editor():
             except Exception as e:
                 st.error(f"❌ Error resetting: {str(e)}")
 
-                
+
 def save_uploaded_template(template_name, file_type):
     """Save the uploaded template to user's templates."""
     current_user = st.session_state.logged_in_user
@@ -1980,7 +1980,7 @@ def use_uploaded_template_now(template_name, file_type):
         st.error(f"Error using template: {str(e)}")
 
 def show_upload_interface():
-    """Show the full-page upload interface - FIXED VERSION."""
+    """Show the full-page upload interface with inline editing - ENHANCED VERSION."""
     final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
     
     # Header with back button
@@ -1997,8 +1997,9 @@ def show_upload_interface():
                        'temp_ppt_data', 'temp_ppt_structure', 'temp_ppt_edits', 
                        'temp_ppt_text_elements', 'generated_ppt', 'doc_original_bytes',
                        'doc_original_filename', 'mapping', 'template_text',
-                       'doc_already_processed', 'ppt_already_processed',  # CRITICAL: Clear flags
-                       'doc_template_name_input', 'ppt_template_name_input']:  # Clear name inputs
+                       'doc_already_processed', 'ppt_already_processed',
+                       'doc_template_name_input', 'ppt_template_name_input',
+                       'show_upload_doc_editor', 'show_upload_ppt_editor']:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
@@ -2025,11 +2026,11 @@ def show_upload_interface():
         st.session_state.uploaded_file_name = uploaded_file.name
         st.session_state.uploaded_file_type = file_type
         
-        # Create two columns: upload controls (col1) and preview (col2)
+        # Create two columns: controls + editor (col1) and preview (col2)
         col1, col2 = st.columns([1, 1.5])
         
         with col1:
-            # Only show spinner on first processing
+            # ========== PROCESS FILES ==========
             if file_type in ['docx', 'doc'] and not st.session_state.get('doc_already_processed'):
                 with st.spinner("Processing template..."):
                     process_word_upload(uploaded_file, final_data)
@@ -2039,46 +2040,201 @@ def show_upload_interface():
             elif file_type == 'html':
                 with st.spinner("Processing template..."):
                     process_html_upload(uploaded_file)
-                    
-                    # Show HTML save/download inline
+            
+            # ========== WORD DOCUMENT SECTION ==========
+            if file_type in ['docx', 'doc'] and st.session_state.get('doc_already_processed'):
+                st.markdown("---")
+                st.markdown("### 📝 Word Document Controls")
+                
+                # Template name input
+                default_name = f"Doc_{st.session_state.get('doc_original_filename', 'template').split('.')[0]}"
+                doc_template_name = st.text_input(
+                    "Template Name:",
+                    value=st.session_state.get('doc_template_name_input', default_name),
+                    key="doc_template_name_input_id"
+                )
+                st.session_state['doc_template_name_input'] = doc_template_name
+                
+                # Toggle editor button
+                st.markdown("---")
+                current_state = st.session_state.get('show_upload_doc_editor', False)
+                button_label = "✏️ Hide Editor" if current_state else "✏️ Edit Document Mapping"
+                
+                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary", key="toggle_upload_doc_editor"):
+                    st.session_state.show_upload_doc_editor = not current_state
+                    st.rerun()
+                
+                # Show inline editor if enabled
+                if st.session_state.get('show_upload_doc_editor', False):
                     st.markdown("---")
-                    st.markdown("### 💾 Save & Download")
-                    
-                    template_name = st.text_input(
-                        "Template Name:",
-                        value=f"Custom_{uploaded_file.name.split('.')[0]}",
-                        key="html_template_name"
-                    )
-                    
-                    col_save, col_download = st.columns(2)
-                    
-                    with col_save:
-                        if st.button("💾 Save", type="primary", use_container_width=True, key="save_html"):
-                            if save_uploaded_template(template_name, file_type):
-                                st.success("✅ Saved!")
+                    show_upload_doc_editor()
+                
+                # Save and Download buttons
+                st.markdown("---")
+                col_save, col_download = st.columns(2)
+                
+                with col_save:
+                    if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_doc_template_btn1"):
+                        current_user = st.session_state.logged_in_user
+                        
+                        if 'doc_templates' not in st.session_state:
+                            st.session_state.doc_templates = load_user_doc_templates(current_user)
+
+                        template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+                        st.session_state.doc_templates[template_id] = {
+                            'name': doc_template_name,
+                            'doc_data': st.session_state['doc_original_bytes'],
+                            'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'original_filename': st.session_state['doc_original_filename']
+                        }
+
+                        try:
+                            result = save_user_doc_templates(current_user, st.session_state.doc_templates)
+
+                            if result:
+                                st.success(f"✅ Template '{doc_template_name}' saved successfully!")
                                 st.balloons()
-                                time.sleep(1)
+                                
+                                st.session_state.selected_doc_template_id = template_id
+                                st.session_state.selected_doc_template = st.session_state.doc_templates[template_id]
+                                
+                                st.session_state['doc_already_processed'] = False
+                                st.session_state.pop('doc_template_name_input', None)
+                                st.session_state.pop('show_upload_doc_editor', None)
+                                
+                                time.sleep(1.5)
                                 st.session_state.show_upload_interface = False
                                 st.rerun()
-                    
-                    with col_download:
-                        if st.session_state.get('temp_upload_preview'):
-                            st.download_button(
-                                label="📥 Download",
-                                data=st.session_state.temp_upload_preview,
-                                file_name=f"{template_name}.html",
-                                mime="text/html",
-                                use_container_width=True,
-                                type="secondary"
-                            )
-            else:
-                # Already processed, just show the save/download sections
-                if file_type in ['docx', 'doc']:
-                    process_word_upload(uploaded_file, final_data)
-                elif file_type in ['pptx', 'ppt']:
-                    process_ppt_upload(uploaded_file, final_data)
+                            else:
+                                st.error("❌ Failed to save template")
+                        except Exception as e:
+                            st.error("❌ Save function crashed!")
+                            st.exception(e)
+                
+                with col_download:
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=st.session_state['generated_docx'],
+                        file_name=f"{doc_template_name}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True,
+                        key="download_doc_from_upload1"
+                    )
+            
+            # ========== POWERPOINT SECTION ==========
+            elif file_type in ['pptx', 'ppt'] and st.session_state.get('ppt_already_processed'):
+                st.markdown("---")
+                st.markdown("### 📊 PowerPoint Controls")
+                
+                # Template name input
+                default_name = f"PPT_{st.session_state.get('temp_ppt_filename', 'template').split('.')[0]}"
+                ppt_template_name = st.text_input(
+                    "Template Name:",
+                    value=st.session_state.get('ppt_template_name_input', default_name),
+                    key="ppt_template_name_input_field"
+                )
+                st.session_state['ppt_template_name_input'] = ppt_template_name
+                
+                # Toggle editor button
+                st.markdown("---")
+                current_state = st.session_state.get('show_upload_ppt_editor', False)
+                button_label = "✏️ Hide Editor" if current_state else "✏️ Edit Presentation Content"
+                
+                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary", key="toggle_upload_ppt_editor"):
+                    st.session_state.show_upload_ppt_editor = not current_state
+                    st.rerun()
+                
+                # Show inline editor if enabled
+                if st.session_state.get('show_upload_ppt_editor', False):
+                    st.markdown("---")
+                    show_upload_ppt_editor()
+                
+                # Save and Download buttons
+                st.markdown("---")
+                col_save, col_download = st.columns(2)
+                
+                with col_save:
+                    if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn"):
+                        current_user = st.session_state.logged_in_user
+                        
+                        if 'ppt_templates' not in st.session_state:
+                            st.session_state.ppt_templates = {}
+                        
+                        template_id = f"ppt_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                        
+                        st.session_state.ppt_templates[template_id] = {
+                            'name': ppt_template_name,
+                            'ppt_data': st.session_state.temp_ppt_data,
+                            'structure': st.session_state.temp_ppt_structure,
+                            'edits': st.session_state.temp_ppt_edits,
+                            'text_elements': st.session_state.temp_ppt_text_elements,
+                            'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'original_filename': st.session_state.temp_ppt_filename,
+                            'type': 'powerpoint'
+                        }
+                        
+                        if save_user_ppt_templates(current_user, st.session_state.ppt_templates):
+                            st.success(f"✅ Template '{ppt_template_name}' saved successfully!")
+                            st.balloons()
+                            
+                            st.session_state.selected_ppt_template_id = template_id
+                            st.session_state.selected_ppt_template = st.session_state.ppt_templates[template_id]
+                            
+                            st.session_state['ppt_already_processed'] = False
+                            st.session_state.pop('ppt_template_name_input', None)
+                            st.session_state.pop('show_upload_ppt_editor', None)
+                            
+                            time.sleep(1.5)
+                            st.session_state.show_upload_interface = False
+                            st.rerun()
+                        else:
+                            st.error("Failed to save template. Please try again.")
+                
+                with col_download:
+                    st.download_button(
+                        label="⬇️ Download",
+                        data=st.session_state['generated_ppt'],
+                        file_name=f"{ppt_template_name}.pptx",
+                        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                        use_container_width=True,
+                        key="download_ppt_from_upload"
+                    )
+            
+            # ========== HTML SECTION ==========
+            elif file_type == 'html':
+                st.markdown("---")
+                st.markdown("### 📄 HTML Template Controls")
+                
+                template_name = st.text_input(
+                    "Template Name:",
+                    value=f"Custom_{uploaded_file.name.split('.')[0]}",
+                    key="html_template_name"
+                )
+                
+                col_save, col_download = st.columns(2)
+                
+                with col_save:
+                    if st.button("💾 Save", type="primary", use_container_width=True, key="save_html"):
+                        if save_uploaded_template(template_name, file_type):
+                            st.success("✅ Saved!")
+                            st.balloons()
+                            time.sleep(1)
+                            st.session_state.show_upload_interface = False
+                            st.rerun()
+                
+                with col_download:
+                    if st.session_state.get('temp_upload_preview'):
+                        st.download_button(
+                            label="📥 Download",
+                            data=st.session_state.temp_upload_preview,
+                            file_name=f"{template_name}.html",
+                            mime="text/html",
+                            use_container_width=True,
+                            type="secondary"
+                        )
         
-        # Preview column
+        # ========== PREVIEW COLUMN ==========
         with col2:
             st.markdown("---")
             st.markdown("### 👁️ Template Preview")
@@ -2087,7 +2243,6 @@ def show_upload_interface():
                 st.components.v1.html(st.session_state.temp_upload_preview, height=800, scrolling=True)
             
             elif file_type in ['docx', 'doc'] and st.session_state.get('generated_docx'):
-                # Show Word preview
                 try:
                     preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
                     st.components.v1.html(preview_html, height=800, scrolling=True)
@@ -2095,12 +2250,157 @@ def show_upload_interface():
                     st.error(f"Preview error: {str(e)}")
             
             elif file_type in ['pptx', 'ppt'] and st.session_state.get('generated_ppt'):
-                # Show PPT preview
                 show_ppt_preview_inline(st.session_state['generated_ppt'])
     else:
         # Clear processing flags when no file is uploaded
         st.session_state.pop('doc_already_processed', None)
         st.session_state.pop('ppt_already_processed', None)
+
+
+def show_upload_doc_editor():
+    """Inline Word document editor for upload interface."""
+    st.markdown("#### ✏️ Document Mapping Editor")
+    
+    if 'mapping' not in st.session_state or not st.session_state.get('mapping'):
+        st.warning("⚠️ No mapping data available.")
+        return
+    
+    mapping = st.session_state['mapping'].copy()
+    
+    st.info("💡 Edit how your resume data maps to the document template")
+    
+    # Show mappings
+    for idx, (template_key, resume_value) in enumerate(mapping.items()):
+        with st.container():
+            col1, col2, col3 = st.columns([2, 3, 1])
+            
+            with col1:
+                st.text_input(
+                    "Template",
+                    value=template_key,
+                    disabled=True,
+                    key=f"upload_doc_key_{idx}",
+                    label_visibility="collapsed"
+                )
+            
+            with col2:
+                new_value = st.text_area(
+                    "Value",
+                    value=resume_value,
+                    height=60,
+                    key=f"upload_doc_value_{idx}",
+                    label_visibility="collapsed"
+                )
+                mapping[template_key] = new_value
+            
+            with col3:
+                if st.button("🗑️", key=f"upload_doc_delete_{idx}", use_container_width=True):
+                    del mapping[template_key]
+                    st.session_state['mapping'] = mapping
+                    st.rerun()
+    
+    st.session_state['mapping'] = mapping
+    
+    # Apply button
+    if st.button("✨ Apply Changes", type="primary", use_container_width=True, key="apply_upload_doc_changes"):
+        try:
+            import io
+            
+            original_bytes = st.session_state['doc_original_bytes']
+            
+            with st.spinner("Applying changes..."):
+                output_doc = auto_process_docx(
+                    io.BytesIO(original_bytes),
+                    st.session_state['mapping']
+                )
+            
+            st.session_state['generated_docx'] = output_doc.getvalue()
+            st.success("✅ Changes applied!")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+
+
+def show_upload_ppt_editor():
+    """Inline PowerPoint editor for upload interface."""
+    st.markdown("#### ✏️ Presentation Content Editor")
+    
+    if 'temp_ppt_edits' not in st.session_state or 'temp_ppt_text_elements' not in st.session_state:
+        st.warning("⚠️ No content data available.")
+        return
+    
+    edits = st.session_state['temp_ppt_edits'].copy()
+    text_elements = st.session_state['temp_ppt_text_elements']
+    
+    st.info("💡 Edit the content for each slide")
+    
+    # Group by slide
+    slides_dict = {}
+    for element in text_elements:
+        slide_num = element['slide']
+        if slide_num not in slides_dict:
+            slides_dict[slide_num] = []
+        slides_dict[slide_num].append(element)
+    
+    # Display by slide
+    for slide_num in sorted(slides_dict.keys()):
+        with st.expander(f"📊 Slide {slide_num}", expanded=(slide_num==1)):
+            for element in slides_dict[slide_num]:
+                key = f"{element['slide']}_{element['shape']}"
+                current_text = edits.get(key, element['original_text'])
+                
+                col1, col2 = st.columns([4, 1])
+                
+                with col1:
+                    new_text = st.text_area(
+                        f"Shape {element['shape']}",
+                        value=current_text,
+                        height=80,
+                        key=f"upload_ppt_{key}"
+                    )
+                    edits[key] = new_text
+                
+                with col2:
+                    if st.button("🔄", key=f"upload_ppt_reset_{key}", use_container_width=True):
+                        edits[key] = element['original_text']
+                        st.rerun()
+    
+    st.session_state['temp_ppt_edits'] = edits
+    
+    # Apply button
+    if st.button("✨ Apply Changes", type="primary", use_container_width=True, key="apply_upload_ppt_changes"):
+        try:
+            import io
+            from pptx import Presentation
+            
+            ppt_data = st.session_state['temp_ppt_data']
+            working_prs = Presentation(io.BytesIO(ppt_data))
+            
+            with st.spinner("Applying changes..."):
+                for element in text_elements:
+                    key = f"{element['slide']}_{element['shape']}"
+                    if key in edits:
+                        slide_idx = element['slide'] - 1
+                        shape_idx = element['shape']
+                        
+                        if slide_idx < len(working_prs.slides):
+                            slide = working_prs.slides[slide_idx]
+                            if shape_idx < len(slide.shapes):
+                                shape = slide.shapes[shape_idx]
+                                if shape.has_text_frame:
+                                    clear_and_replace_text(shape, edits[key])
+            
+            output = io.BytesIO()
+            working_prs.save(output)
+            output.seek(0)
+            
+            st.session_state['generated_ppt'] = output.getvalue()
+            st.success("✅ Changes applied!")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
 
 
 

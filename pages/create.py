@@ -152,6 +152,7 @@ if st.session_state.enhanced_resume is None and user_resume:
 
 resume_data = st.session_state.get('enhanced_resume')
 # st.write(resume_data)
+# st.write(resume_data)
 jd_data = st.session_state.get('job_description')
 
 # Initialize enhanced_resume if it doesn't exist
@@ -182,7 +183,7 @@ if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
         st.session_state.force_enhance = False
 
 resume_data = st.session_state.get('enhanced_resume')
-
+# st.write(resume_data)
 # ============= ATS SCORING WITH PROPER CHECKS =============
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
     try:
@@ -1708,16 +1709,16 @@ def generate_resume_for_template():
     
     # Check if we should regenerate (only if job description exists)
     jd_data = st.session_state.get('job_description')
-    # has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
+    has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
     
     # Only regenerate if JD exists and edit mode is off
-    # if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
-    #     try:
-    #         generate_enhanced_resume(resume_data,jd_data)
-    #     except Exception as e:
-    #         st.warning(f"Could not enhance resume: {str(e)}")
-    #         # Fall back to original resume
-    #         pass
+    if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
+        try:
+            generate_enhanced_resume(resume_data,jd_data)
+        except Exception as e:
+            st.warning(f"Could not enhance resume: {str(e)}")
+            # Fall back to original resume
+            pass
     
     # Get resume data - enhanced if available, otherwise original
     resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume

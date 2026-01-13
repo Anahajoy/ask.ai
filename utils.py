@@ -6377,10 +6377,11 @@ NOW MAP ALL CONTENT PARAGRAPHS:
 """
     
     payload = {
-        "model":HEAVY_MODEL,
+        "model":"meta/llama-3.1-70b-instruct",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.0,
-        "max_tokens": 8192
+        "max_tokens": 2048,
+        "top_p": 0.9
     }
     
     try:

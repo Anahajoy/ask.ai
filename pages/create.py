@@ -680,8 +680,479 @@ def process_html_upload(uploaded_file):
     st.session_state.selected_template_config = st.session_state.temp_upload_config
     st.session_state.template_source = 'temp_upload'
 
+def show_inline_doc_mapping_editor():
+    """Show inline editor for Word document mapping in visual editor."""
+    st.markdown("---")
+    st.markdown("### ✏️ Edit Document Mapping")
+    
+    # Check if we have the necessary data
+    if 'mapping' not in st.session_state or 'doc_original_bytes' not in st.session_state:
+        st.warning("⚠️ No mapping data available. Generate document first.")
+        return
+    
+    mapping = st.session_state['mapping'].copy()
+    
+    st.info("💡 Edit the values below to change how your resume data maps to the document")
+    
+    # Show current mappings in a scrollable container
+    st.markdown("#### Current Mappings")
+    
+    if mapping:
+        # Create a container for mappings
+        for idx, (template_key, resume_value) in enumerate(mapping.items()):
+            with st.container():
+                col1, col2, col3 = st.columns([2, 3, 1])
+                
+                with col1:
+                    st.text_input(
+                        "Template",
+                        value=template_key,
+                        disabled=True,
+                        key=f"inline_template_key_{idx}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col2:
+                    new_value = st.text_area(
+                        "Value",
+                        value=resume_value,
+                        height=80,
+                        key=f"inline_resume_value_{idx}",
+                        label_visibility="collapsed"
+                    )
+                    mapping[template_key] = new_value
+                
+                with col3:
+                    st.write("")
+                    st.write("")
+                    if st.button("🗑️", key=f"inline_delete_{idx}", use_container_width=True):
+                        del mapping[template_key]
+                        st.session_state['mapping'] = mapping
+                        st.rerun()
+        
+        st.session_state['mapping'] = mapping
+    else:
+        st.warning("No mappings found.")
+    
+    # Add new mapping section
+    st.markdown("---")
+    st.markdown("#### Add New Mapping")
+    
+    col1, col2, col3 = st.columns([2, 3, 1])
+    
+    with col1:
+        new_key = st.text_input("Template Text", key="inline_new_template_key")
+    
+    with col2:
+        new_value = st.text_area("Resume Value", height=80, key="inline_new_resume_value")
+    
+    with col3:
+        st.write("")
+        st.write("")
+        if st.button("➕ Add", use_container_width=True):
+            if new_key and new_value:
+                st.session_state['mapping'][new_key] = new_value
+                st.success("✅ Added!")
+                st.rerun()
+    
+    # Apply changes button
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("✨ Apply Changes & Regenerate", type="primary", use_container_width=True):
+            try:
+                import io
+                
+                # Get original template bytes
+                original_bytes = st.session_state['doc_original_bytes']
+                
+                # Apply updated mapping
+                with st.spinner("Regenerating document..."):
+                    output_doc = auto_process_docx(
+                        io.BytesIO(original_bytes),
+                        st.session_state['mapping']
+                    )
+                
+                # Update generated document
+                st.session_state['generated_docx'] = output_doc.getvalue()
+                
+                st.success("✅ Document regenerated with new mapping!")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error regenerating: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
+    
+    with col2:
+        if st.button("🔄 Reset to Original", type="secondary", use_container_width=True):
+            try:
+                import io
+                
+                # Re-extract and regenerate original mapping
+                original_bytes = st.session_state['doc_original_bytes']
+                uploadtext = extract_temp_from_docx(io.BytesIO(original_bytes))
+                
+                resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or {}
+                
+                with st.spinner("Resetting to AI mapping..."):
+                    mapped_data = ask_ai_for_mapping(uploadtext, resume_data)
+                    
+                    if isinstance(mapped_data, list):
+                        mapped_data = {
+                            item["template"]: item["new"]
+                            for item in mapped_data
+                            if "template" in item and "new" in item
+                        }
+                    
+                    st.session_state['mapping'] = mapped_data
+                
+                st.success("✅ Reset to original mapping!")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error resetting: {str(e)}")
 
 
+def show_inline_ppt_content_editor():
+    """Show inline editor for PowerPoint content in visual editor - FIXED VERSION."""
+    st.markdown("---")
+    st.markdown("### ✏️ Edit Presentation Content")
+    
+    # ✅ FIX: Regenerate text elements if they don't exist
+    if 'temp_ppt_text_elements' not in st.session_state or not st.session_state.get('temp_ppt_text_elements'):
+        # Try to regenerate from the generated PPT or template
+        if st.session_state.get('generated_ppt'):
+            try:
+                import io
+                from pptx import Presentation
+                
+                prs = Presentation(io.BytesIO(st.session_state['generated_ppt']))
+                
+                text_elements = []
+                for slide_idx, slide in enumerate(prs.slides):
+                    for shape_idx, shape in enumerate(slide.shapes):
+                        if shape.has_text_frame and shape.text.strip():
+                            text_elements.append({
+                                'slide': slide_idx + 1,
+                                'shape': shape_idx,
+                                'original_text': shape.text.strip(),
+                                'shape_type': type(shape).__name__
+                            })
+                
+                st.session_state['temp_ppt_text_elements'] = text_elements
+                
+            except Exception as e:
+                st.error(f"❌ Could not extract presentation content: {str(e)}")
+                st.info("💡 Try regenerating the presentation using 'Save & Auto-Improve'")
+                return
+        
+        # Try from saved template
+        elif st.session_state.get('selected_ppt_template'):
+            template_data = st.session_state['selected_ppt_template']
+            if 'text_elements' in template_data:
+                st.session_state['temp_ppt_text_elements'] = template_data['text_elements']
+            else:
+                st.warning("⚠️ No content data available. Please regenerate the presentation.")
+                return
+        else:
+            st.warning("⚠️ No presentation data found. Generate presentation first.")
+            return
+    
+    # Initialize edits if not exists
+    if 'temp_ppt_edits' not in st.session_state:
+        st.session_state['temp_ppt_edits'] = {}
+    
+    edits = st.session_state['temp_ppt_edits'].copy()
+    text_elements = st.session_state['temp_ppt_text_elements']
+    
+    if not text_elements:
+        st.warning("⚠️ No text elements found in presentation.")
+        return
+    
+    st.info("💡 Edit the content for each slide below")
+    
+    # Group by slide
+    slides_dict = {}
+    for element in text_elements:
+        slide_num = element['slide']
+        if slide_num not in slides_dict:
+            slides_dict[slide_num] = []
+        slides_dict[slide_num].append(element)
+    
+    # Display by slide
+    for slide_num in sorted(slides_dict.keys()):
+        with st.expander(f"📊 Slide {slide_num}", expanded=(slide_num==1)):
+            for element in slides_dict[slide_num]:
+                key = f"{element['slide']}_{element['shape']}"
+                current_text = edits.get(key, element['original_text'])
+                
+                col1, col2 = st.columns([4, 1])
+                
+                with col1:
+                    new_text = st.text_area(
+                        f"Shape {element['shape']}",
+                        value=current_text,
+                        height=100,
+                        key=f"inline_ppt_{key}"
+                    )
+                    edits[key] = new_text
+                
+                with col2:
+                    st.write("")
+                    st.write("")
+                    if st.button("🔄", key=f"inline_reset_{key}", use_container_width=True, help="Reset to original"):
+                        edits[key] = element['original_text']
+                        st.rerun()
+    
+    st.session_state['temp_ppt_edits'] = edits
+    
+    # Apply changes button
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("✨ Apply Changes & Regenerate", type="primary", use_container_width=True):
+            try:
+                import io
+                from pptx import Presentation
+                
+                # Get original PPT data
+                ppt_data = None
+                
+                # Try to get from generated_ppt first
+                if st.session_state.get('generated_ppt'):
+                    ppt_data = st.session_state['generated_ppt']
+                # Fallback to template data
+                elif st.session_state.get('selected_ppt_template'):
+                    ppt_data = st.session_state['selected_ppt_template'].get('ppt_data')
+                
+                if not ppt_data:
+                    st.error("❌ No presentation data found to regenerate.")
+                    return
+                
+                working_prs = Presentation(io.BytesIO(ppt_data))
+                
+                # Apply edits
+                with st.spinner("Regenerating presentation..."):
+                    for element in text_elements:
+                        key = f"{element['slide']}_{element['shape']}"
+                        if key in edits:
+                            slide_idx = element['slide'] - 1
+                            shape_idx = element['shape']
+                            
+                            if slide_idx < len(working_prs.slides):
+                                slide = working_prs.slides[slide_idx]
+                                if shape_idx < len(slide.shapes):
+                                    shape = slide.shapes[shape_idx]
+                                    if shape.has_text_frame:
+                                        clear_and_replace_text(shape, edits[key])
+                
+                # Save
+                output = io.BytesIO()
+                working_prs.save(output)
+                output.seek(0)
+                
+                st.session_state['generated_ppt'] = output.getvalue()
+                
+                st.success("✅ Presentation regenerated!")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error regenerating: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
+    
+    with col2:
+        if st.button("🔄 Reset All", type="secondary", use_container_width=True):
+            # Reset to original text
+            for element in text_elements:
+                key = f"{element['slide']}_{element['shape']}"
+                edits[key] = element['original_text']
+            
+            st.session_state['temp_ppt_edits'] = edits
+            st.success("✅ Reset to original content!")
+            st.rerun()
+
+
+def show_inline_doc_mapping_editor():
+    """Show inline editor for Word document mapping in visual editor - FIXED VERSION."""
+    st.markdown("---")
+    st.markdown("### ✏️ Edit Document Mapping")
+    
+    # ✅ FIX: Regenerate mapping if it doesn't exist
+    if 'mapping' not in st.session_state or not st.session_state.get('mapping'):
+        if st.session_state.get('doc_original_bytes'):
+            try:
+                import io
+                
+                # Re-extract text from template
+                uploadtext = extract_temp_from_docx(io.BytesIO(st.session_state['doc_original_bytes']))
+                
+                # Get resume data
+                resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or {}
+                
+                with st.spinner("Generating mapping..."):
+                    mapped_data = ask_ai_for_mapping(uploadtext, resume_data)
+                    
+                    if isinstance(mapped_data, list):
+                        mapped_data = {
+                            item["template"]: item["new"]
+                            for item in mapped_data
+                            if "template" in item and "new" in item
+                        }
+                    
+                    st.session_state['mapping'] = mapped_data
+                    st.session_state['template_text'] = uploadtext
+                    
+            except Exception as e:
+                st.error(f"❌ Could not generate mapping: {str(e)}")
+                st.info("💡 Try regenerating the document using 'Save & Auto-Improve'")
+                return
+        else:
+            st.warning("⚠️ No document data found. Generate document first.")
+            return
+    
+    # Check again after potential regeneration
+    if 'mapping' not in st.session_state or 'doc_original_bytes' not in st.session_state:
+        st.warning("⚠️ No mapping data available. Generate document first.")
+        return
+    
+    mapping = st.session_state['mapping'].copy()
+    
+    st.info("💡 Edit the values below to change how your resume data maps to the document")
+    
+    # Show current mappings in a scrollable container
+    st.markdown("#### Current Mappings")
+    
+    if mapping:
+        # Create a container for mappings
+        for idx, (template_key, resume_value) in enumerate(mapping.items()):
+            with st.container():
+                col1, col2, col3 = st.columns([2, 3, 1])
+                
+                with col1:
+                    st.text_input(
+                        "Template",
+                        value=template_key,
+                        disabled=True,
+                        key=f"inline_template_key_{idx}",
+                        label_visibility="collapsed"
+                    )
+                
+                with col2:
+                    new_value = st.text_area(
+                        "Value",
+                        value=resume_value,
+                        height=80,
+                        key=f"inline_resume_value_{idx}",
+                        label_visibility="collapsed"
+                    )
+                    mapping[template_key] = new_value
+                
+                with col3:
+                    st.write("")
+                    st.write("")
+                    if st.button("🗑️", key=f"inline_delete_{idx}", use_container_width=True):
+                        del mapping[template_key]
+                        st.session_state['mapping'] = mapping
+                        st.rerun()
+        
+        st.session_state['mapping'] = mapping
+    else:
+        st.warning("No mappings found.")
+    
+    # Add new mapping section
+    st.markdown("---")
+    st.markdown("#### Add New Mapping")
+    
+    col1, col2, col3 = st.columns([2, 3, 1])
+    
+    with col1:
+        new_key = st.text_input("Template Text", key="inline_new_template_key")
+    
+    with col2:
+        new_value = st.text_area("Resume Value", height=80, key="inline_new_resume_value")
+    
+    with col3:
+        st.write("")
+        st.write("")
+        if st.button("➕ Add", use_container_width=True):
+            if new_key and new_value:
+                st.session_state['mapping'][new_key] = new_value
+                st.success("✅ Added!")
+                st.rerun()
+    
+    # Apply changes button
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("✨ Apply Changes & Regenerate", type="primary", use_container_width=True):
+            try:
+                import io
+                
+                # Get original template bytes
+                original_bytes = st.session_state['doc_original_bytes']
+                
+                # Apply updated mapping
+                with st.spinner("Regenerating document..."):
+                    output_doc = auto_process_docx(
+                        io.BytesIO(original_bytes),
+                        st.session_state['mapping']
+                    )
+                
+                # Update generated document
+                st.session_state['generated_docx'] = output_doc.getvalue()
+                
+                st.success("✅ Document regenerated with new mapping!")
+                st.balloons()
+                time.sleep(1)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error regenerating: {str(e)}")
+                import traceback
+                st.error(traceback.format_exc())
+    
+    with col2:
+        if st.button("🔄 Reset to Original", type="secondary", use_container_width=True):
+            try:
+                import io
+                
+                # Re-extract and regenerate original mapping
+                original_bytes = st.session_state['doc_original_bytes']
+                uploadtext = extract_temp_from_docx(io.BytesIO(original_bytes))
+                
+                resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or {}
+                
+                with st.spinner("Resetting to AI mapping..."):
+                    mapped_data = ask_ai_for_mapping(uploadtext, resume_data)
+                    
+                    if isinstance(mapped_data, list):
+                        mapped_data = {
+                            item["template"]: item["new"]
+                            for item in mapped_data
+                            if "template" in item and "new" in item
+                        }
+                    
+                    st.session_state['mapping'] = mapped_data
+                
+                st.success("✅ Reset to original mapping!")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error resetting: {str(e)}")
+
+                
 def save_uploaded_template(template_name, file_type):
     """Save the uploaded template to user's templates."""
     current_user = st.session_state.logged_in_user
@@ -3294,10 +3765,17 @@ def show_visual_editor_with_tools():
             st.session_state['enhanced_resume'] = resume_data.copy()
 
         resume_data = st.session_state['enhanced_resume']
-
-        is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+        
+        # ✅ FIX: Only show Edit Mode checkbox for HTML templates
+        template_source = st.session_state.get('template_source', 'html_saved')
+        
+        # Only show Edit Mode for HTML templates, not for Word/PPT
+        if template_source in ['html_saved', 'temp_upload', None]:
+            is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+        else:
+            is_edit_mode = False  # Force edit mode off for Doc/PPT
+            
         if is_edit_mode:
-            # st.session_state['enhanced_resume'] = resume_data.copy()
             with st.container():
                 st.markdown(
                     "<h3 style='text-align:center;color:#6b7280;margin-bottom:1.5rem;'>✏️ Content Editor</h3>",
@@ -3353,7 +3831,7 @@ def show_visual_editor_with_tools():
                             )
                         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ---------------- PREVIEW REGENERATION (ONLY FIX) ----------------
+        # ---------------- PREVIEW REGENERATION ----------------
         if st.session_state.get("resume_dirty"):
             new_html, new_css = regenerate_live_preview()
             if new_html:
@@ -3361,26 +3839,22 @@ def show_visual_editor_with_tools():
                 st.session_state.template_preview_css = new_css
             st.session_state.resume_dirty = False
 
-        # st.markdown("---")
-        # st.markdown(
-        #     "<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>",
-        #     unsafe_allow_html=True
-        # )
-
         html_content = st.session_state.template_preview_html or ""
         css_content = st.session_state.template_preview_css or ""
 
         # Add separator
-        # Add separator
         st.markdown("---")
 
-        # Only show HTML visual editor for HTML templates
-        template_source = st.session_state.get('template_source', 'html_saved')
-
+        # ✅ FIX: Show appropriate editor based on template type
         if template_source == 'doc_saved':
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📄 Word Document Preview</h3>", unsafe_allow_html=True)
             
-            # Add safety check here
+            # Show inline editor if enabled
+            if st.session_state.get('show_inline_doc_editor', False):
+                show_inline_doc_mapping_editor()
+                st.markdown("---")
+            
+            # Show preview
             if st.session_state.get('generated_docx'):
                 try:
                     preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
@@ -3393,6 +3867,12 @@ def show_visual_editor_with_tools():
         elif template_source == 'ppt_saved':
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📊 PowerPoint Preview</h3>", unsafe_allow_html=True)
             
+            # Show inline editor if enabled
+            if st.session_state.get('show_inline_ppt_editor', False):
+                show_inline_ppt_content_editor()
+                st.markdown("---")
+            
+            # Show preview
             if st.session_state.get('generated_ppt'):
                 show_ppt_preview_inline(st.session_state['generated_ppt'])
             else:
@@ -3416,24 +3896,35 @@ def show_visual_editor_with_tools():
             
             # Display the visual editor
             components.html(editor_html_with_data, height=1400, scrolling=True)
-            
-            # Listen for content updates from iframe
-            if 'content_updated' in st.session_state:
-                if st.session_state.content_updated:
-                    st.session_state.content_updated = False
-        
 
-
-
-    
     with tools_col:
         with st.container():
             st.title("Resume Tools 🛠️")
             
-            # ========== CONDITIONAL DOWNLOAD BUTTONS ==========
+            # ========== INLINE EDITOR TOGGLE BUTTONS ==========
             template_source = st.session_state.get('template_source', 'html_saved')
             
-            # Download button for Word (only if document exists)
+            if template_source == 'doc_saved':
+                st.markdown("---")
+                # Toggle button for Word editor
+                current_state = st.session_state.get('show_inline_doc_editor', False)
+                button_label = "✏️ Hide Document Editor" if current_state else "✏️ Edit Document Mapping"
+                
+                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary"):
+                    st.session_state.show_inline_doc_editor = not current_state
+                    st.rerun()
+            
+            elif template_source == 'ppt_saved':
+                st.markdown("---")
+                # Toggle button for PPT editor
+                current_state = st.session_state.get('show_inline_ppt_editor', False)
+                button_label = "✏️ Hide Content Editor" if current_state else "✏️ Edit Presentation Content"
+                
+                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary"):
+                    st.session_state.show_inline_ppt_editor = not current_state
+                    st.rerun()
+            
+            # ========== DOWNLOAD BUTTONS ==========
             if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
                 st.markdown("---")
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.docx"
@@ -3445,10 +3936,9 @@ def show_visual_editor_with_tools():
                     use_container_width=True,
                     type="primary"
                 )
-            st.markdown("---")
             
-            # Show PowerPoint Preview
             if template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
+                st.markdown("---")
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.pptx"
                 st.download_button(
                     label="⬇️ Download PowerPoint",
@@ -3458,9 +3948,10 @@ def show_visual_editor_with_tools():
                     use_container_width=True,
                     type="primary"
                 )
+            
             st.markdown("---")
             
-            # ========== REST OF TOOLS SECTION ==========
+            # ========== REST OF TOOLS (Save & Auto-Improve, etc.) ==========
             loading_placeholder = st.empty()
             
             # Save & Auto-Improve button
@@ -3509,67 +4000,65 @@ def show_visual_editor_with_tools():
                     """, unsafe_allow_html=True)
                 save_custom_sections()
                 st.session_state.final_resume_data = st.session_state.enhanced_resume.copy()
-    
-    # Now improve
                 save_and_improve()
                 loading_placeholder.empty()
-        
-        # Rest of the tools section continues as before...
-        # (keep all the edit mode buttons, download buttons, ATS analysis, etc.)
-                
-
-            if not st.session_state.get('edit_toggle', False):
-                st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
-            else:
-                st.markdown("---")
-                st.subheader("➕ Add New Section Items")
-                st.button(
-                    "Add New Experience",
-                    on_click=add_new_item,
-                    args=('experience', {
-                        "position": "New Job Title",
-                        "company": "New Company",
-                        "start_date": "2025-01-01",
-                        "end_date": "2025-12-31",
-                        "description": ["New responsibility 1."]
-                    }),
-                    type="secondary",
-                    use_container_width=True
-                )
-                st.button(
-                    "Add New Education",
-                    on_click=add_new_item,
-                    args=('education', {
-                        "institution": "New University",
-                        "degree": "New Degree",
-                        "start_date": "2025-01-01",
-                        "end_date": "2025-12-31"
-                    }),
-                    type="secondary",
-                    use_container_width=True
-                )
-                st.button(
-                    "Add New Certification",
-                    on_click=add_new_item,
-                    args=('certifications', {
-                        "name": "New Certification Name",
-                        "issuer": "Issuing Body",
-                        "completed_date": "2025-01-01"
-                    }),
-                    type="secondary",
-                    use_container_width=True
-                )
-                st.button(
-                    "Add New Project",
-                    on_click=add_new_item,
-                    args=('projects', {
-                        "name": "New Project Title",
-                        "description": ["Project detail"]
-                    }),
-                    type="secondary",
-                    use_container_width=True
-                )
-        
+            
+            # Only show "Add New" buttons for HTML templates in edit mode
+            if template_source in ['html_saved', 'temp_upload', None]:
+                if not st.session_state.get('edit_toggle', False):
+                    st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
+                else:
+                    st.markdown("---")
+                    st.subheader("➕ Add New Section Items")
+                    st.button(
+                        "Add New Experience",
+                        on_click=add_new_item,
+                        args=('experience', {
+                            "position": "New Job Title",
+                            "company": "New Company",
+                            "start_date": "2025-01-01",
+                            "end_date": "2025-12-31",
+                            "description": ["New responsibility 1."]
+                        }),
+                        type="secondary",
+                        use_container_width=True
+                    )
+                    st.button(
+                        "Add New Education",
+                        on_click=add_new_item,
+                        args=('education', {
+                            "institution": "New University",
+                            "degree": "New Degree",
+                            "start_date": "2025-01-01",
+                            "end_date": "2025-12-31"
+                        }),
+                        type="secondary",
+                        use_container_width=True
+                    )
+                    st.button(
+                        "Add New Certification",
+                        on_click=add_new_item,
+                        args=('certifications', {
+                            "name": "New Certification Name",
+                            "issuer": "Issuing Body",
+                            "completed_date": "2025-01-01"
+                        }),
+                        type="secondary",
+                        use_container_width=True
+                    )
+                    st.button(
+                        "Add New Project",
+                        on_click=add_new_item,
+                        args=('projects', {
+                            "name": "New Project Title",
+                            "description": ["Project detail"]
+                        }),
+                        type="secondary",
+                        use_container_width=True
+                    )
+            
+            # Continue with HTML/PDF downloads and ATS analysis...
+            # (Rest of your existing tools_col code)
 # In your show_visual_editor_with_tools() function, replace the PDF download section with:
 
         st.markdown("---")

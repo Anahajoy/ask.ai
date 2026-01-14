@@ -17,7 +17,7 @@ from utils import (
     save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
     docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
     match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
-    load_user_templates,load_user_ppt_templates,delete_user_doc_template
+    load_user_templates,load_user_ppt_templates,delete_user_doc_template,convert_html_to_docx_spire
 )
 
 # Page config
@@ -4443,41 +4443,48 @@ def show_visual_editor_with_tools():
                 )
             else:
                 # Generate DOCX from current template
-                if st.button("📄 Generate & Download DOCX", use_container_width=True, type="primary", key="generate_docx_btn"):
-                    with st.spinner("Generating DOCX..."):
-                        template_name = st.session_state.selected_template
+                # if st.button("📄 Generate & Download DOCX", use_container_width=True, type="primary", key="generate_docx_btn"):
+                #     with st.spinner("Generating DOCX..."):
+                #         template_name = st.session_state.selected_template
                         
-                        # Get template config
-                        template_config = SYSTEM_TEMPLATES.get(template_name)
+                #         # Get template config
+                #         template_config = SYSTEM_TEMPLATES.get(template_name)
                         
-                        if template_config and 'docx_generator' in template_config:
-                            # Get selected color
-                            selected_color = ATS_COLORS["Professional Blue (Default)"]
+                #         if template_config and 'docx_generator' in template_config:
+                #             # Get selected color
+                #             selected_color = ATS_COLORS["Professional Blue (Default)"]
                             
-                            # Generate DOCX with template styling
-                            docx_data = template_config['docx_generator'](resume_data, selected_color)
-                        else:
-                            # Fallback: generate basic DOCX
-                            docx_data = generate_basic_docx(resume_data)
+                #             # Generate DOCX with template styling
+                #             docx_data = template_config['docx_generator'](resume_data, selected_color)
+                #         else:
+                #             # Fallback: generate basic DOCX
+                #             docx_data = generate_basic_docx(resume_data)
                         
-                        # Store in session state
-                        st.session_state['generated_docx_temp'] = docx_data
-                        st.success("✅ DOCX generated! Click download below.")
-                        st.rerun()
+                #         # Store in session state
+                #         st.session_state['generated_docx_temp'] = docx_data
+                #         st.success("✅ DOCX generated! Click download below.")
+                #         st.rerun()
                 
-                # Show download button if temp DOCX exists
-                if st.session_state.get('generated_docx_temp'):
-                    filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
-                    
+                # # Show download button if temp DOCX exists
+                
+                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+
+                # Convert on-the-fly
+                with st.spinner("Preparing DOCX..."):
+                    docx_data = convert_html_to_docx_spire(html_content, css_content)
+
+                if docx_data:
                     st.download_button(
-                        label="⬇️ Download DOCX",
-                        data=st.session_state['generated_docx_temp'],
+                        label="📄 Download DOCX",
+                        data=docx_data,
                         file_name=filename,
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         use_container_width=True,
-                        type="secondary",
-                        key="download_docx_temp"
+                        type="primary",
+                        key="download_docx_btn"
                     )
+                else:
+                    st.error("❌ Failed to convert HTML to DOCX")
             
         except Exception as e:
             st.error(f"Error with DOCX: {str(e)}")

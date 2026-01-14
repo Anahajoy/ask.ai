@@ -7168,3 +7168,159 @@ def generate_and_switch():
     st.session_state.selected_template_config = SYSTEM_TEMPLATES.get(default_template)
 
     st.switch_page("pages/template_preview.py")
+
+
+
+
+    # Add this import at the top of your file
+from spire.doc import *
+from spire.doc.common import *
+from docx import Document as DocxDocument
+from docx.shared import Inches
+import tempfile
+import os
+import io
+
+def convert_html_to_docx_spire(html_content, css_content=""):
+    """Convert HTML to DOCX using Spire.Doc with watermark removal and margin adjustment."""
+    temp_html_path = None
+    temp_docx_path = None
+    
+    try:
+        # Create temporary HTML file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as temp_html:
+            # Write complete HTML with CSS - reduced margins
+            complete_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    @page {{ size: A4; margin: 0.3in; }}
+                    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+                    body {{ margin: 0; padding: 0; }}
+                    {css_content}
+                </style>
+            </head>
+            <body style="margin: 0; padding: 0; background: #fff;">
+                <div style="width: 100%; margin: 0; padding: 0.3in;">
+                    {html_content}
+                </div>
+            </body>
+            </html>
+            """
+            temp_html.write(complete_html)
+            temp_html_path = temp_html.name
+        
+        # Create temporary DOCX file path
+        temp_docx_path = tempfile.mktemp(suffix='.docx')
+        
+        # Convert HTML to DOCX using Spire.Doc
+        document = Document()
+        document.LoadFromFile(temp_html_path, FileFormat.Html, XHTMLValidationType.none)
+        
+        # Remove watermark
+        try:
+            document.Watermark.Type = WatermarkType.NoWatermark
+        except:
+            pass
+        
+        # Adjust margins using index-based access instead of iteration
+        try:
+            section_count = document.Sections.Count
+            for i in range(section_count):
+                section = document.Sections.get_Item(i)
+                section.PageSetup.Margins.Left = 36.0   # 0.5 inch
+                section.PageSetup.Margins.Right = 36.0  # 0.5 inch
+                section.PageSetup.Margins.Top = 36.0    # 0.5 inch
+                section.PageSetup.Margins.Bottom = 36.0 # 0.5 inch
+        except Exception as margin_error:
+            print(f"Could not adjust margins with Spire: {margin_error}")
+        
+        document.SaveToFile(temp_docx_path, FileFormat.Docx2016)
+        document.Close()
+        
+        # ========== POST-PROCESS TO REMOVE WATERMARK TEXT ==========
+        # Load the generated DOCX with python-docx to remove any remaining watermark text
+        doc = DocxDocument(temp_docx_path)
+        
+        # Adjust margins using python-docx (more reliable)
+        for section in doc.sections:
+            section.left_margin = Inches(0.5)
+            section.right_margin = Inches(0.5)
+            section.top_margin = Inches(0.5)
+            section.bottom_margin = Inches(0.5)
+        
+        # Remove paragraphs containing the watermark text
+        watermark_texts = [
+            "Evaluation Warning: The document was created with Spire.Doc for Python",
+            "Evaluation Warning",
+            "Spire.Doc for Python",
+            "created with Spire",
+            "This message will not appear"
+        ]
+        
+        # Check and remove from paragraphs
+        paragraphs_to_remove = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                for watermark in watermark_texts:
+                    if watermark.lower() in paragraph.text.lower():
+                        paragraphs_to_remove.append(paragraph)
+                        break
+        
+        for paragraph in paragraphs_to_remove:
+            p_element = paragraph._element
+            p_element.getparent().remove(p_element)
+        
+        # Check and remove from headers/footers
+        for section in doc.sections:
+            # Check header
+            try:
+                for paragraph in section.header.paragraphs[:]:  # Create a copy of the list
+                    for watermark in watermark_texts:
+                        if watermark.lower() in paragraph.text.lower():
+                            p_element = paragraph._element
+                            p_element.getparent().remove(p_element)
+                            break
+            except:
+                pass
+            
+            # Check footer
+            try:
+                for paragraph in section.footer.paragraphs[:]:  # Create a copy of the list
+                    for watermark in watermark_texts:
+                        if watermark.lower() in paragraph.text.lower():
+                            p_element = paragraph._element
+                            p_element.getparent().remove(p_element)
+                            break
+            except:
+                pass
+        
+        # Save the cleaned document to BytesIO
+        output = io.BytesIO()
+        doc.save(output)
+        output.seek(0)
+        docx_data = output.read()
+        
+        return docx_data
+        
+    except Exception as e:
+        st.error(f"Error converting HTML to DOCX: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
+        return None
+        
+    finally:
+        # Clean up temporary files
+        if temp_html_path and os.path.exists(temp_html_path):
+            try:
+                os.unlink(temp_html_path)
+            except Exception as e:
+                print(f"Warning: Could not delete temporary HTML file: {e}")
+        
+        if temp_docx_path and os.path.exists(temp_docx_path):
+            try:
+                os.unlink(temp_docx_path)
+            except Exception as e:
+                print(f"Warning: Could not delete temporary DOCX file: {e}")

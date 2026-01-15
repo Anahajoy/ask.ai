@@ -509,7 +509,7 @@ else:
     qu_url = "#qu"
 
 if is_logged_in:
-    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">Logout</a></div>'
+    auth_button = '<div class="nav-item"><a class="nav-link" href="?logout=true" target="_self">⏻</a></div>'
 else:
     auth_button = '<div class="nav-item"><a class="nav-link" data-section="Login" href="#Login">Login</a></div>'
 
@@ -522,7 +522,7 @@ st.markdown(f"""
             <a class="nav-link" href="main?&user={current_user}" target="_self">Create New Resume</a>
             <a class="nav-link" href="{ats_url}" target="_self">Check ATS Score</a>
             <a class="nav-link" href="{qu_url}" target="_self">Analysis Assistant</a>
-            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+            {auth_button}
         </div>
     </div>
 </div>

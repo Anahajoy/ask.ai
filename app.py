@@ -726,7 +726,7 @@ if is_logged_in and current_user:
     ats_url = f"ats?user={current_user}"
     qu_url = f"qu?user={current_user}"
     change_url = f"change?user={current_user}"
-    auth_link = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
+    auth_link = '<a class="nav-link" href="?logout=true" title="Logout" target="_self">⏻</a>'
 else:
     ats_url = "#features"
     qu_url = "#how-it-works"

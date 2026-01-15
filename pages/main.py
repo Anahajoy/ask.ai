@@ -655,7 +655,7 @@ st.markdown(f"""
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
             <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
             <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
-            <a class="nav-link" href="?logout=true" target="_self">Logout</a>
+            <a class="nav-link" href="?logout=true" target="_self">⏻</a>
         </div>
     </div>
 </div>

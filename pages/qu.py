@@ -510,7 +510,7 @@ else:
     change_url = "#change"
 
 if is_logged_in:
-    auth_button = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
+    auth_button = '<a class="nav-link" href="?logout=true" target="_self">⏻</a>'
 else:
     auth_button = '<a class="nav-link" href="#Login" target="_self">Login</a>'
 

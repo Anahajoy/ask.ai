@@ -647,7 +647,7 @@ st.markdown(f"""
             <a class="nav-link" href="job?&user={current_user}" target="_self">Add New JD</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
             <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
-            <a class="nav-link" href="{change_url}" target="_self">Account</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
             {auth_button}
         </div>
     </div>

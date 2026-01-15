@@ -577,6 +577,7 @@ st.markdown("""
 # Build URLs
 ats_url = f"ats?user={current_user}"
 qu_url = f"qu?user={current_user}"
+change_url = f"change?user={current_user}"
 
 # Navigation Bar
 st.markdown(f"""
@@ -588,6 +589,7 @@ st.markdown(f"""
             <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create Resume</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
             <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
             <a class="nav-link" href="?logout=true" target="_self">Logout</a>
         </div>
     </div>

@@ -503,11 +503,11 @@ is_logged_in = bool(current_user)
 if is_logged_in and current_user:
     home_url = f"/?user={current_user}"
     ats_url = f"ats?user={current_user}"
-    qu_url = f"qu?user={current_user}"
+    change_url = f"change?user={current_user}"
 else:
     home_url = "/"
     ats_url = "#ats"
-    qu_url = "#qu"
+    change_url = "#change"
 
 if is_logged_in:
     auth_button = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
@@ -523,7 +523,7 @@ st.markdown(f"""
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
             <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
-            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
             {auth_button}
         </div>
     </div>

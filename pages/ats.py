@@ -21,11 +21,11 @@ is_logged_in = bool(current_user)
 # Build URLs
 if is_logged_in and current_user:
     home_url = f"/?user={current_user}"
-    ats_url = f"ats?user={current_user}"
+    change_url = f"change?user={current_user}"
     qu_url = f"qu?user={current_user}"
 else:
     home_url = "/"
-    ats_url = "#ats"
+    change_url = "#change"
     qu_url = "#qu"
 
 if is_logged_in:
@@ -466,7 +466,7 @@ st.markdown(f"""
         <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
             <a class="nav-link" href="main?&user={current_user}" target="_self">Create Resume</a>
-            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
             <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
             {auth_button}
         </div>

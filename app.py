@@ -725,10 +725,12 @@ is_logged_in = bool(current_user)
 if is_logged_in and current_user:
     ats_url = f"ats?user={current_user}"
     qu_url = f"qu?user={current_user}"
+    change_url = f"change?user={current_user}"
     auth_link = '<a class="nav-link" href="?logout=true" target="_self">Logout</a>'
 else:
     ats_url = "#features"
     qu_url = "#how-it-works"
+    change_url = "#change"
     auth_link = '<a class="nav-link btn-primary" href="#Login" target="_self">Get Started</a>'
 
 # Navigation Bar
@@ -741,6 +743,7 @@ st.markdown(f"""
             <a class="nav-link" href="#how-it-works">How It Works</a>
             <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
             <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
             {auth_link}
         </div>
     </div>

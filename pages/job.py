@@ -568,6 +568,8 @@ st.markdown("""
         .stRadio > div {
             flex-direction: column !important;
         }
+            
+
     }
     </style>
 """, unsafe_allow_html=True)
@@ -624,18 +626,87 @@ st.session_state["input_method"] = input_method
 
 resume_source = st.session_state.get("resume_source", None)
 
-# Page Header
+# ✅ CORRECT - Wrapped in <style> tags
 st.markdown("""
-<div class="page-header">
-    <div class="page-badge">Step 2 of 3</div>
-    <h1 class="page-title">Target Job Description</h1>
-    <p class="page-subtitle">
-        Provide the job description to tailor your resume for maximum impact
-    </p>
-</div>
+<style>
+/* ==================== MAIN WRAPPER ==================== */
+.ats-main-wrapper {
+    min-height: 30vh;
+    background: linear-gradient(135deg, #fff9f5 0%, #ffffff 50%, #fff5f0 100%);
+    padding: 110px 0 40px;
+    position: relative;
+}
+
+.ats-main-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: radial-gradient(ellipse at top, rgba(232, 117, 50, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ats-hero {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ats-hero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #fff5f0 0%, #ffe8d6 100%);
+    color: #e87532;
+    padding: 6px 20px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(232, 117, 50, 0.2);
+}
+
+.ats-main-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0a0f14;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    letter-spacing: -1px;
+}
+
+.ats-main-title .highlight {
+    background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ats-hero-description {
+    font-size: 1rem;
+    color: #64748b;
+    max-width: 600px;
+    margin-left: 120px !important;  
+    line-height: 1.6;
+    font-weight: 400;
+}
+</style>
 """, unsafe_allow_html=True)
 
-
+# Then your HTML (separate markdown call)
+st.markdown("""
+<div class="ats-main-wrapper">
+    <div class="ats-hero">
+        <div class="ats-hero-badge">Step 2 of 3</div>
+        <h1 class="ats-main-title">Target <span class="highlight">Job Description</span></h1>
+        <p class="ats-hero-description">
+           Provide the job description to tailor your resume for maximum impact
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 if resume_source is None:
     st.error("❌ No resume data found. Please go back to the main page to upload or enter your data first.")

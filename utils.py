@@ -5702,6 +5702,44 @@ def generate_generic_html(data, date_placement='right'):
     html = ""
 
     # ===============================
+    # HELPER FUNCTION: Extract Year
+    # ===============================
+    def extract_year(date_str):
+        """Extract year from date string. Handles formats like '2024-01-01', '2024', 'Jan 2024', etc."""
+        if not date_str:
+            return ""
+        
+        date_str = str(date_str).strip()
+        
+        # If already just a year (4 digits)
+        if date_str.isdigit() and len(date_str) == 4:
+            return date_str
+        
+        # If it's "Present" or similar, return as-is
+        if date_str.lower() in ['present', 'current', 'ongoing']:
+            return date_str.title()
+        
+        # Try to extract 4-digit year from string
+        import re
+        year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+        if year_match:
+            return year_match.group(0)
+        
+        # If format is like "2024-01-01", split by dash and take first part
+        if '-' in date_str:
+            return date_str.split('-')[0]
+        
+        # If format is like "01/01/2024", split and take last part
+        if '/' in date_str:
+            parts = date_str.split('/')
+            for part in parts:
+                if len(part) == 4 and part.isdigit():
+                    return part
+        
+        # Default: return as-is
+        return date_str
+
+    # ===============================
     # 1. HEADER
     # ===============================
     html += '<div class="ats-header">'
@@ -5737,7 +5775,7 @@ def generate_generic_html(data, date_placement='right'):
         "awards": "Awards",
         "interest": "Interests",
         "interests": "Interests",
-        "languages":"Languages",
+        "languages": "Languages",
         "publications": "Publications"
     }
 
@@ -5810,22 +5848,68 @@ def generate_generic_html(data, date_placement='right'):
                 if not isinstance(item, dict):
                     continue
 
-                # Auto-detect title, subtitle, duration
+                # ✅ FIXED: Auto-detect title, subtitle, duration with ALL field support
                 title_val = (
-                    item.get("position") or item.get("role") or item.get("projectname") or
-                    item.get("name") or item.get("course") or item.get("certificate_name") or
+                    item.get("position") or 
+                    item.get("role") or 
+                    item.get("projectname") or
+                    item.get("name") or 
+                    item.get("degree") or  # Education
+                    item.get("course") or 
+                    item.get("certificate_name") or
                     item.get("title")
                 )
 
+                # ✅ FIXED: Include issuer for certifications
                 subtitle_val = (
-                    item.get("company") or item.get("university") or item.get("tools") or
+                    item.get("company") or 
+                    item.get("institution") or  # Education
+                    item.get("university") or 
+                    item.get("issuer") or  # ✅ ADD THIS for certifications
+                    item.get("tools") or
                     item.get("provider_name")
                 )
 
-                duration_val = (
-                    item.get("duration") or item.get("start_date") or
-                    item.get("completed_date") or item.get("end_date")
-                )
+                # ✅ IMPROVED: Handle dates with year extraction
+                start_date = item.get("start_date", "")
+                end_date = item.get("end_date", "")
+                completed_date = item.get("completed_date", "")
+                duration = item.get("duration", "")
+                
+                # Determine which dates to use based on section
+                if key in ["education", "certifications"]:
+                    # For education and certifications, extract years only
+                    if start_date or end_date:
+                        start_year = extract_year(start_date)
+                        end_year = extract_year(end_date)
+                        
+                        if start_year and end_year:
+                            duration_val = f"{start_year} - {end_year}"
+                        elif start_year:
+                            duration_val = start_year
+                        elif end_year:
+                            duration_val = end_year
+                        else:
+                            duration_val = ""
+                    elif completed_date:
+                        duration_val = extract_year(completed_date)
+                    elif duration:
+                        duration_val = duration
+                    else:
+                        duration_val = ""
+                else:
+                    # For other sections (experience, projects), keep full dates
+                    if start_date or end_date:
+                        if start_date and end_date:
+                            duration_val = f"{start_date} - {end_date}"
+                        else:
+                            duration_val = start_date or end_date
+                    elif completed_date:
+                        duration_val = completed_date
+                    elif duration:
+                        duration_val = duration
+                    else:
+                        duration_val = ""
 
                 # Item header
                 html += '<div class="ats-item-header">'

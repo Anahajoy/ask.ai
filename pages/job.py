@@ -583,7 +583,7 @@ change_url = f"change?user={current_user}"
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">ResumeIQ</div>
+        <div class="logo">CVmate</div>
         <div class="nav-menu">
             <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
             <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create Resume</a>

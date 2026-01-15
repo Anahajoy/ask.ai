@@ -737,7 +737,7 @@ else:
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">Catalyst</div>
+        <div class="logo">CVmate</div>
         <div class="nav-menu">
             <a class="nav-link" href="#features">Features</a>
             <a class="nav-link" href="#how-it-works">How It Works</a>
@@ -1085,7 +1085,7 @@ st.markdown("""
 st.markdown("""
 <div class="footer">
     <div class="footer-container">
-        <div class="footer-logo">Catalyst</div>
+        <div class="footer-logo">CVmate</div>
         <p class="footer-text">
             © 2024 ResumeAI. AI-Powered Resume Builder. All rights reserved.
         </p>

@@ -648,7 +648,7 @@ jd_url = f"job?user={current_user}"
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
-        <div class="logo">ResumeIQ</div>
+        <div class="logo">CVmate</div>
         <div class="nav-menu">
             <a class="nav-link" href="{home_url}" target="_self">Home</a>
             <a class="nav-link" href="{jd_url}" target="_self">Add JD</a>

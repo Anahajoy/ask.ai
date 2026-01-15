@@ -3949,88 +3949,88 @@ def render_saved_ppt_template_card(template_id, template_data):
                 st.rerun()
 
 
-def generate_basic_docx(resume_data):
-    """Generate a basic DOCX from resume data."""
-    doc = Document()
+# def generate_basic_docx(resume_data):
+#     """Generate a basic DOCX from resume data."""
+#     doc = Document()
     
-    # Header - Name
-    name = doc.add_paragraph(resume_data.get('name', 'Your Name'))
-    name.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    name.runs[0].font.size = Pt(16)
-    name.runs[0].font.bold = True
+#     # Header - Name
+#     name = doc.add_paragraph(resume_data.get('name', 'Your Name'))
+#     name.alignment = WD_ALIGN_PARAGRAPH.CENTER
+#     name.runs[0].font.size = Pt(16)
+#     name.runs[0].font.bold = True
     
-    # Contact Info
-    contact_parts = []
-    if resume_data.get('email'):
-        contact_parts.append(resume_data['email'])
-    if resume_data.get('phone'):
-        contact_parts.append(resume_data['phone'])
-    if resume_data.get('location'):
-        contact_parts.append(resume_data['location'])
+#     # Contact Info
+#     contact_parts = []
+#     if resume_data.get('email'):
+#         contact_parts.append(resume_data['email'])
+#     if resume_data.get('phone'):
+#         contact_parts.append(resume_data['phone'])
+#     if resume_data.get('location'):
+#         contact_parts.append(resume_data['location'])
     
-    if contact_parts:
-        contact = doc.add_paragraph(' | '.join(contact_parts))
-        contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        contact.runs[0].font.size = Pt(10)
+#     if contact_parts:
+#         contact = doc.add_paragraph(' | '.join(contact_parts))
+#         contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
+#         contact.runs[0].font.size = Pt(10)
     
-    doc.add_paragraph()  # Spacing
+#     doc.add_paragraph()  # Spacing
     
-    # Summary
-    if resume_data.get('summary'):
-        doc.add_heading('Professional Summary', level=2)
-        doc.add_paragraph(resume_data['summary'])
+#     # Summary
+#     if resume_data.get('summary'):
+#         doc.add_heading('Professional Summary', level=2)
+#         doc.add_paragraph(resume_data['summary'])
     
-    # Experience
-    if resume_data.get('experience'):
-        doc.add_heading('Experience', level=2)
-        for exp in resume_data['experience']:
-            p = doc.add_paragraph()
-            p.add_run(f"{exp.get('position', '')} - {exp.get('company', '')}").bold = True
-            p.add_run(f"\n{exp.get('start_date', '')} to {exp.get('end_date', '')}")
+#     # Experience
+#     if resume_data.get('experience'):
+#         doc.add_heading('Experience', level=2)
+#         for exp in resume_data['experience']:
+#             p = doc.add_paragraph()
+#             p.add_run(f"{exp.get('position', '')} - {exp.get('company', '')}").bold = True
+#             p.add_run(f"\n{exp.get('start_date', '')} to {exp.get('end_date', '')}")
             
-            if exp.get('description'):
-                for desc in exp['description']:
-                    doc.add_paragraph(desc, style='List Bullet')
+#             if exp.get('description'):
+#                 for desc in exp['description']:
+#                     doc.add_paragraph(desc, style='List Bullet')
     
-    # Education
-    if resume_data.get('education'):
-        doc.add_heading('Education', level=2)
-        for edu in resume_data['education']:
-            p = doc.add_paragraph()
-            p.add_run(f"{edu.get('degree', '')}").bold = True
-            p.add_run(f"\n{edu.get('institution', '')}")
-            p.add_run(f"\n{edu.get('start_date', '')} to {edu.get('end_date', '')}")
+#     # Education
+#     if resume_data.get('education'):
+#         doc.add_heading('Education', level=2)
+#         for edu in resume_data['education']:
+#             p = doc.add_paragraph()
+#             p.add_run(f"{edu.get('degree', '')}").bold = True
+#             p.add_run(f"\n{edu.get('institution', '')}")
+#             p.add_run(f"\n{edu.get('start_date', '')} to {edu.get('end_date', '')}")
     
-    # Skills
-    if resume_data.get('skills'):
-        doc.add_heading('Skills', level=2)
-        skills_text = ', '.join(resume_data['skills'])
-        doc.add_paragraph(skills_text)
+#     # Skills
+#     if resume_data.get('skills'):
+#         doc.add_heading('Skills', level=2)
+#         skills_text = ', '.join(resume_data['skills'])
+#         doc.add_paragraph(skills_text)
     
-    # Projects
-    if resume_data.get('projects'):
-        doc.add_heading('Projects', level=2)
-        for proj in resume_data['projects']:
-            p = doc.add_paragraph()
-            p.add_run(proj.get('name', '')).bold = True
-            if proj.get('description'):
-                for desc in proj['description']:
-                    doc.add_paragraph(desc, style='List Bullet')
+#     # Projects
+#     if resume_data.get('projects'):
+#         doc.add_heading('Projects', level=2)
+#         for proj in resume_data['projects']:
+#             p = doc.add_paragraph()
+#             p.add_run(proj.get('name', '')).bold = True
+#             if proj.get('description'):
+#                 for desc in proj['description']:
+#                     doc.add_paragraph(desc, style='List Bullet')
     
-    # Certifications
-    if resume_data.get('certifications'):
-        doc.add_heading('Certifications', level=2)
-        for cert in resume_data['certifications']:
-            doc.add_paragraph(
-                f"{cert.get('name', '')} - {cert.get('issuer', '')} ({cert.get('completed_date', '')})",
-                style='List Bullet'
-            )
+#     # Certifications
+#     if resume_data.get('certifications'):
+#         doc.add_heading('Certifications', level=2)
+#         for cert in resume_data['certifications']:
+#             doc.add_paragraph(
+#                 f"{cert.get('name', '')} - {cert.get('issuer', '')} ({cert.get('completed_date', '')})",
+#                 style='List Bullet'
+#             )
     
-    # Save to BytesIO
-    output = BytesIO()
-    doc.save(output)
-    output.seek(0)
-    return output.getvalue()
+#     # Save to BytesIO
+#     output = BytesIO()
+#     doc.save(output)
+#     output.seek(0)
+#     return output.getvalue()
 
 def show_visual_editor_with_tools():
     """Show the visual editor with resume tools on the side."""
@@ -4041,10 +4041,10 @@ def show_visual_editor_with_tools():
         return
 
     # Header
-    st.markdown('<div class="editor-header">', unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 5])
+    # st.markdown('<div class="editor-header">', unsafe_allow_html=True)
+    col1, col2 = st.columns([2, 5], gap='medium')
     with col1:
-        if st.button("← Back to Templates", type="secondary", use_container_width=True):
+        if st.button("← Back to Templates", type="primary", use_container_width=True):
             st.session_state.show_template_selector = True
             st.session_state.show_visual_editor = False
             st.rerun()
@@ -4400,73 +4400,11 @@ def show_visual_editor_with_tools():
                     file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
                     mime="text/html",
                     use_container_width=True,
-                    type="secondary",
+                    type="primary",
                     key="download_html_btn"
                 )
             
             with col2:
-                st.download_button(
-                    label="📄 Get PDF",
-                    data=download_html,
-                    file_name=f"resume_pdf_{st.session_state.selected_template.replace(' ', '_')}.html",
-                    mime="text/html",
-                    use_container_width=True,
-                    type="primary",
-                    key="download_pdf_btn"
-                )
-            
-            st.info("📄 **To save as PDF:** Open downloaded file → Print dialog appears → Select 'Save as PDF' → Save")
-
-        st.markdown("---")
-
-        try:
-            template_source = st.session_state.get('template_source', 'html_saved')
-            resume_data = st.session_state.get('enhanced_resume', {})
-            
-            # Check if we have a Word document to download
-            if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
-                # Already have DOCX from saved template
-                docx_data = st.session_state['generated_docx']
-                
-                # Create filename
-                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
-                
-                # Download button
-                st.download_button(
-                    label="⬇️ Download Word Document",
-                    data=docx_data,
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True,
-                    type="primary",
-                    key="download_doc_saved"
-                )
-            else:
-                # Generate DOCX from current template
-                # if st.button("📄 Generate & Download DOCX", use_container_width=True, type="primary", key="generate_docx_btn"):
-                #     with st.spinner("Generating DOCX..."):
-                #         template_name = st.session_state.selected_template
-                        
-                #         # Get template config
-                #         template_config = SYSTEM_TEMPLATES.get(template_name)
-                        
-                #         if template_config and 'docx_generator' in template_config:
-                #             # Get selected color
-                #             selected_color = ATS_COLORS["Professional Blue (Default)"]
-                            
-                #             # Generate DOCX with template styling
-                #             docx_data = template_config['docx_generator'](resume_data, selected_color)
-                #         else:
-                #             # Fallback: generate basic DOCX
-                #             docx_data = generate_basic_docx(resume_data)
-                        
-                #         # Store in session state
-                #         st.session_state['generated_docx_temp'] = docx_data
-                #         st.success("✅ DOCX generated! Click download below.")
-                #         st.rerun()
-                
-                # # Show download button if temp DOCX exists
-                
                 filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
 
                 # Convert on-the-fly
@@ -4485,12 +4423,40 @@ def show_visual_editor_with_tools():
                     )
                 else:
                     st.error("❌ Failed to convert HTML to DOCX")
-            
-        except Exception as e:
-            st.error(f"Error with DOCX: {str(e)}")
-            import traceback
-            st.error(traceback.format_exc())
+            st.info("📄 **To save as PDF:** Open downloaded file → Print dialog appears → Select 'Save as PDF' → Save")
+
         st.markdown("---")
+
+        # try:
+        #     template_source = st.session_state.get('template_source', 'html_saved')
+        #     resume_data = st.session_state.get('enhanced_resume', {})
+            
+        #     # Check if we have a Word document to download
+        #     if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
+        #         # Already have DOCX from saved template
+        #         docx_data = st.session_state['generated_docx']
+                
+        #         # Create filename
+        #         filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                
+        #         # Download button
+        #         st.download_button(
+        #             label="⬇️ Download Word Document",
+        #             data=docx_data,
+        #             file_name=filename,
+        #             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        #             use_container_width=True,
+        #             type="primary",
+        #             key="download_doc_saved"
+        #         )
+                
+               
+            
+        # except Exception as e:
+        #     st.error(f"Error with DOCX: {str(e)}")
+        #     import traceback
+        #     st.error(traceback.format_exc())
+        # st.markdown("---")
         
         # ats_data = st.session_state.get('ats_result', {})
         # st.write("### ATS Analysis")

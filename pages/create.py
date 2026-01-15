@@ -2810,92 +2810,7 @@ VISUAL_EDITOR_HTML = """
             });
         }
         
-        function openEditor(element) {
-            currentEditElement = element;
-            currentEditPath = getElementPath(element);
-            
-            // Get current content
-            let content = element.textContent || '';
-            
-            // For list items, get all items in the list
-            if (element.tagName === 'LI') {
-                const list = element.closest('ul, ol');
-                if (list) {
-                    content = Array.from(list.querySelectorAll('li')).map(li => li.textContent).join('\\n');
-                    currentEditElement = list;
-                }
-            }
-            
-            document.getElementById('editorTitle').textContent = 'Edit Content';
-            document.getElementById('editorTextarea').value = content;
-            document.getElementById('inlineEditor').style.display = 'flex';
-        }
         
-        function closeEditor() {
-            document.getElementById('inlineEditor').style.display = 'none';
-            currentEditElement = null;
-            currentEditPath = '';
-        }
-        
-        function saveContent() {
-            if (!currentEditElement) return;
-            
-            const newContent = document.getElementById('editorTextarea').value.trim();
-            
-            if (newContent) {
-                if (currentEditElement.tagName === 'LI' || currentEditElement.tagName === 'UL' || currentEditElement.tagName === 'OL') {
-                    // Handle list content
-                    const list = currentEditElement.tagName === 'LI' ? currentEditElement.closest('ul, ol') : currentEditElement;
-                    if (list) {
-                        const items = newContent.split('\\n').filter(item => item.trim());
-                        list.innerHTML = items.map(item => `<li>${item.trim()}</li>`).join('');
-                        
-                        // Make new items editable
-                        list.querySelectorAll('li').forEach(li => {
-                            li.classList.add('editable', 'editable-section');
-                            li.setAttribute('title', 'Click to edit');
-                            li.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                openEditor(li);
-                            });
-                        });
-                    }
-                } else {
-                    // Handle regular text content
-                    currentEditElement.textContent = newContent;
-                }
-                
-                // Notify parent about the change
-                window.parent.postMessage({
-                    type: 'content_updated',
-                    path: currentEditPath,
-                    content: newContent
-                }, '*');
-            }
-            
-            closeEditor();
-        }
-        
-        function getElementPath(element) {
-            const path = [];
-            let current = element;
-            
-            while (current && current !== document.body) {
-                let selector = current.tagName.toLowerCase();
-                
-                if (current.id) {
-                    selector += `#${current.id}`;
-                } else if (current.className && typeof current.className === 'string') {
-                    const classes = current.className.split(' ').filter(c => c).join('.');
-                    if (classes) selector += `.${classes}`;
-                }
-                
-                path.unshift(selector);
-                current = current.parentElement;
-            }
-            
-            return path.join(' > ');
-        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', loadTemplateContent);
@@ -4199,7 +4114,7 @@ def show_visual_editor_with_tools():
 
     with tools_col:
         with st.container():
-            st.title("Resume Tools 🛠️")
+            st.title("Resume Tools")
             
             # ========== INLINE EDITOR TOGGLE BUTTONS ==========
             template_source = st.session_state.get('template_source', 'html_saved')

@@ -1,0 +1,100 @@
+<style>
+@page { margin: 0.3in; size: letter; }
+body { margin: 0; padding: 0; }
+
+.ats-page { 
+    font-family: 'Times New Roman', serif; 
+    font-size: 10pt; 
+    color: #000; 
+    max-width: 100%; 
+    margin: 0; 
+    padding: 0.3in;
+    line-height: 1.15; 
+}
+
+.ats-header { 
+    text-align: center; 
+    padding-bottom: 3px; 
+    margin-bottom: 8px; 
+}
+
+.ats-header h1 { 
+    color: #000; 
+    font-size: 18pt; 
+    margin: 0; 
+}
+
+.ats-job-title-header { 
+    font-size: 11pt; 
+    margin: 2px 0 5px 0; 
+}
+
+.ats-contact { 
+    font-size: 9pt; 
+    margin-top: 3px; 
+}
+
+.ats-contact span:not(:last-child)::after { 
+    content: " | "; 
+    white-space: pre; 
+}
+
+.ats-section-title { 
+    color: #000; 
+    font-size: 10.5pt; 
+    font-weight: bold; 
+    text-transform: uppercase; 
+    border-bottom: 1px solid #000; 
+    padding-bottom: 1px; 
+    margin-top: 8px; 
+    margin-bottom: 3px; 
+}
+
+.ats-item-header { 
+    margin-top: 2px; 
+    margin-bottom: 1px; 
+    line-height: 1.1; 
+    display: flex; 
+    justify-content: space-between; 
+}
+
+.ats-item-title { 
+    font-weight: bold; 
+    color: {{ color }}; 
+    flex-grow: 1; 
+}
+
+.ats-item-duration { 
+    font-size: 9.5pt; 
+    white-space: nowrap; 
+    color: #000; 
+}
+
+.ats-item-subtitle { 
+    font-style: italic; 
+    color: #000; 
+    display: block; 
+    font-size: 9.5pt; 
+}
+
+.ats-bullet-list { 
+    list-style-type: disc; 
+    margin-left: 22px; 
+    padding-left: 0; 
+    margin-top: 2px; 
+    margin-bottom: 3px; 
+}
+
+.ats-bullet-list li { 
+    margin-bottom: 0px; 
+    line-height: 1.2; 
+}
+
+.ats-skills-group { 
+    margin-bottom: 3px; 
+}
+
+p { 
+    margin: 5px 0; 
+}
+</style>

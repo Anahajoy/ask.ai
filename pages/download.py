@@ -644,7 +644,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
         #         data=st.session_state.generated_doc,
         #         file_name=filename,
         #         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        #         use_container_width=True
+        #         width=True
         #     )
         
         if not st.session_state.get("selected_template_config") and not st.session_state.get("generated_doc"):
@@ -657,7 +657,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
         st.caption("**DOC:** Edit in Microsoft Word")
         st.caption("**TXT:** Maximum ATS compatibility")
 
-        if st.sidebar.button("🔄 Edit Content", use_container_width=True):
+        if st.sidebar.button("🔄 Edit Content", width=True):
           st.switch_page("pages/create.py")
     with col2:
         st.markdown("""
@@ -751,7 +751,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 
                             col1, col2 = st.columns(2)
                             with col1:
-                                if st.button(f"Use", key=f"use_html_{template_id}",type="primary", use_container_width=True):
+                                if st.button(f"Use", key=f"use_html_{template_id}",type="primary", width=True):
                                     if 'temp_upload_config' in st.session_state:
                                         del st.session_state.temp_upload_config
                                     
@@ -766,7 +766,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                     st.rerun()
 
                             with col2:
-                                if st.button(f"Delete", key=f"delete_html_{template_id}",type="secondary", use_container_width=True):
+                                if st.button(f"Delete", key=f"delete_html_{template_id}",type="secondary", width=True):
                                     if st.session_state.get('current_upload_id') == template_id:
                                         st.session_state.pop('selected_template_preview', None)
                                         st.session_state.pop('selected_template', None)
@@ -802,7 +802,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 
                             col1, col2 = st.columns(2)
                             with col1:
-                                if st.button(f"Use", key=f"use_doc_{template_id}",type="primary", use_container_width=True):
+                                if st.button(f"Use", key=f"use_doc_{template_id}",type="primary", width=True):
                                     # Process and display the doc template
                                     try:
                                         import io
@@ -830,7 +830,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                         st.error(f"Error loading template: {str(e)}")
 
                             with col2:
-                                if st.button(f"Delete", key=f"delete_doc_{template_id}",type="secondary", use_container_width=True):
+                                if st.button(f"Delete", key=f"delete_doc_{template_id}",type="secondary", width=True):
                                     # Clear selection if deleting currently selected template
                                     if st.session_state.get('selected_doc_template_id') == template_id:
                                         st.session_state.pop('generated_doc', None)
@@ -868,7 +868,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
 
                             col1, col2 = st.columns(2)
                             with col1:
-                                if st.button(f"Use", key=f"use_ppt_{template_id}",type="primary", use_container_width=True):
+                                if st.button(f"Use", key=f"use_ppt_{template_id}",type="primary", width=True):
                                     try:
                                         import io
                                         from pptx import Presentation
@@ -944,7 +944,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                         st.error(f"Error loading template: {str(e)}")
 
                             with col2:
-                                if st.button(f"Delete", key=f"delete_ppt_{template_id}",type="secondary", use_container_width=True):
+                                if st.button(f"Delete", key=f"delete_ppt_{template_id}",type="secondary", width=True):
                                     # Clear selection if deleting currently selected template
                                     if st.session_state.get('selected_ppt_template_id') == template_id:
                                         st.session_state.pop('generated_ppt', None)
@@ -1000,7 +1000,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                             )
 
                         with col2:
-                            if st.button("💾 Save Template", use_container_width=True):
+                            if st.button("💾 Save Template", width=True):
                                 template_id = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                                 st.session_state.uploaded_templates[template_id] = {
                                     'name': template_name,
@@ -1138,7 +1138,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                 with col2:
                                     st.write("")
                                     st.write("")
-                                    if st.button("💾 Save Template", use_container_width=True, type="primary", key="save_ppt_template_btn"):
+                                    if st.button("💾 Save Template", width=True, type="primary", key="save_ppt_template_btn"):
                                         if 'ppt_templates' not in st.session_state:
                                             st.session_state.ppt_templates = load_user_ppt_templates(st.session_state.logged_in_user)
                                         
@@ -1281,12 +1281,12 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                         data=st.session_state.generated_ppt,
                                         file_name="ai_enhanced_presentation.pptx",
                                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                        use_container_width=True,
+                                        width=True,
                                         type="primary"
                                     )
                                 
                                 with col2:
-                                    if st.button("🔄 Reset", use_container_width=True):
+                                    if st.button("🔄 Reset", width=True):
                                         for key in ['generated_ppt', 'ppt_uploaded_file', 'ppt_edits']:
                                             if key in st.session_state:
                                                 del st.session_state[key]
@@ -1331,7 +1331,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                             with col2:
                                 st.write("")
                                 st.write("")
-                                if st.button("💾 Save Template", use_container_width=True, type="primary"):
+                                if st.button("💾 Save Template", width=True, type="primary"):
                                     template_id = f"doc_{datetime.now().strftime('%Y%m%d%H%M%S')}"
                                     
                                     st.session_state.doc_templates[template_id] = {
@@ -1449,12 +1449,12 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                     data=st.session_state.generated_doc,
                                     file_name=filename,
                                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                    use_container_width=True,
+                                    width=True,
                                     type="primary"
                                 )
                             
                             with col2:
-                                if st.button("🔄 Reset", use_container_width=True):
+                                if st.button("🔄 Reset", width=True):
                                     for key in ['generated_doc', 'temp_doc_data', 'temp_doc_filename']:
                                         if key in st.session_state:
                                             del st.session_state[key]
@@ -1566,7 +1566,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                         data=st.session_state.generated_doc,
                         file_name=filename,
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        use_container_width=True,
+                        width=True,
                         type="primary"
                     )
                     
@@ -1674,7 +1674,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                 
                 
                     with col2:
-                        if st.button("🔄 Reset", use_container_width=True):
+                        if st.button("🔄 Reset", width=True):
                             for key in ['generated_ppt', 'ppt_uploaded_file', 'ppt_edits']:
                                 if key in st.session_state:
                                     del st.session_state[key]
@@ -1691,12 +1691,12 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                                 data=st.session_state.generated_ppt,
                                 file_name=filename,
                                 mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                use_container_width=True,
+                                width=True,
                                 type="primary"
                             )
                         
                         with col2:
-                            if st.button("🔄 Clear", use_container_width=True):
+                            if st.button("🔄 Clear", width=True):
                                 st.session_state.pop('generated_ppt', None)
                                 st.session_state.pop('selected_ppt_template_id', None)
                                 st.session_state.pop('selected_ppt_template', None)
@@ -1706,7 +1706,7 @@ button[data-testid="stBaseButton-secondary"]:hover {{
                 except Exception as e:
                     st.error(f"Preview error: {str(e)}")
             st.markdown("---")
-            if st.button("⬅️ Go Back to Editor", type="primary", use_container_width=True):
+            if st.button("⬅️ Go Back to Editor", type="primary", width=True):
                 st.switch_page("pages/create.py")
 
     # --- Sidebar ---

@@ -4,16 +4,18 @@ from pathlib import Path
 
 CONFIG_PATH = Path(__file__).parent / "config.yaml"
 
-def get_connection():
+
+def get_connection(database_override=None, autocommit=False):
     with open(CONFIG_PATH, "r") as f:
         config = yaml.safe_load(f)
 
     db = config["database"]
+    database = database_override or db["database"]
 
     conn_str = (
         f"DRIVER={{{db['driver']}}};"
         f"SERVER={db['server']};"
-        f"DATABASE={db['database']};"
+        f"DATABASE={database};"
     )
 
     if db.get("trusted_connection", "").lower() == "yes":
@@ -24,4 +26,7 @@ def get_connection():
     if db.get("trust_server_certificate", "").lower() == "yes":
         conn_str += "TrustServerCertificate=yes;"
 
-    return pyodbc.connect(conn_str)
+    conn = pyodbc.connect(conn_str)
+    conn.autocommit = autocommit
+    
+    return conn

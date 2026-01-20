@@ -5,8 +5,7 @@ from streamlit_extras.stylable_container import stylable_container
 from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 
 st.set_page_config(
-    page_title="Resume Creator",
-    page_icon="📄",
+    page_title="Cvmate",
     layout="wide",
     initial_sidebar_state="collapsed"
 )

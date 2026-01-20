@@ -2,7 +2,7 @@ import streamlit as st
 from utils import ask_llama,extract_text_from_pdf,extract_text_from_docx
 
 # Page config
-st.set_page_config(page_title="Resume Upload", layout="wide")
+st.set_page_config(page_title="Cvmate AI chat", layout="wide")
 
 # Modern CSS styling
 st.markdown("""

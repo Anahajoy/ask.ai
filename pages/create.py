@@ -22,8 +22,7 @@ from utils import (
 
 # Page config
 st.set_page_config(
-    page_title="Resume Creator",
-    page_icon="📄",
+    page_title="CVmate Resume Creator",
     layout="wide",
     initial_sidebar_state="collapsed"
 )

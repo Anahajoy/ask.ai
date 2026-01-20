@@ -3,7 +3,7 @@ from utils import extract_details_from_text,extract_text_from_pdf,extract_text_f
 import time
 from templates.templateconfig import SYSTEM_TEMPLATES,ATS_COLORS,load_css_template
 # Page config
-st.set_page_config(page_title="Resume Upload", layout="wide")
+st.set_page_config(page_title="CVmate Template Change", layout="wide")
 
 
 

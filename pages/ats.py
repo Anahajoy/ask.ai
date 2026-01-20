@@ -3,8 +3,7 @@ from streamlit_extras.stylable_container import stylable_container
 from utils import get_score_color,get_score_label,extract_text_from_pdf,extract_text_from_docx,extract_details_from_text,extract_details_from_jd,ai_ats_score
 
 st.set_page_config(
-    page_title="ATS Score Checker",
-    page_icon="📊",
+    page_title="Cvmate ATS Score",
     layout="wide",
     initial_sidebar_state="collapsed"
 )

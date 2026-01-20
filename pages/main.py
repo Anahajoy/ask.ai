@@ -16,6 +16,12 @@ from utils import (
 
 from streamlit_extras.stylable_container import stylable_container
 
+st.set_page_config(
+    page_title="Cvmate  Resume Builder",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:

@@ -5,8 +5,7 @@ from utils import get_user_resume, extract_text_from_pdf, extract_text_from_docx
 from streamlit_extras.stylable_container import stylable_container
 
 st.set_page_config(
-    page_title="Job Description - Resume Creator",
-    page_icon="📄",
+    page_title="CVmate Job Description",
     layout="wide",
     initial_sidebar_state="collapsed"
 )

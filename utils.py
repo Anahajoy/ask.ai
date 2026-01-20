@@ -16,7 +16,7 @@ import re
 import json
 import requests
 from pathlib import Path
-from bs4 import BeautifulSoup
+import pandas as pd
 from pptx import Presentation
 from pptx.util import Pt
 from docx import Document
@@ -32,6 +32,7 @@ import requests
 import json
 from lxml import etree
 import mammoth
+import pyodbc
 from configuration.db import get_connection
 
 
@@ -400,334 +401,125 @@ def call_llm(payload):
 
 
 
-@st.cache_data(show_spinner=False)
+
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_skills_from_json():
-    # """Load skills from the cached JSON file"""
-    # get_all_skills_from_llm()
+    """Load all skills from database"""
     try:
-        if os.path.exists(SKILL_CACHE_FILE):
-            with open(SKILL_CACHE_FILE, "r") as f:
-                return json.load(f)
-        else:
-            # If file doesn't exist, generate it
-            return get_all_skills_from_llm()
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM skills")
+        count = cursor.fetchone()[0]
+        
+        if count == 0:
+            cursor.close()
+            conn.close()
+            
+            st.info("🔄 Initializing skills from CSV...")
+            get_all_skills_from_csv("skills.csv")
+            
+            # Re-fetch
+            conn = get_connection()
+            cursor = conn.cursor()
+        
+        cursor.execute("SELECT skill_name FROM skills ORDER BY skill_name")
+        skills = [row[0] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return skills 
+        
     except Exception as e:
         st.error(f"Error loading skills: {e}")
-        # Fallback to basic skills if there's an error
-        return ["Python", "JavaScript", "SQL", "Cloud Computing", "Project Management", "Data Analysis"]
+        # return get_fallback_skills()
 
+SKILL_CACHE_FILE = "../ask.ai/json/skill.csv"
 
-SKILL_CACHE_FILE = "../ask.ai/json/skill.json"
-
-@st.cache_data(show_spinner=False)
-def get_all_skills_from_llm():
-    if os.path.exists(SKILL_CACHE_FILE):
-        with open(SKILL_CACHE_FILE, "r") as f:
-            return json.load(f)
-
-    all_skills = set()
+def get_all_skills_from_csv(csv_file_path=SKILL_CACHE_FILE):
+    """
+    Load skills from CSV file and insert into database.
+    Only inserts skill_name, added_date is auto-generated.
     
-    # Define multiple focused prompts to get comprehensive coverage
-    prompt_categories = [
-        {
-            "category": "Manual Labor & Service",
-            "prompt": """List 200+ specific skills for: cleaning staff, janitors, dishwashers, laborers, warehouse workers, 
-            packers, stock clerks, maintenance workers, landscapers, groundskeepers, movers, delivery personnel, 
-            sanitation workers, custodians, housekeepers, laundry workers, kitchen helpers."""
-        },
-        {
-            "category": "Agriculture & Farming",
-            "prompt": """List 200+ specific skills for: farmers, farm workers, crop managers, livestock handlers, 
-            agricultural technicians, irrigation specialists, harvesters, dairy workers, poultry workers, 
-            farm equipment operators, greenhouse workers, vineyard workers, aquaculture workers, agronomists."""
-        },
-        {
-            "category": "Transportation & Logistics",
-            "prompt": """List 200+ specific skills for: truck drivers, taxi drivers, bus drivers, delivery drivers, 
-            forklift operators, crane operators, pilots, ship captains, train conductors, dispatchers, 
-            logistics coordinators, supply chain managers, freight handlers, route planners, fleet managers."""
-        },
-        {
-            "category": "Construction & Trades",
-            "prompt": """List 200+ specific skills for: carpenters, electricians, plumbers, welders, masons, 
-            HVAC technicians, roofers, painters, drywall installers, tile setters, glaziers, insulators, 
-            heavy equipment operators, pipefitters, ironworkers, sheet metal workers, construction managers."""
-        },
-        {
-            "category": "Food Service & Hospitality",
-            "prompt": """List 200+ specific skills for: chefs, cooks, bakers, bartenders, servers, baristas, 
-            food prep workers, line cooks, pastry chefs, sous chefs, catering managers, restaurant managers, 
-            hotel managers, front desk agents, concierges, housekeeping managers, event coordinators."""
-        },
-        {
-            "category": "Retail & Sales",
-            "prompt": """List 200+ specific skills for: retail associates, cashiers, sales representatives, 
-            merchandisers, store managers, buyers, inventory specialists, loss prevention, visual merchandisers, 
-            account executives, business development, inside sales, outside sales, territory managers."""
-        },
-        {
-            "category": "Healthcare & Medical",
-            "prompt": """List 200+ specific skills for: nurses, doctors, surgeons, medical assistants, 
-            paramedics, EMTs, pharmacists, pharmacy technicians, radiologists, lab technicians, 
-            phlebotomists, dental assistants, physical therapists, occupational therapists, medical coders."""
-        },
-        {
-            "category": "Education & Training",
-            "prompt": """List 200+ specific skills for: teachers, professors, tutors, instructional designers, 
-            training specialists, curriculum developers, education administrators, school counselors, 
-            librarians, teaching assistants, special education teachers, ESL teachers, corporate trainers."""
-        },
-        {
-            "category": "Manufacturing & Production",
-            "prompt": """List 200+ specific skills for: machine operators, production workers, assemblers, 
-            quality inspectors, manufacturing engineers, production supervisors, CNC operators, fabricators, 
-            industrial maintenance, production planners, process engineers, lean specialists, Six Sigma experts."""
-        },
-        {
-            "category": "IT & Software Development",
-            "prompt": """List 300+ specific technical skills including: programming languages (Python, Java, C++, C#, 
-            JavaScript, TypeScript, Ruby, Go, Rust, PHP, Swift, Kotlin, R, MATLAB, Scala, etc.), frameworks 
-            (React, Angular, Vue, Django, Flask, Spring, .NET, Node.js, Express, Laravel, etc.), databases, 
-            cloud platforms, DevOps tools, version control, testing frameworks, APIs, microservices."""
-        },
-        {
-            "category": "Cybersecurity & Network",
-            "prompt": """List 200+ specific skills for: security analysts, penetration testers, ethical hackers, 
-            security engineers, network administrators, firewall specialists, SIEM analysts, SOC analysts, 
-            malware analysts, cryptographers, compliance officers, risk assessors, incident responders."""
-        },
-        {
-            "category": "Data Science & Analytics",
-            "prompt": """List 200+ specific skills including: data analysis tools, statistical methods, 
-            machine learning algorithms, deep learning, NLP, computer vision, big data technologies (Hadoop, Spark), 
-            visualization tools (Tableau, Power BI, Looker), SQL variants, Python libraries (pandas, numpy, scikit-learn), 
-            R packages, data modeling, ETL processes, data warehousing."""
-        },
-        {
-            "category": "Business & Finance",
-            "prompt": """List 200+ specific skills for: accountants, bookkeepers, financial analysts, auditors, 
-            tax professionals, investment bankers, wealth managers, controllers, CFOs, budget analysts, 
-            credit analysts, financial planners, actuaries, payroll specialists, accounts payable/receivable."""
-        },
-        {
-            "category": "Marketing & Advertising",
-            "prompt": """List 200+ specific skills including: SEO, SEM, PPC, social media platforms (Facebook Ads, 
-            Google Ads, LinkedIn Ads, TikTok Ads), email marketing, content marketing, copywriting, brand management, 
-            market research, analytics tools (Google Analytics, Adobe Analytics), CRM systems, marketing automation, 
-            growth hacking, influencer marketing, affiliate marketing, video marketing."""
-        },
-        {
-            "category": "Creative & Design",
-            "prompt": """List 200+ specific skills including: Adobe Creative Suite (Photoshop, Illustrator, InDesign, 
-            After Effects, Premiere Pro), Figma, Sketch, UI/UX design, graphic design, web design, motion graphics, 
-            3D modeling (Blender, Maya, 3ds Max), video editing, photography, illustration, typography, 
-            color theory, wireframing, prototyping."""
-        },
-        {
-            "category": "Engineering",
-            "prompt": """List 200+ specific skills for: mechanical engineers, electrical engineers, civil engineers, 
-            chemical engineers, aerospace engineers, industrial engineers, environmental engineers, software engineers, 
-            systems engineers, including CAD tools (AutoCAD, SolidWorks, CATIA, Revit), simulation software, 
-            technical drawing, project engineering, quality engineering."""
-        },
-        {
-            "category": "Legal & Compliance",
-            "prompt": """List 150+ specific skills for: lawyers, paralegals, legal assistants, compliance officers, 
-            contract managers, legal researchers, court reporters, mediators, arbitrators, patent attorneys, 
-            corporate counsel, litigation specialists, regulatory experts, legal technology."""
-        },
-        {
-            "category": "HR & Recruitment",
-            "prompt": """List 150+ specific skills for: HR managers, recruiters, talent acquisition, HR generalists, 
-            compensation specialists, benefits administrators, HR analytics, HRIS systems (Workday, SAP SuccessFactors, 
-            Oracle HCM), employee relations, performance management, training coordinators, organizational development."""
-        },
-        {
-            "category": "Executive & Leadership",
-            "prompt": """List 200+ specific skills for: CEOs, COOs, CFOs, CIOs, CTOs, VPs, directors, senior managers 
-            including: strategic planning, business strategy, P&L management, M&A, stakeholder management, 
-            corporate governance, change management, executive communication, board relations, investor relations, 
-            crisis management, succession planning, organizational design."""
-        },
-        {
-            "category": "Soft Skills & General",
-            "prompt": """List 200+ specific soft skills and general competencies including: communication types 
-            (verbal, written, presentation, public speaking, negotiation), leadership styles, emotional intelligence, 
-            problem-solving approaches, critical thinking, creativity, adaptability, time management, organization, 
-            collaboration, conflict resolution, decision-making, customer service, active listening."""
-        }
-    ]
-    
-    print("🔄 Generating comprehensive skill database across all sectors...")
-    
-    for idx, category_data in enumerate(prompt_categories, 1):
-        print(f"📊 Processing category {idx}/{len(prompt_categories)}: {category_data['category']}")
+    Args:
+        csv_file_path: Path to the CSV file containing skills
         
-        full_prompt = f"""{category_data['prompt']}
-
-Return ONLY a JSON array of individual skill names. Be very specific and comprehensive. 
-Include technical skills, tools, software, methodologies, certifications, and specific abilities.
-No categories, no explanations, no numbering - just skill names."""
-
-        payload = {
-            "model": "meta/llama-3.1-70b-instruct",
-            "messages": [
-                {"role": "system", "content": "You are a skill taxonomy expert. Return a comprehensive JSON array of specific, actionable skill names."},
-                {"role": "user", "content": full_prompt}
-            ],
-            "temperature": 0.3,
-            "max_tokens": 8000
-        }
-
-        try:
-            llm_response = call_llm(payload)
-            
+    Returns:
+        int: Total number of skills in database
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Check if skills already exist
+    cursor.execute("SELECT COUNT(*) FROM skills")
+    existing_count = cursor.fetchone()[0]
+    
+    if existing_count > 0:
+        print(f"✅ Database already contains {existing_count} skills. Skipping import.")
+        cursor.close()
+        conn.close()
+        return existing_count
+    
+    try:
+        print(f"📂 Loading skills from {csv_file_path}...")
+        
+        # Read CSV file
+        df = pd.read_csv(csv_file_path)
+        
+        # Clean the skill names
+        df['Skill'] = df['Skill'].str.strip().str.strip('"').str.strip()
+        
+        # Remove empty rows and duplicates
+        df = df[df['Skill'].notna() & (df['Skill'] != '')]
+        df = df.drop_duplicates(subset=['Skill'])
+        df['Skill'] = df['Skill'].str.title()
+        
+        print(f"📊 Found {len(df)} unique skills in CSV")
+        
+        # Insert into database
+        insert_query = "INSERT INTO skills (skill_name) VALUES (?)"
+        
+        inserted = 0
+        skipped = 0
+        
+        for _, row in df.iterrows():
             try:
-                skills_list = json.loads(llm_response)
-            except json.JSONDecodeError:
-                # Robust extraction
-                cleaned_text = re.sub(r'[0-9]+\.?\s*', '', llm_response)
-                cleaned_text = re.sub(r'```json|```', '', cleaned_text)
-                skills_list = [
-                    skill.strip().strip('"').strip("'").strip(',').strip('[]') 
-                    for skill in re.split(r'[\n,•*-]+', cleaned_text) 
-                    if skill.strip()
-                ]
-            
-            # Clean and add skills
-            excluded_keywords = ["category", "skills:", "example", "e.g.", "etc.", "including", "such as"]
-            
-            for skill in skills_list:
-                skill = skill.strip().strip('"').strip("'").strip(',').strip()
-                
-                # Skip if contains excluded keywords
-                if any(keyword in skill.lower() for keyword in excluded_keywords):
-                    continue
-                
-                # Skip very short or very long entries
-                if len(skill) < 2 or len(skill) > 70:
-                    continue
-                
-                # Skip entries with parentheses at the end
-                if re.search(r'\([^)]*$', skill):
-                    continue
-                
-                # Skip entries that look like descriptions
-                if skill.count(' ') > 6:
-                    continue
-                
-                if skill:
-                    all_skills.add(skill.title())
-            
-            print(f"   ✅ Added skills. Total so far: {len(all_skills)}")
-            
-        except Exception as e:
-            print(f"   ⚠️ Error in category {category_data['category']}: {e}")
-            continue
-    
-    # Add comprehensive baseline skills to ensure coverage
-    baseline_skills = [
-        # Manual & Service
-        "Cleaning", "Janitorial Work", "Floor Cleaning", "Window Cleaning", "Carpet Cleaning",
-        "Dishwashing", "Laundry", "Ironing", "Mopping", "Vacuuming", "Sweeping", "Dusting",
-        "Waste Management", "Recycling", "Sanitation", "Disinfection", "Pest Control",
+                cursor.execute(insert_query, (row['Skill'],))
+                conn.commit()
+                inserted += 1
+            except Exception:
+                # Skip duplicates
+                skipped += 1
+                continue
         
-        # Agriculture
-        "Farming", "Crop Management", "Livestock Care", "Tractor Operation", "Harvesting",
-        "Planting", "Irrigation", "Soil Testing", "Fertilization", "Crop Rotation",
-        "Animal Husbandry", "Dairy Farming", "Poultry Farming", "Beekeeping", "Composting",
+        print(f"✅ Inserted {inserted} skills")
+        if skipped > 0:
+            print(f"⚠️ Skipped {skipped} duplicates")
         
-        # Transportation
-        "Driving", "Truck Driving", "Bus Driving", "Taxi Driving", "Forklift Operation",
-        "CDL License", "Vehicle Maintenance", "Route Planning", "GPS Navigation", "Loading",
-        "Unloading", "Delivery", "Dispatch", "Logistics", "Fleet Management",
+        # Get final count
+        cursor.execute("SELECT COUNT(*) FROM skills")
+        final_count = cursor.fetchone()[0]
         
-        # Construction
-        "Carpentry", "Plumbing", "Electrical Work", "Welding", "Masonry", "HVAC",
-        "Roofing", "Painting", "Drywall", "Tiling", "Flooring", "Concrete Work",
-        "Blueprint Reading", "Framing", "Demolition", "Scaffolding",
+        cursor.close()
+        conn.close()
         
-        # Food Service
-        "Cooking", "Baking", "Food Preparation", "Food Safety", "Menu Planning",
-        "Knife Skills", "Grilling", "Frying", "Sautéing", "Plating", "Bartending",
-        "Coffee Making", "Food Handling", "Kitchen Management", "Recipe Development",
+        return final_count
         
-        # Retail
-        "Customer Service", "Cash Handling", "POS Systems", "Inventory Management",
-        "Merchandising", "Sales", "Upselling", "Stock Replenishment", "Loss Prevention",
-        "Visual Merchandising", "Product Knowledge", "Returns Processing",
+    except FileNotFoundError:
+        print(f"❌ CSV file not found: {csv_file_path}")
+        cursor.close()
+        conn.close()
+        return 0
         
-        # Healthcare
-        "Patient Care", "First Aid", "CPR", "BLS", "ACLS", "Vital Signs",
-        "Medical Terminology", "Phlebotomy", "IV Insertion", "Wound Care",
-        "Medication Administration", "EMR Systems", "HIPAA Compliance",
-        
-        # IT & Programming
-        "Python", "Java", "JavaScript", "C++", "C#", "PHP", "Ruby", "Go", "Rust",
-        "TypeScript", "Swift", "Kotlin", "R", "MATLAB", "SQL", "HTML", "CSS",
-        "React", "Angular", "Vue.js", "Node.js", "Django", "Flask", "Spring Boot",
-        "Git", "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Linux", "Windows Server",
-        
-        # Data & Analytics
-        "Data Analysis", "Excel", "Power BI", "Tableau", "SQL", "Python", "R",
-        "Statistics", "Data Visualization", "ETL", "Data Modeling", "Machine Learning",
-        "Deep Learning", "TensorFlow", "PyTorch", "Pandas", "NumPy", "Scikit-learn",
-        
-        # Cybersecurity
-        "Network Security", "Penetration Testing", "Ethical Hacking", "Firewall Management",
-        "SIEM", "IDS/IPS", "Vulnerability Assessment", "Security Auditing", "Cryptography",
-        "Incident Response", "Malware Analysis", "Security Compliance",
-        
-        # Business & Finance
-        "Accounting", "Bookkeeping", "Financial Analysis", "Budgeting", "Forecasting",
-        "Tax Preparation", "Auditing", "QuickBooks", "SAP", "Oracle Financials",
-        "Financial Modeling", "Excel VBA", "Financial Reporting", "AP/AR",
-        
-        # Marketing
-        "SEO", "SEM", "PPC", "Google Ads", "Facebook Ads", "Social Media Marketing",
-        "Content Marketing", "Email Marketing", "Copywriting", "Google Analytics",
-        "Marketing Automation", "CRM", "Salesforce", "HubSpot", "Mailchimp",
-        
-        # Design
-        "Graphic Design", "UI/UX Design", "Adobe Photoshop", "Adobe Illustrator",
-        "Figma", "Sketch", "InDesign", "After Effects", "Premiere Pro", "Video Editing",
-        "Photography", "Photo Editing", "Web Design", "Mobile Design", "Wireframing",
-        
-        # Soft Skills
-        "Communication", "Leadership", "Teamwork", "Problem Solving", "Critical Thinking",
-        "Time Management", "Organization", "Adaptability", "Creativity", "Collaboration",
-        "Negotiation", "Conflict Resolution", "Decision Making", "Public Speaking",
-        "Presentation Skills", "Active Listening", "Emotional Intelligence", "Work Ethic",
-        "Attention to Detail", "Multitasking", "Stress Management", "Customer Focus",
-        
-        # Project Management
-        "Project Management", "Agile", "Scrum", "Kanban", "Waterfall", "JIRA", "Asana",
-        "MS Project", "Risk Management", "Stakeholder Management", "Resource Planning",
-        "PMP", "PRINCE2", "Change Management",
-        
-        # Engineering
-        "AutoCAD", "SolidWorks", "CATIA", "Revit", "MATLAB", "Simulink", "ANSYS",
-        "CAD", "CAM", "FEA", "CFD", "Technical Drawing", "GD&T", "Quality Control",
-        
-        # Executive
-        "Strategic Planning", "Business Strategy", "P&L Management", "M&A",
-        "Corporate Governance", "Stakeholder Management", "Board Relations",
-        "Executive Leadership", "Change Management", "Business Development"
-    ]
-    
-    # Add all baseline skills
-    all_skills.update([skill.title() for skill in baseline_skills])
-    
-    # Convert to sorted list
-    unique_skills = sorted(list(all_skills))
-    
-    # Save to cache
-    os.makedirs(os.path.dirname(SKILL_CACHE_FILE), exist_ok=True)
-    with open(SKILL_CACHE_FILE, "w") as f:
-        json.dump(unique_skills, f, indent=2)
-
-    print(f"\n✅ Generated {len(unique_skills)} unique skills covering all job sectors and levels!")
-    return unique_skills
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error loading skills: {e}")
+        import traceback
+        traceback.print_exc()
+        cursor.close()
+        conn.close()
+        return 0
 
 
 # ALL THE JOB ROLE LIST#

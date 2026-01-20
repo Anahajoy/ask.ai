@@ -9,7 +9,6 @@ from utils import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_details_from_text,
-    get_all_skills_from_llm,
     save_user_resume,
     load_skills_from_json
 )

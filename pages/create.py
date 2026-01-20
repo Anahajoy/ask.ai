@@ -782,7 +782,7 @@ def show_inline_doc_mapping_editor():
                 st.session_state['generated_docx'] = output_doc.getvalue()
                 
                 st.success("✅ Document regenerated with new mapping!")
-                st.balloons()
+                # 
                 time.sleep(1)
                 st.rerun()
                 
@@ -964,7 +964,7 @@ def show_inline_ppt_content_editor():
                 st.session_state['generated_ppt'] = output.getvalue()
                 
                 st.success("✅ Presentation regenerated!")
-                st.balloons()
+                
                 time.sleep(1)
                 st.rerun()
                 
@@ -1117,7 +1117,7 @@ def show_inline_doc_mapping_editor():
                 st.session_state['generated_docx'] = output_doc.getvalue()
                 
                 st.success("✅ Document regenerated with new mapping!")
-                st.balloons()
+                
                 time.sleep(1)
                 st.rerun()
                 
@@ -1268,7 +1268,7 @@ def show_word_doc_preview_and_save(uploaded_file, final_data):
                 
                 if save_user_doc_templates(current_user, st.session_state.doc_templates):
                     st.success(f"✅ Template '{doc_template_name}' saved!")
-                    st.balloons()
+                    
                     time.sleep(1)
                     st.rerun()
                 else:
@@ -1477,7 +1477,7 @@ def process_word_upload(uploaded_file, final_data):
 
                     if result:
                         st.success(f"✅ Template '{doc_template_name}' saved successfully!")
-                        st.balloons()
+                        
                         
                         # Set as active template
                         st.session_state.selected_doc_template_id = template_id
@@ -1626,7 +1626,7 @@ def process_ppt_upload(uploaded_file, final_data):
             ppt_template_name = st.text_input(
                 "Template Name:",
                 value=st.session_state.get('ppt_template_name_input', default_name),
-                key="ppt_template_name_input_field"
+                key="ppt_template_name_input_field1"
             )
             # Store in session to persist
             st.session_state['ppt_template_name_input'] = ppt_template_name
@@ -1634,7 +1634,7 @@ def process_ppt_upload(uploaded_file, final_data):
         with col2:
             st.write("")
             st.write("")
-            if st.button("💾 Save Template", width='stretch', type="primary", key="save_ppt_template_btn"):
+            if st.button("💾 Save Template", width='stretch', type="primary", key="save_ppt_template_btn1"):
                 current_user = st.session_state.logged_in_user
                 
                 if 'ppt_templates' not in st.session_state:
@@ -1655,7 +1655,7 @@ def process_ppt_upload(uploaded_file, final_data):
                 
                 if save_user_ppt_templates(current_user, st.session_state.ppt_templates):
                     st.success(f"✅ Template '{ppt_template_name}' saved successfully!")
-                    st.balloons()
+                    
                     
                     # Set as active template
                     st.session_state.selected_ppt_template_id = template_id
@@ -1681,7 +1681,7 @@ def process_ppt_upload(uploaded_file, final_data):
             file_name=f"Resume_{final_data.get('name', 'User').replace(' ', '_')}.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
             width='stretch',
-            key="download_ppt_from_upload"
+            key="download_ppt_from_upload1"
         )
         
         return True
@@ -2097,7 +2097,7 @@ def show_upload_interface():
 
                             if result:
                                 st.success(f"✅ Template '{doc_template_name}' saved successfully!")
-                                st.balloons()
+                                
                                 
                                 st.session_state.selected_doc_template_id = template_id
                                 st.session_state.selected_doc_template = st.session_state.doc_templates[template_id]
@@ -2158,7 +2158,7 @@ def show_upload_interface():
                 col_save, col_download = st.columns(2)
                 
                 with col_save:
-                    if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn"):
+                    if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn2"):
                         current_user = st.session_state.logged_in_user
                         
                         if 'ppt_templates' not in st.session_state:
@@ -2179,7 +2179,7 @@ def show_upload_interface():
                         
                         if save_user_ppt_templates(current_user, st.session_state.ppt_templates):
                             st.success(f"✅ Template '{ppt_template_name}' saved successfully!")
-                            st.balloons()
+                            
                             
                             st.session_state.selected_ppt_template_id = template_id
                             st.session_state.selected_ppt_template = st.session_state.ppt_templates[template_id]
@@ -2221,7 +2221,7 @@ def show_upload_interface():
                     if st.button("💾 Save", type="primary", use_container_width=True, key="save_html"):
                         if save_uploaded_template(template_name, file_type):
                             st.success("✅ Saved!")
-                            st.balloons()
+                            
                             time.sleep(1)
                             st.session_state.show_upload_interface = False
                             st.rerun()
@@ -2970,7 +2970,7 @@ def show_html_upload():
                 if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_html_template_btn"):
                     save_html_template(template_name, parsed_template, uploaded_file.name)
                     st.success(f"✅ Template '{template_name}' saved!")
-                    st.balloons()
+                    
                     time.sleep(1)
                     st.session_state.show_upload_modal = False
                     st.rerun()
@@ -3036,7 +3036,7 @@ def show_word_upload():
                 if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_word_template_btn"):
                     save_word_template(template_name, doc_data, structure, uploaded_file.name)
                     st.success(f"✅ Template '{template_name}' saved!")
-                    st.balloons()
+                    
                     time.sleep(1)
                     st.session_state.show_upload_modal = False
                     st.rerun()
@@ -3109,10 +3109,10 @@ def show_powerpoint_upload():
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn"):
+                if st.button("💾 Save Template", type="primary", use_container_width=True, key="save_ppt_template_btn3"):
                     save_ppt_template(template_name, ppt_data, slide_texts, uploaded_file.name)
                     st.success(f"✅ Template '{template_name}' saved!")
-                    st.balloons()
+                    
                     time.sleep(1)
                     st.session_state.show_upload_modal = False
                     st.rerun()

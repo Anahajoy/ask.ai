@@ -1672,7 +1672,7 @@ if st.session_state.logged_in_user:
 
                                 if save_success:
                                     st.success("✅ Resume processed and saved successfully!")
-                                    st.balloons()
+                                    # st.balloons()
                                     time.sleep(1)
                                     st.query_params["user"] = st.session_state.logged_in_user
                                     st.switch_page("pages/job.py")

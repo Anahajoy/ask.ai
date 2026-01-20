@@ -1,888 +1,1156 @@
 import streamlit as st
-import json
-import bcrypt
-import os
-import re
-from docx import Document
-from docx.shared import Inches, Pt, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.style import WD_STYLE_TYPE
-import pdfplumber
-from io import BytesIO
-import base64
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-import requests
-import time
+# from PIL import Image
+from utils import chatbot, show_login_modal, get_user_resume, load_users
+# /, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
+# from streamlit_extras.stylable_container import stylable_container
+# from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
+from configuration.db_init import initialize_database
 
-# =============================================================================
-# FAST AI MODEL INTEGRATION (FREE)
-# =============================================================================
+if 'db_initialized' not in st.session_state:
+    try:
+        initialize_database()
+        st.session_state.db_initialized = True
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        st.error(f"❌ Database initialization failed: {e}")
+        st.stop()
+        
+st.set_page_config(
+    page_title="Cvmate",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-def generate_content_with_huggingface(prompt, max_length=200):
-    """Use Hugging Face Inference API - Free and Fast"""
-    
-    # Multiple free models to try (no API key needed for some)
-    models = [
-        "microsoft/DialoGPT-medium",
-        "gpt2",
-        "distilgpt2"
-    ]
-    
-    for model in models:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model}"
-            
-            payload = {
-                "inputs": prompt,
-                "parameters": {
-                    "max_new_tokens": max_length,
-                    "temperature": 0.7,
-                    "return_full_text": False,
-                    "do_sample": True
-                }
-            }
-            
-            response = requests.post(API_URL, json=payload, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    generated_text = result[0].get('generated_text', '')
-                    if generated_text and len(generated_text) > 20:
-                        return clean_generated_text(generated_text)
-            
-            # Wait a bit before trying next model
-            time.sleep(1)
-            
-        except Exception as e:
-            continue
-    
-    # Fallback to template-based generation
-    return generate_template_content(prompt)
-
-def clean_generated_text(text):
-    """Clean and format AI-generated text"""
-    # Remove incomplete sentences
-    sentences = text.split('.')
-    complete_sentences = []
-    
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if len(sentence) > 10 and sentence[0].isupper():
-            complete_sentences.append(sentence)
-    
-    result = '. '.join(complete_sentences[:3])  # Max 3 sentences
-    if result and not result.endswith('.'):
-        result += '.'
-    
-    return result
-
-def generate_template_content(prompt):
-    """Fallback template-based content generation"""
-    
-    # Extract key information from prompt
-    prompt_lower = prompt.lower()
-    
-    if "professional summary" in prompt_lower:
-        if "software" in prompt_lower or "developer" in prompt_lower:
-            return "Experienced software developer with proven expertise in full-stack development and modern programming languages. Demonstrated ability to deliver high-quality solutions and collaborate effectively with cross-functional teams."
-        elif "marketing" in prompt_lower:
-            return "Results-driven marketing professional with strong analytical skills and creative problem-solving abilities. Proven track record in developing and executing successful marketing campaigns that drive business growth."
-        elif "data" in prompt_lower or "analyst" in prompt_lower:
-            return "Detail-oriented data professional with expertise in data analysis, statistical modeling, and insights generation. Skilled in transforming complex datasets into actionable business recommendations."
-        elif "manager" in prompt_lower or "management" in prompt_lower:
-            return "Strategic leader with proven track record in team management and project execution. Strong background in process optimization, stakeholder communication, and driving organizational success."
-        else:
-            return "Dedicated professional with strong technical skills and proven ability to contribute to team success. Committed to continuous learning and delivering high-quality results in dynamic environments."
-    
-    elif "key achievement" in prompt_lower or "accomplishment" in prompt_lower:
-        achievements = [
-            "Successfully delivered projects ahead of schedule while maintaining high quality standards",
-            "Improved team efficiency through implementation of best practices and process optimization",
-            "Collaborated with cross-functional teams to achieve organizational objectives",
-            "Contributed to positive team culture and knowledge sharing initiatives"
-        ]
-        return " • ".join(achievements[:2])
-    
+# Session State Initialization
+if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+        st.query_params["user"] = logged_user
     else:
-        return "Professional with relevant experience and skills aligned with position requirements."
+        st.session_state.logged_in_user = None
+else:
+    if st.session_state.logged_in_user:
+        st.query_params["user"] = st.session_state.logged_in_user
 
-# =============================================================================
-# ATS RESUME TEMPLATES
-# =============================================================================
+if "show_login_modal" not in st.session_state:
+    st.session_state.show_login_modal = False
 
-class ATSResumeBuilder:
-    def __init__(self):
-        self.color_themes = {
-            "Professional Blue": {"primary": RGBColor(54, 96, 146), "secondary": RGBColor(79, 129, 189)},
-            "Corporate Black": {"primary": RGBColor(64, 64, 64), "secondary": RGBColor(128, 128, 128)},
-            "Modern Green": {"primary": RGBColor(76, 132, 73), "secondary": RGBColor(106, 168, 79)},
-            "Creative Purple": {"primary": RGBColor(112, 79, 161), "secondary": RGBColor(142, 124, 195)},
-            "Executive Navy": {"primary": RGBColor(31, 73, 125), "secondary": RGBColor(68, 114, 196)}
+if "show_template_modal" not in st.session_state:
+    st.session_state.show_template_modal = False
+
+if "scroll_to" not in st.session_state:
+    st.session_state.scroll_to = None
+
+if "template_view_mode" not in st.session_state:
+    st.session_state.template_view_mode = "custom"
+
+if 'current_template_type' not in st.session_state:
+    st.session_state.current_template_type = "html"
+
+# CSS Styling
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+    /* ==================== RESET ==================== */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+        max-width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+    }
+
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
         }
-    
-    def create_ats_resume(self, data, color_theme="Professional Blue", template_style="modern"):
-        """Create ATS-friendly resume with selected theme"""
-        
-        doc = Document()
-        
-        # Set document margins
-        sections = doc.sections
-        for section in sections:
-            section.top_margin = Inches(0.7)
-            section.bottom_margin = Inches(0.7)
-            section.left_margin = Inches(0.7)
-            section.right_margin = Inches(0.7)
-        
-        theme_colors = self.color_themes.get(color_theme, self.color_themes["Professional Blue"])
-        
-        # Header Section
-        self._add_header(doc, data, theme_colors)
-        
-        # Professional Summary
-        if data.get('ai_summary'):
-            self._add_section(doc, "PROFESSIONAL SUMMARY", data['ai_summary'], theme_colors)
-        
-        # Core Competencies/Skills
-        if data.get('skills'):
-            self._add_skills_section(doc, data['skills'], theme_colors)
-        
-        # Professional Experience
-        if data.get('experience'):
-            self._add_experience_section(doc, data, theme_colors)
-        
-        # Education
-        if data.get('education'):
-            self._add_section(doc, "EDUCATION", data['education'], theme_colors)
-        
-        # Key Achievements (AI Generated)
-        if data.get('ai_achievements'):
-            self._add_section(doc, "KEY ACHIEVEMENTS", data['ai_achievements'], theme_colors)
-        
-        return doc
-    
-    def _add_header(self, doc, data, theme_colors):
-        """Add professional header"""
-        
-        # Name
-        name_para = doc.add_paragraph()
-        name_run = name_para.add_run(data.get('name', '').upper())
-        name_run.font.size = Pt(18)
-        name_run.font.color.rgb = theme_colors['primary']
-        name_run.bold = True
-        name_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Role
-        role_para = doc.add_paragraph()
-        role_run = role_para.add_run(data.get('role', ''))
-        role_run.font.size = Pt(12)
-        role_run.font.color.rgb = theme_colors['secondary']
-        role_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Contact (if provided)
-        contact_para = doc.add_paragraph()
-        contact_run = contact_para.add_run("Email: professional@email.com | Phone: (555) 123-4567")
-        contact_run.font.size = Pt(10)
-        contact_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        doc.add_paragraph()  # Space
-    
-    def _add_section(self, doc, title, content, theme_colors):
-        """Add a section with title and content"""
-        
-        # Section title
-        title_para = doc.add_paragraph()
-        title_run = title_para.add_run(title)
-        title_run.font.size = Pt(12)
-        title_run.font.color.rgb = theme_colors['primary']
-        title_run.bold = True
-        
-        # Add underline effect with border
-        title_para.paragraph_format.border_bottom.width = Pt(1)
-        title_para.paragraph_format.border_bottom.color.rgb = theme_colors['primary']
-        
-        # Content
-        content_para = doc.add_paragraph(content)
-        content_para.paragraph_format.space_after = Pt(12)
-        
-        doc.add_paragraph()  # Space
-    
-    def _add_skills_section(self, doc, skills, theme_colors):
-        """Add skills section with ATS-friendly formatting"""
-        
-        # Title
-        title_para = doc.add_paragraph()
-        title_run = title_para.add_run("CORE COMPETENCIES")
-        title_run.font.size = Pt(12)
-        title_run.font.color.rgb = theme_colors['primary']
-        title_run.bold = True
-        title_para.paragraph_format.border_bottom.width = Pt(1)
-        title_para.paragraph_format.border_bottom.color.rgb = theme_colors['primary']
-        
-        # Skills in ATS-friendly format
-        skills_list = [skill.strip() for skill in skills.split(',') if skill.strip()]
-        
-        # Group skills in rows of 3 for better ATS parsing
-        for i in range(0, len(skills_list), 3):
-            skill_group = skills_list[i:i+3]
-            skill_para = doc.add_paragraph()
-            skill_text = " • ".join(skill_group)
-            skill_run = skill_para.add_run(skill_text)
-            skill_run.font.size = Pt(10)
-        
-        doc.add_paragraph()  # Space
-    
-    def _add_experience_section(self, doc, data, theme_colors):
-        """Add professional experience with AI enhancements"""
-        
-        # Title
-        title_para = doc.add_paragraph()
-        title_run = title_para.add_run("PROFESSIONAL EXPERIENCE")
-        title_run.font.size = Pt(12)
-        title_run.font.color.rgb = theme_colors['primary']
-        title_run.bold = True
-        title_para.paragraph_format.border_bottom.width = Pt(1)
-        title_para.paragraph_format.border_bottom.color.rgb = theme_colors['primary']
-        
-        # Experience content (AI enhanced)
-        exp_para = doc.add_paragraph()
-        
-        # Add role and company (if extractable)
-        role_company = f"{data.get('role', 'Professional')} | Company Name"
-        role_run = exp_para.add_run(role_company)
-        role_run.bold = True
-        role_run.font.size = Pt(11)
-        
-        exp_para.add_run("\n")
-        
-        # AI-enhanced experience description
-        experience_text = data.get('experience', '')
-        if data.get('ai_experience_enhancement'):
-            experience_text = data['ai_experience_enhancement']
-        
-        exp_para.add_run(experience_text)
-        
-        doc.add_paragraph()  # Space
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 
-def create_pdf_resume(data, color_theme="Professional Blue"):
-    """Create PDF version of resume"""
-    
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.7*inch, bottomMargin=0.7*inch)
-    
-    # Define styles
-    styles = getSampleStyleSheet()
-    
-    # Color mapping for PDF
-    color_map = {
-        "Professional Blue": colors.HexColor('#36609B'),
-        "Corporate Black": colors.HexColor('#404040'),
-        "Modern Green": colors.HexColor('#4C8449'),
-        "Creative Purple": colors.HexColor('#704FA1'),
-        "Executive Navy": colors.HexColor('#1F497D')
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
+
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-link:hover {
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    .nav-link.btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white !important;
+        font-weight: 600;
+        padding: 12px 28px;
+        box-shadow: 0 4px 12px var(--shadow);
+    }
+
+    .nav-link.btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px var(--shadow);
+    }
+
+    /* ==================== HERO SECTION ==================== */
+    .hero-section {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 120px 3rem 80px;
+        background: linear-gradient(180deg, #FAFAFA 0%, #FFFFFF 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(255, 107, 53, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: float 20s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translate(0, 0); }
+        50% { transform: translate(-50px, -50px); }
+    }
+
+    .hero-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .hero-content {
+        animation: fadeInLeft 1s ease-out;
+    }
+
+    @keyframes fadeInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .hero-badge::before {
+        content: '✨';
+        font-size: 16px;
+    }
+
+    .hero-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 64px;
+        font-weight: 900;
+        line-height: 1.1;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        letter-spacing: -2px;
+    }
+
+    .hero-title .gradient-text {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .hero-subtitle {
+        font-size: 20px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+        margin-bottom: 3rem;
+        max-width: 500px;
+    }
+
+    .hero-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        align-items: center;
+    }
+
+    .hero-buttons .btn,
+    .hero-buttons button {
+        min-width: 200px !important;
+        flex: 0 1 auto;
+    }
+
+    /* Ensure hero buttons container is centered when empty */
+    #hero-btn-container {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 60px;
+    }
+
+    .hero-image {
+        position: relative;
+        animation: fadeInRight 1s ease-out;
+    }
+
+    @keyframes fadeInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .hero-image img {
+        width: 100%;
+        height: auto;
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ==================== FEATURES SECTION ==================== */
+    .features-section {
+        padding: 120px 3rem;
+        background: var(--bg-secondary);
+    }
+
+    .features-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 4rem;
+    }
+
+    .section-badge {
+        display: inline-block;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .section-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 48px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .section-subtitle {
+        font-size: 18px;
+        color: var(--text-secondary);
+        max-width: 600px;
+        margin-left: 300px !important;
+        line-height: 1.7;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+    }
+
+    .feature-card {
+        background: var(--bg-primary);
+        padding: 3rem;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        transition: all 0.4s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary);
+    }
+
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .feature-icon {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .feature-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .feature-description {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== HOW IT WORKS ==================== */
+    .steps-section {
+        padding: 120px 3rem;
+        background: var(--bg-primary);
+    }
+
+    .steps-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 3rem;
+        margin-top: 4rem;
+    }
+
+    .step-card {
+        text-align: center;
+        position: relative;
+    }
+
+    .step-number {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Archivo', sans-serif;
+        font-size: 32px;
+        font-weight: 900;
+        color: white;
+        margin: 0 auto 1.5rem;
+        box-shadow: 0 8px 24px var(--shadow);
+    }
+
+    .step-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+    }
+
+    .step-description {
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--text-secondary);
+    }
+
+    /* ==================== CTA SECTION ==================== */
+    .cta-section {
+        padding: 120px 3rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -20%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .cta-container {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+    }
+
+    .cta-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 48px;
+        font-weight: 900;
+        color: white;
+        margin-bottom: 1.5rem;
+        letter-spacing: -1px;
+    }
+
+    .cta-subtitle {
+        font-size: 20px;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 3rem;
+        line-height: 1.7;
+    }
+
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+        /* Button styling - FIXED */
+        [data-testid="stButton"] button {
+            background: linear-gradient(135deg, #FF6B35 0%, #E85A28 100%) !important;
+            color: #FFFFFF !important;
+            font-size: 15px !important;
+            padding: 16px 40px !important;
+            border: none !important;
+            border-radius: 12px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.5px !important;
+            text-transform: uppercase !important;
+            cursor: pointer !important;
+            width: 100% !important;
+            transition: all 0.3s ease !important;
+            font-family: 'Inter', sans-serif !important;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3) !important;
+            margin-top: 1rem !important;
+            margin-left: 150px !important;
+        }
+        
+        [data-testid="stButton"] button:hover {
+            background: linear-gradient(135deg, #E85A28 0%, #D84315 100%) !important;
+            transform: translateY(-3px) !important;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.4) !important;
+        }
+
+        [data-testid="stButton"] button:active {
+            transform: translateY(-1px) !important;
+        }
+
+        /* Ensure buttons are visible */
+        .stButton {
+            display: block !important;
+            visibility: visible !important;
+            max-width: 400px !important;  /* ADDED: Constrain button container */
+            margin-left: 200px !important; 
+        }
+    /* ==================== FOOTER ==================== */
+    .footer {
+        background: var(--text-primary);
+        color: white;
+        padding: 3rem 3rem 2rem;
+    }
+
+    .footer-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .footer-logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 24px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+    }
+
+    .footer-text {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 14px;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Hide Streamlit Buttons */
+    .stButton {
+        display: block !important;
+        visibility: visible !important;
+        margin: 0.5rem 0 !important;
     }
     
-    primary_color = color_map.get(color_theme, colors.HexColor('#36609B'))
-    
-    # Custom styles
-    name_style = ParagraphStyle(
-        'CustomName',
-        parent=styles['Heading1'],
-        fontSize=18,
-        textColor=primary_color,
-        alignment=1,  # Center
-        spaceAfter=6
-    )
-    
-    role_style = ParagraphStyle(
-        'CustomRole',
-        parent=styles['Normal'],
-        fontSize=12,
-        textColor=colors.grey,
-        alignment=1,  # Center
-        spaceAfter=12
-    )
-    
-    section_style = ParagraphStyle(
-        'CustomSection',
-        parent=styles['Heading2'],
-        fontSize=12,
-        textColor=primary_color,
-        spaceAfter=6,
-        borderWidth=1,
-        borderColor=primary_color,
-        borderPadding=2
-    )
-    
-    content_style = ParagraphStyle(
-        'CustomContent',
-        parent=styles['Normal'],
-        fontSize=10,
-        spaceAfter=12
-    )
-    
-    # Build PDF content
-    story = []
-    
-    # Header
-    story.append(Paragraph(data.get('name', '').upper(), name_style))
-    story.append(Paragraph(data.get('role', ''), role_style))
-    story.append(Paragraph("Email: professional@email.com | Phone: (555) 123-4567", styles['Normal']))
-    story.append(Spacer(1, 12))
-    
-    # Professional Summary
-    if data.get('ai_summary'):
-        story.append(Paragraph("PROFESSIONAL SUMMARY", section_style))
-        story.append(Paragraph(data['ai_summary'], content_style))
-    
-    # Skills
-    if data.get('skills'):
-        story.append(Paragraph("CORE COMPETENCIES", section_style))
-        skills_list = [skill.strip() for skill in data['skills'].split(',') if skill.strip()]
-        skills_text = " • ".join(skills_list)
-        story.append(Paragraph(skills_text, content_style))
-    
-    # Experience
-    if data.get('experience'):
-        story.append(Paragraph("PROFESSIONAL EXPERIENCE", section_style))
-        story.append(Paragraph(data.get('ai_experience_enhancement', data['experience']), content_style))
-    
-    # Education
-    if data.get('education'):
-        story.append(Paragraph("EDUCATION", section_style))
-        story.append(Paragraph(data['education'], content_style))
-    
-    # Key Achievements
-    if data.get('ai_achievements'):
-        story.append(Paragraph("KEY ACHIEVEMENTS", section_style))
-        story.append(Paragraph(data['ai_achievements'], content_style))
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
+    /* Ensure buttons show in columns before JavaScript moves them */
+    [data-testid="column"] .stButton {
+        margin: 0.5rem auto !important;
+        text-align: center !important;
+    }
 
-# =============================================================================
-# FILE PROCESSING FUNCTIONS
-# =============================================================================
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 1024px) {
+        .hero-container {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
 
-def extract_text_from_pdf(pdf_file):
-    """Extract text from PDF file"""
-    try:
-        with pdfplumber.open(pdf_file) as pdf:
-            text = ""
-            for page in pdf.pages:
-                text += page.extract_text() + "\n"
-        return text.strip()
-    except Exception as e:
-        st.error(f"Error reading PDF: {e}")
-        return ""
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-def extract_text_from_docx(docx_file):
-    """Extract text from DOCX file"""
-    try:
-        doc = Document(docx_file)
-        text = ""
-        for paragraph in doc.paragraphs:
-            text += paragraph.text + "\n"
-        return text.strip()
-    except Exception as e:
-        st.error(f"Error reading DOCX: {e}")
-        return ""
+        .hero-title {
+            font-size: 48px;
+        }
 
-def parse_resume_content(text):
-    """Parse resume content into structured data"""
-    
-    data = {}
-    text_lower = text.lower()
-    
-    # Try to extract name (first line usually)
-    lines = text.strip().split('\n')
-    if lines:
-        potential_name = lines[0].strip()
-        if len(potential_name) < 50 and not any(char.isdigit() for char in potential_name):
-            data['name'] = potential_name
-    
-    # Extract skills
-    skills_pattern = r'(?:skills?|competencies|technical skills?)[:\s]*([^\n]*(?:\n[^\n]*)*?)(?=\n\s*\n|\n[A-Z]|\Z)'
-    skills_match = re.search(skills_pattern, text, re.IGNORECASE | re.MULTILINE)
-    if skills_match:
-        data['skills'] = skills_match.group(1).strip()
-    
-    # Extract experience
-    exp_pattern = r'(?:experience|employment|work history)[:\s]*([^\n]*(?:\n[^\n]*)*?)(?=\n\s*\n|\n(?:education|skills)|$)'
-    exp_match = re.search(exp_pattern, text, re.IGNORECASE | re.MULTILINE)
-    if exp_match:
-        data['experience'] = exp_match.group(1).strip()
-    
-    # Extract education
-    edu_pattern = r'(?:education|qualifications?)[:\s]*([^\n]*(?:\n[^\n]*)*?)(?=\n\s*\n|\n[A-Z]|$)'
-    edu_match = re.search(edu_pattern, text, re.IGNORECASE | re.MULTILINE)
-    if edu_match:
-        data['education'] = edu_match.group(1).strip()
-    
-    return data
+        .hero-subtitle {
+            max-width: 100%;
+        }
 
-# =============================================================================
-# AI CONTENT ENHANCEMENT FUNCTIONS
-# =============================================================================
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
 
-def enhance_resume_with_ai(user_data, job_description=""):
-    """Enhance resume content using AI based on job description"""
-    
-    enhanced_data = user_data.copy()
-    
-    # Generate Professional Summary
-    summary_prompt = f"""
-    Create a professional summary for a {user_data.get('role', 'professional')} position.
-    Skills: {user_data.get('skills', '')}
-    Experience: {user_data.get('experience', '')[:200]}
-    Job Requirements: {job_description[:300]}
-    
-    Write a 2-3 sentence professional summary:
-    """
-    
-    enhanced_data['ai_summary'] = generate_content_with_huggingface(summary_prompt, 150)
-    
-    # Enhance Experience Description
-    if user_data.get('experience'):
-        exp_prompt = f"""
-        Enhance this work experience for a {user_data.get('role', 'professional')} applying for:
-        Job Description: {job_description[:200]}
-        
-        Original Experience: {user_data.get('experience')[:300]}
-        
-        Rewrite with measurable achievements and relevant keywords:
-        """
-        
-        enhanced_data['ai_experience_enhancement'] = generate_content_with_huggingface(exp_prompt, 200)
-    
-    # Generate Key Achievements
-    achievements_prompt = f"""
-    Create 3-4 key achievements for a {user_data.get('role', 'professional')} with these skills:
-    Skills: {user_data.get('skills', '')}
-    Target Role: {job_description[:200]}
-    
-    List measurable achievements with bullet points:
-    """
-    
-    enhanced_data['ai_achievements'] = generate_content_with_huggingface(achievements_prompt, 200)
-    
-    return enhanced_data
+        .steps-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 
-# =============================================================================
-# MAIN STREAMLIT APPLICATION
-# =============================================================================
+    @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
 
-# Load CSS
-try:
-    with open("style.css") as f:
-        st.markdown('<style>' + f.read() + '</style>', unsafe_allow_html=True)
-except FileNotFoundError:
-    st.markdown("""
-    <style>
-    .center-logo { text-align: center; }
-    .stButton > button { width: 100%; }
-    .download-btn { 
-        background: linear-gradient(90deg, #36609B, #4C8449);
-        color: white;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 25px;
-        font-weight: bold;
+        .nav-menu {
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .hero-section {
+            padding: 100px 1.5rem 60px;
+        }
+
+        .hero-title {
+            font-size: 36px;
+        }
+
+        .section-title {
+            font-size: 36px;
+        }
+
+        .cta-title {
+            font-size: 36px;
+        }
+
+        .hero-buttons,
+        .cta-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+            
+
+            /* Pull Streamlit hero buttons into hero section */
+.hero-btn-streamlit {
+    max-width: 520px;
+    margin-top: -260px;   /* THIS is the key line */
+    position: relative;
+    z-index: 20;
+}
+
+/* Button sizing consistency */
+.hero-btn-streamlit [data-testid="stButton"] > button {
+    min-width: 220px;
+    height: 56px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
     }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Initialize session state
-session_keys = ['clicked_btn', 'logged_in', 'name', 'username', 'user_data', 'resume_data', 'job_description']
-for key in session_keys:
-    if key not in st.session_state:
-        st.session_state[key] = None if key in ['name', 'username', 'user_data', 'resume_data', 'job_description'] else False
+# Handle Logout
+if st.query_params.get("logout") == "true":
+    st.session_state.logged_in_user = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.query_params.clear()
+    st.rerun()
 
-# Load users
-if not os.path.exists("users.json"):
-    with open("users.json", "w") as f:
-        json.dump({}, f)
+# Handle Home Navigation
+if st.query_params.get("home") == "true":
+    if "home" in st.query_params:
+        del st.query_params["home"]
+    if st.session_state.logged_in_user:
+        st.query_params["user"] = st.session_state.logged_in_user
+    st.rerun()
 
-with open("users.json", "r") as f:
-    users = json.load(f)
+# Get Current User
+current_user = st.session_state.get('logged_in_user', '')
+is_logged_in = bool(current_user)
 
-# =============================================================================
-# LOGIN/SIGNUP INTERFACE
-# =============================================================================
-
-if not st.session_state.get('logged_in', False):
-    fcol1, scol2 = st.columns([1, 1])
-    
-    with fcol1: 
-        st.markdown('<div class="center-logo">', unsafe_allow_html=True)
-        try:
-            st.image("ask.jpg", use_container_width=True)
-        except:
-            st.markdown("### 🤖 ASK.AI")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with scol2:
-        st.title("ASK.AI Resume Builder")
-        st.markdown("*Create ATS-friendly resumes with AI*")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button('🔑 Sign in', key='sign-inbtn'):
-                st.session_state.clicked_btn = 'signin'
-        with col2:
-            if st.button('📝 Sign up', key='sign-upbtn'):
-                st.session_state.clicked_btn = 'signup'
-
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-
-        if st.session_state.clicked_btn == "signup":
-            if st.button("Create Account", key='create-btn'):
-                if not username or not password:
-                    st.error("Please enter both username and password")
-                elif username in users:
-                    st.error("Username already exists")
-                else:
-                    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-                    users[username] = hashed.decode()
-                    with open("users.json", "w") as f:
-                        json.dump(users, f)
-                    st.success("Account created! Please sign in.")
-
-        elif st.session_state.clicked_btn == "signin":
-            if st.button("Login", key='log-inbtn'):
-                if not username or not password:
-                    st.error("Please enter both username and password")
-                elif username in users and bcrypt.checkpw(password.encode(), users[username].encode()):
-                    st.success(f"Welcome {username}!")
-                    st.session_state['logged_in'] = True
-                    st.session_state['username'] = username
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password")
-
-# =============================================================================
-# MAIN APPLICATION INTERFACE
-# =============================================================================
-
+# Build URLs
+if is_logged_in and current_user:
+    ats_url = f"ats?user={current_user}"
+    qu_url = f"qu?user={current_user}"
+    change_url = f"change?user={current_user}"
+    auth_link = '<a class="nav-link" href="?logout=true" title="Logout" target="_self">⏻</a>'
 else:
-    # Header with logout
-    col1, col2 = st.columns([4, 1])
-    with col1:
-        st.title("🚀 AI Resume Builder")
-        st.markdown(f"*Welcome back, {st.session_state.get('username', 'User')}!*")
-    with col2:
-        if st.button("🚪 Logout"):
-            for key in session_keys:
-                st.session_state[key] = False if key == 'logged_in' else None
-            st.rerun()
+    ats_url = "#features"
+    qu_url = "#how-it-works"
+    change_url = "#change"
+    auth_link = '<a class="nav-link btn-primary" href="#Login" target="_self">Get Started</a>'
 
-    # Step 1: Resume Data Input
-    st.header("📄 Step 1: Resume Information")
-    
-    input_method = st.radio("Choose input method:", ["✍️ Manual Entry", "📁 Upload Resume File"], horizontal=True)
-    
-    user_data = {}
-    
-    if input_method == "✍️ Manual Entry":
-        with st.form("manual_entry"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                name = st.text_input("Full Name *", placeholder="John Smith")
-                role = st.text_input("Target Role *", placeholder="Software Developer")
-                skills = st.text_area("Skills (comma separated) *", 
-                                    placeholder="Python, JavaScript, React, SQL, AWS")
-            
-            with col2:
-                experience = st.text_area("Professional Experience *", 
-                                        placeholder="5+ years of experience in software development...")
-                education = st.text_area("Education", 
-                                        placeholder="Bachelor's in Computer Science, XYZ University")
-                
-            submitted = st.form_submit_button("✅ Save Resume Data")
-            
-            if submitted:
-                if name and role and skills and experience:
-                    user_data = {
-                        'name': name,
-                        'role': role,
-                        'skills': skills,
-                        'experience': experience,
-                        'education': education
-                    }
-                    st.session_state.user_data = user_data
-                    st.success("✅ Resume data saved successfully!")
-                else:
-                    st.error("Please fill in all required fields (*)")
-    
-    else:  # File Upload
-        uploaded_file = st.file_uploader("Upload your resume (PDF/DOCX)", 
-                                       type=["pdf", "docx"],
-                                       help="Upload your existing resume to extract information")
-        
-        if uploaded_file:
-            with st.spinner("📖 Extracting information from your resume..."):
-                if uploaded_file.type == "application/pdf":
-                    extracted_text = extract_text_from_pdf(uploaded_file)
-                else:
-                    extracted_text = extract_text_from_docx(uploaded_file)
-                
-                if extracted_text:
-                    # Parse the extracted content
-                    parsed_data = parse_resume_content(extracted_text)
-                    
-                    # Allow user to edit extracted data
-                    st.subheader("📝 Review and Edit Extracted Information")
-                    
-                    with st.form("edit_extracted"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            name = st.text_input("Full Name", value=parsed_data.get('name', ''))
-                            role = st.text_input("Target Role", value=parsed_data.get('role', ''))
-                            skills = st.text_area("Skills", value=parsed_data.get('skills', ''))
-                        
-                        with col2:
-                            experience = st.text_area("Experience", value=parsed_data.get('experience', ''))
-                            education = st.text_area("Education", value=parsed_data.get('education', ''))
-                        
-                        if st.form_submit_button("✅ Confirm Resume Data"):
-                            user_data = {
-                                'name': name,
-                                'role': role, 
-                                'skills': skills,
-                                'experience': experience,
-                                'education': education
-                            }
-                            st.session_state.user_data = user_data
-                            st.success("✅ Resume data confirmed!")
-                else:
-                    st.error("Could not extract text from the file. Please try manual entry.")
-    
-    # Show current resume data if available
-    if st.session_state.user_data:
-        st.info("✅ Resume data loaded successfully!")
-    
-    # Step 2: Job Description
-    st.header("💼 Step 2: Target Job Description")
-    
-    jd_method = st.radio("Job description input:", ["✍️ Type/Paste", "📁 Upload JD File"], horizontal=True)
-    
-    job_description = ""
-    
-    if jd_method == "📁 Upload JD File":
-        jd_file = st.file_uploader("Upload Job Description (PDF/DOCX)", 
-                                  type=["pdf", "docx"],
-                                  key="jd_upload")
-        
-        if jd_file:
-            with st.spinner("📖 Reading job description..."):
-                if jd_file.type == "application/pdf":
-                    job_description = extract_text_from_pdf(jd_file)
-                else:
-                    job_description = extract_text_from_docx(jd_file)
-                
-                st.success("✅ Job description uploaded!")
-    
-    # Text area for job description (for typing or showing uploaded content)
-    job_description = st.text_area(
-        "Job Description",
-        value=job_description,
-        height=200,
-        placeholder="Paste the job description here or upload a file above...",
-        help="The AI will tailor your resume based on this job description"
-    )
-    
-    if job_description:
-        st.session_state.job_description = job_description
-        st.success("📋 Job description ready!")
-    
-    # Step 3: Resume Generation
-    st.header("🤖 Step 3: Generate AI-Enhanced Resume")
-    
-    if st.session_state.user_data and job_description:
-        
-        # Template and color selection
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            color_theme = st.selectbox(
-                "🎨 Choose Color Theme:",
-                ["Professional Blue", "Corporate Black", "Modern Green", "Creative Purple", "Executive Navy"]
-            )
-        
-        with col2:
-            template_style = st.selectbox(
-                "📋 Template Style:",
-                ["Modern ATS", "Executive", "Creative", "Technical"]
-            )
-        
-        # Generation buttons
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("🚀 Generate AI Resume", type="primary"):
-                with st.spinner("🤖 AI is creating your tailored resume..."):
-                    
-                    # Enhance resume with AI
-                    enhanced_data = enhance_resume_with_ai(st.session_state.user_data, job_description)
-                    st.session_state.resume_data = enhanced_data
-                    
-                    # Show preview
-                    st.success("✅ AI-enhanced resume generated!")
-                    
-                    # Display AI-generated content
-                    st.subheader("🤖 AI-Generated Content Preview")
-                    
-                    with st.expander("📝 Professional Summary", expanded=True):
-                        st.write(enhanced_data.get('ai_summary', 'Not generated'))
-                    
-                    with st.expander("🎯 Enhanced Experience"):
-                        st.write(enhanced_data.get('ai_experience_enhancement', 'Using original'))
-                    
-                    with st.expander("🏆 Key Achievements"):
-                        st.write(enhanced_data.get('ai_achievements', 'Not generated'))
-        
-        with col2:
-            if st.session_state.resume_data:
-                # Create resume builder instance
-                resume_builder = ATSResumeBuilder()
-                
-                # Generate DOCX
-                if st.button("📄 Download DOCX", type="secondary"):
-                    with st.spinner("📝 Creating DOCX resume..."):
-                        doc = resume_builder.create_ats_resume(
-                            st.session_state.resume_data, 
-                            color_theme, 
-                            template_style
-                        )
-                        
-                        # Save to bytes
-                        docx_buffer = BytesIO()
-                        doc.save(docx_buffer)
-                        docx_buffer.seek(0)
-                        
-                        # Create download button
-                        st.download_button(
-                            label="📥 Download Resume.docx",
-                            data=docx_buffer.getvalue(),
-                            file_name=f"{st.session_state.resume_data.get('name', 'Resume').replace(' ', '_')}_ATS_Resume.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
-                
-                # Generate PDF
-                if st.button("📄 Download PDF", type="secondary"):
-                    with st.spinner("📝 Creating PDF resume..."):
-                        pdf_buffer = create_pdf_resume(st.session_state.resume_data, color_theme)
-                        
-                        st.download_button(
-                            label="📥 Download Resume.pdf",
-                            data=pdf_buffer.getvalue(),
-                            file_name=f"{st.session_state.resume_data.get('name', 'Resume').replace(' ', '_')}_ATS_Resume.pdf",
-                            mime="application/pdf"
-                        )
-    
-    else:
-        st.warning("⚠️ Please complete Steps 1 and 2 before generating your resume.")
-        
-        if not st.session_state.user_data:
-            st.error("❌ Resume information missing")
-        if not job_description:
-            st.error("❌ Job description missing")
-    
-    # Step 4: Resume Preview (if generated)
-    if st.session_state.resume_data:
-        st.header("👀 Step 4: Resume Preview")
-        
-        preview_data = st.session_state.resume_data
-        
-        # Create preview container
-        with st.container():
-            st.markdown("### 📋 Your ATS-Optimized Resume Preview")
-            
-            # Header preview
-            st.markdown(f"""
-            <div style='text-align: center; padding: 20px; border: 2px solid #ddd; border-radius: 10px; margin: 10px 0;'>
-                <h2 style='color: #36609B; margin: 0;'>{preview_data.get('name', '').upper()}</h2>
-                <h4 style='color: #666; margin: 5px 0;'>{preview_data.get('role', '')}</h4>
-                <p style='margin: 5px 0;'>📧 professional@email.com | 📞 (555) 123-4567</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Content sections
-            sections = [
-                ("PROFESSIONAL SUMMARY", preview_data.get('ai_summary', '')),
-                ("CORE COMPETENCIES", preview_data.get('skills', '')),
-                ("PROFESSIONAL EXPERIENCE", preview_data.get('ai_experience_enhancement', preview_data.get('experience', ''))),
-                ("EDUCATION", preview_data.get('education', '')),
-                ("KEY ACHIEVEMENTS", preview_data.get('ai_achievements', ''))
-            ]
-            
-            for title, content in sections:
-                if content:
-                    st.markdown(f"""
-                    <div style='margin: 15px 0;'>
-                        <h4 style='color: #36609B; border-bottom: 2px solid #36609B; padding-bottom: 5px;'>{title}</h4>
-                        <p style='margin: 10px 0; line-height: 1.6;'>{content}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-    
-    # Sidebar with tips and info
-    with st.sidebar:
-        st.markdown("### 💡 Resume Tips")
-        st.info("""
-        **ATS-Friendly Features:**
-        - ✅ Clean formatting
-        - ✅ Standard fonts
-        - ✅ Keyword optimization
-        - ✅ Proper section headers
-        - ✅ No complex layouts
-        """)
-        
-        st.markdown("### 🤖 AI Features")
-        st.success("""
-        **AI Enhancements:**
-        - 📝 Tailored summaries
-        - 🎯 Job-specific keywords
-        - 🏆 Achievement generation
-        - 📊 Content optimization
-        - ⚡ Lightning fast
-        """)
-        
-        st.markdown("### 🎨 Customization")
-        st.warning("""
-        **Available Options:**
-        - 5 color themes
-        - Multiple templates
-        - DOCX & PDF formats
-        - Mobile responsive
-        - Professional layouts
-        """)
-        
-        if st.session_state.resume_data:
-            st.markdown("### 📊 Resume Stats")
-            data = st.session_state.resume_data
-            
-            # Calculate some basic stats
-            word_count = len(data.get('ai_summary', '').split()) + len(data.get('experience', '').split())
-            skill_count = len([s.strip() for s in data.get('skills', '').split(',') if s.strip()])
-            
-            st.metric("Total Words", word_count)
-            st.metric("Skills Listed", skill_count)
-            st.metric("Sections", len([s for s in [data.get('ai_summary'), data.get('skills'), data.get('experience'), data.get('education')] if s]))
-    
-    # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center; color: #666; padding: 20px;'>
-        <h4>🚀 ASK.AI Resume Builder</h4>
-        <p>Create professional, ATS-friendly resumes with AI assistance</p>
-        <p><strong>Features:</strong> AI Content Generation • ATS Optimization • Multiple Formats • Custom Themes</p>
+# Navigation Bar
+st.markdown(f"""
+<div class="nav-wrapper">
+    <div class="nav-container">
+        <div class="logo">CVmate</div>
+        <div class="nav-menu">
+            <a class="nav-link" href="#features">Features</a>
+            <a class="nav-link" href="#how-it-works">How It Works</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
+            {auth_link}
+        </div>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
+
+
+# Hero Section
+st.markdown("""
+<div class="hero-section" id="Home">
+    <div class="hero-container">
+        <div class="hero-content">
+            <div class="hero-badge">AI-Powered Resume Builder</div>
+            <h1 class="hero-title">
+                Create <span class="gradient-text">ATS-Optimized</span> Resumes in Minutes
+            </h1>
+            <p class="hero-subtitle">
+                Transform your career with AI-powered resume generation, ATS score checking, and intelligent assistant that helps you land your dream job.
+            </p>
+            <div class="hero-buttons" id="hero-btn-container">
+                <!-- Buttons will be inserted here by JavaScript -->
+            </div>
+        </div>
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop" alt="Resume Creation">
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Create Streamlit Buttons (Hidden with CSS)
+# Hero Buttons (Streamlit layer)
+with st.container():
+    st.markdown('<div class="hero-btn-streamlit">', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        create_resume_clicked = st.button(
+            "Create Resume Now →",
+            key="hero-create",
+            use_container_width=True
+        )
+
+    with col2:
+        change_template_clicked = st.button(
+            "Change Template",
+            key="hero-template",
+            use_container_width=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# JavaScript to Move Buttons into Hero Section
+st.markdown("""
+<script>
+    // Function to move buttons with better styling
+    function moveHeroButtons() {
+        const container = document.getElementById('hero-btn-container');
+        if (!container) {
+            console.log('Hero container not found');
+            return false;
+        }
+        
+        // Find all buttons in the first set of columns
+        const allButtons = document.querySelectorAll('[data-testid="stButton"] button');
+        
+        if (allButtons.length < 3) {
+            console.log('Not enough buttons found:', allButtons.length);
+            return false;
+        }
+        
+        // Get the first 3 buttons (hero buttons)
+        const createBtn = allButtons[0];
+        const templateBtn = allButtons[2];
+        
+        // Check if buttons already moved
+        if (container.querySelector('button')) {
+            console.log('Buttons already in container');
+            return true;
+        }
+        
+        if (createBtn && learnBtn && templateBtn) {
+            // Apply classes
+            createBtn.className = 'btn btn-primary';
+            templateBtn.className = 'btn btn-secondary';
+            
+            // Ensure proper display
+            [createBtn, learnBtn, templateBtn].forEach(btn => {
+                btn.style.display = 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.minWidth = '200px';
+            });
+            
+            // Move to container
+            container.appendChild(createBtn);
+            container.appendChild(templateBtn);
+            
+            console.log('Hero buttons moved successfully!');
+            return true;
+        }
+        
+        console.log('Buttons found but not moved');
+        return false;
+    }
+    
+    // Try multiple times with increasing delays
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    function tryMoveButtons() {
+        attempts++;
+        const success = moveHeroButtons();
+        
+        if (!success && attempts < maxAttempts) {
+            setTimeout(tryMoveButtons, 100 * attempts);
+        }
+    }
+    
+    // Start trying
+    tryMoveButtons();
+    
+    // Also try when Streamlit finishes rendering
+    window.addEventListener('load', moveHeroButtons);
+    
+    // Smooth scroll for Learn More
+    document.addEventListener('click', (e) => {
+        const btnText = e.target.textContent.trim();
+        if (btnText === 'Learn More') {
+            e.preventDefault();
+            const features = document.getElementById('features');
+            if (features) {
+                features.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    });
+</script>
+""", unsafe_allow_html=True)
+
+# Features Section
+st.markdown("""
+<div class="features-section" id="features">
+    <div class="features-container">
+        <div class="section-header">
+            <div class="section-badge">Features</div>
+            <h2 class="section-title">Everything You Need to Stand Out</h2>
+            <p class="section-subtitle">
+                Powerful tools designed to help you create professional, ATS-optimized resumes that get you noticed.
+            </p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3 class="feature-title">AI-Powered Generation</h3>
+                <p class="feature-description">
+                    Our AI analyzes job descriptions and automatically tailors your resume to match the requirements, increasing your chances of getting hired.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">ATS Score Checker</h3>
+                <p class="feature-description">
+                    Check your resume's ATS compatibility score and get instant feedback on how to improve it for better visibility to recruiters.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h3 class="feature-title">AI Chat Assistant</h3>
+                <p class="feature-description">
+                    Get personalized advice and suggestions from our AI assistant to enhance your resume content and presentation.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📄</div>
+                <h3 class="feature-title">Multiple Export Formats</h3>
+                <p class="feature-description">
+                    Download your resume in HTML, DOCX, or PDF formats - perfectly formatted and ready to send to employers.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3 class="feature-title">Professional Templates</h3>
+                <p class="feature-description">
+                    Choose from a variety of professionally designed templates that are both visually appealing and ATS-friendly.
+                </p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3 class="feature-title">Job-Specific Optimization</h3>
+                <p class="feature-description">
+                    Upload a job description and let our AI optimize your resume to match the specific role you're applying for.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# How It Works Section
+st.markdown("""
+<div class="steps-section" id="how-it-works">
+    <div class="steps-container">
+        <div class="section-header">
+            <div class="section-badge">How It Works</div>
+            <h2 class="section-title">Create Your Perfect Resume in 3 Steps</h2>
+            <p class="section-subtitle">
+                Our streamlined process makes it easy to create a professional, job-winning resume.
+            </p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <h3 class="step-title">Input Your Information</h3>
+                <p class="step-description">
+                    Upload your existing resume or enter your details manually. Add your experience, skills, and education.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <h3 class="step-title">Add Job Description</h3>
+                <p class="step-description">
+                    Paste the job description you're targeting. Our AI analyzes it to tailor your resume perfectly.
+                </p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <h3 class="step-title">Generate & Download</h3>
+                <p class="step-description">
+                    Get your ATS-optimized resume instantly. Download in your preferred format and apply with confidence.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+col3,  col5 = st.columns(2)
+with col3:
+    cta_start_clicked = st.button("Start Building Now →", key="cta-start-btn", use_container_width=True)
+with col5:
+    template_clicked = st.button("Change Template", key="template-btn", use_container_width=True)
+
+# CTA Buttons
+st.markdown("---")  # Spacer
+# CTA Section
+# st.markdown("""
+# <div class="cta-section">
+#     <div class="cta-container">
+#         <h2 class="cta-title">Ready to Land Your Dream Job?</h2>
+#         <p class="cta-subtitle">
+#             Join thousands of professionals who have successfully created ATS-optimized resumes with our AI-powered platform.
+#         </p>
+#         <div class="cta-buttons" id="cta-btn-container"></div>
+#     </div>
+# </div>
+# """, unsafe_allow_html=True)
+
+
+
+# JavaScript to Move CTA Buttons
+st.markdown("""
+<script>
+    // Function to move CTA buttons
+    function moveCTAButtons() {
+        const ctaContainer = document.getElementById('cta-btn-container');
+        if (!ctaContainer) {
+            console.log('CTA container not found');
+            return false;
+        }
+        
+        // Get all buttons
+        const allButtons = document.querySelectorAll('[data-testid="stButton"] button');
+        
+        if (allButtons.length < 6) {
+            console.log('Not enough buttons for CTA:', allButtons.length);
+            return false;
+        }
+        
+        // Check if CTA buttons already moved
+        if (ctaContainer.querySelector('button')) {
+            console.log('CTA buttons already in container');
+            return true;
+        }
+        
+        // Get buttons 4, 5, 6 (CTA section)
+        const ctaStartBtn = allButtons[3];
+        const ctaTemplateBtn = allButtons[5];
+        
+        if (ctaStartBtn && ctaExploreBtn && ctaTemplateBtn) {
+            // Apply classes
+            ctaStartBtn.className = 'btn btn-white';
+            ctaTemplateBtn.className = 'btn btn-outline';
+            
+            // Ensure proper display
+            [ctaStartBtn, ctaTemplateBtn].forEach(btn => {
+                btn.style.display = 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.minWidth = '200px';
+            });
+            
+            // Move to container
+            ctaContainer.appendChild(ctaStartBtn);
+            ctaContainer.appendChild(ctaTemplateBtn);
+            
+            console.log('CTA buttons moved successfully!');
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // Try multiple times
+    let ctaAttempts = 0;
+    const maxCtaAttempts = 10;
+    
+    function tryMoveCTAButtons() {
+        ctaAttempts++;
+        const success = moveCTAButtons();
+        
+        if (!success && ctaAttempts < maxCtaAttempts) {
+            setTimeout(tryMoveCTAButtons, 100 * ctaAttempts);
+        }
+    }
+    
+    // Start trying after a delay (to ensure hero buttons are done first)
+    setTimeout(tryMoveCTAButtons, 500);
+    
+    // Also try on load
+    window.addEventListener('load', () => {
+        setTimeout(moveCTAButtons, 100);
+    });
+</script>
+""", unsafe_allow_html=True)
+
+# Footer
+st.markdown("""
+<div class="footer">
+    <div class="footer-container">
+        <div class="footer-logo">CVmate</div>
+        <p class="footer-text">
+            © 2024 ResumeAI. AI-Powered Resume Builder. All rights reserved.
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Handle Button Clicks
+if create_resume_clicked or cta_start_clicked:
+    if st.session_state.logged_in_user is None:
+        st.warning("🔒 Please login first to create a resume.")
+        st.session_state.show_login_modal = True
+    else:
+        email = st.session_state.logged_in_user
+        users = load_users()
+        user_entry = users.get(email)
+        
+        st.query_params["user"] = email
+        
+        if isinstance(user_entry, dict):
+            st.session_state.username = email.split('@')[0]
+            user_resume = get_user_resume(email)
+            
+            if user_resume and len(user_resume) > 0:
+                st.session_state.resume_source = user_resume
+                st.session_state.input_method = user_resume.get("input_method", "Manual Entry")
+                st.switch_page("pages/job.py")
+            else:
+                st.switch_page("pages/main.py")
+        else:
+            st.switch_page("pages/main.py")
+
+# Handle Change Template Button
+if change_template_clicked or template_clicked:
+    if st.session_state.logged_in_user is None:
+        st.warning("🔒 Please login first to view templates.")
+        st.session_state.show_login_modal = True
+    else:
+        st.session_state.from_template_button = True
+        st.switch_page("pages/change.py")
+
+# Show Login Modal if Not Logged In
+if st.session_state.logged_in_user is None:
+    st.markdown('<div id="Login"></div>', unsafe_allow_html=True)
+    show_login_modal()
+    st.stop()
+
+# Show Chatbot for Logged In Users
+if is_logged_in:
+    email = st.session_state.logged_in_user
+    if not st.query_params.get("user"):
+        st.query_params["user"] = email
+    
+    user_resume = get_user_resume(email)
+    has_resume = user_resume and len(user_resume) > 0
+    
+    # You can uncomment this to show chatbot
+    chatbot(user_resume)

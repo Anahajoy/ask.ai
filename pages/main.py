@@ -1,7 +1,41 @@
 import streamlit as st
-from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_text, get_all_skills_from_llm, get_all_roles_from_llm
+from pathlib import Path
+import json
+import time
 
-# Initialize session state
+from utils import (
+    is_valid_email,
+    is_valid_phone,
+    extract_text_from_pdf,
+    extract_text_from_docx,
+    extract_details_from_text,
+    save_user_resume,
+    load_skills_from_json
+)
+
+from streamlit_extras.stylable_container import stylable_container
+
+st.set_page_config(
+    page_title="Cvmate  Resume Builder",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+    else:
+        st.warning("Please login first!")
+        st.switch_page("app.py")
+
+
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
+
+current_user = st.session_state.get('logged_in_user', '')
+
+
 if "exp_indices" not in st.session_state:
     st.session_state.exp_indices = [0]
 if "edu_indices" not in st.session_state:
@@ -11,761 +45,1655 @@ if "cert_indices" not in st.session_state:
 if "project_indices" not in st.session_state:
     st.session_state.project_indices = [0]
 
-# Custom CSS for improved UI with black, white, grey theme
+if "saved_personal_info" not in st.session_state:
+    st.session_state.saved_personal_info = {}
+if "saved_experiences" not in st.session_state:
+    st.session_state.saved_experiences = {}
+if "saved_education" not in st.session_state:
+    st.session_state.saved_education = {}
+if "saved_certificates" not in st.session_state:
+    st.session_state.saved_certificates = {}
+if "saved_projects" not in st.session_state:
+    st.session_state.saved_projects = {}
+
+if "custom_indices" not in st.session_state:
+    st.session_state.custom_indices = [0]
+if "saved_custom_sections" not in st.session_state:
+    st.session_state.saved_custom_sections = {}
+
+# ============================
+# COMMON BUTTON STYLE
+# ============================
+BUTTON_STYLE = """
+    button {
+        background-color: #ffffff !important;
+        color: #e87532 !important;
+        padding: 12px 28px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #e87532 !important;
+    }
+    button:hover {
+        background-color:#e87532 !important;
+        color: #ffffff !important;
+    }
+"""
+
+SAVE_STYLE = """
+    button {
+        background-color: #93C47D !important;
+        color: #FFFFFF !important;
+        padding: 12px 2px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #93C47D !important;
+        width: 300px !important;
+        margin-left:200px !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #93C47D !important;
+    }
+"""
+SAVEPER_STYLE = """
+    button {
+        background-color: #93C47D !important;
+        color: #FFFFFF !important;
+        padding: 12px 2px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #93C47D !important;
+        width: 300px !important;
+        margin-left:50px !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #93C47D !important;
+    }
+"""
+REMOVE_STYLE = """
+    button {
+        background-color: #FF6A4C !important;
+        color: #FFFFFF !important;
+        padding: 12px 28px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #FF6A4C !important;
+        width: 300px !important; 
+        margin-left:00px !important;
+        
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #FF6A4C !important;
+    }
+"""
+
+ADD_STYLE = """
+    button {
+        background-color: #9FC0DE !important;
+        color: #FFFFFF !important;
+        padding: 12px 28px !important;
+        border-radius: 50px !important;
+        font-weight: 600 !important;
+        border: 2px solid #9FC0DE !important;
+        width: 300px !important; 
+        margin-left:100px !important;
+    }
+    button:hover {
+        background-color:#FFFFFF !important;
+        color: #9FC0DE !important;
+    }
+"""
+
+PRIMARY_LARGE_BUTTON_STYLE = """
+    button {
+        background-color: #e87532 !important;
+        color: #ffffff !important;
+        padding: 14px 40px !important;
+        border-radius: 50px !important;
+        font-weight: 700 !important;
+        border: 2px solid #e87532 !important;
+        font-size: 1rem !important;
+    }
+    button:hover {
+        background-color:#ffffff !important;
+        color: #e87532 !important;
+    }
+"""
+
+# ============================
+# PAGE STYLE (NO BUTTON CSS HERE)
+# ============================
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+    /* ==================== RESET ==================== */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+        max-width: 1100px !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
+    }
+
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
+    }
+
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
+
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:hover {
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    /* ==================== PAGE HEADER ==================== */
+    .page-header {
+        text-align: center;
+        margin: 120px 0 3rem;
+    }
+
+    .page-badge {
+        display: inline-block;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .page-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .page-subtitle {
+        font-size: 17px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+        max-width: 600px;
+        margin-left: 200px !important;
+    }
+
+    /* ==================== RADIO BUTTONS ==================== */
+    .stRadio {
+        margin: 2rem 0 !important;
+    }
+    
+    .stRadio > label {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .stRadio > div {
+        display: flex !important;
+        gap: 1.5rem !important;
+        justify-content: center !important;
+    }
+
+    .stRadio > div > label {
+        background: var(--bg-secondary);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        border: 2px solid var(--border);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        margin: 0 !important;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        min-width: 180px;
+    }
+    
+    .stRadio > div > label:hover {
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+    }
+    
+    .stRadio > div > label > div:first-child {
+        display: none !important;
+    }
+    
+    .stRadio > div > label > div:last-child {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        white-space: nowrap !important;
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) {
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 140, 90, 0.1));
+        border-color: var(--primary);
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) > div:last-child {
+        color: var(--primary) !important;
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked)::before {
+        content: '✓';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    /* ==================== TABS ==================== */
+    .tabs-wrapper {
+        display: flex;
+        gap: 0.5rem;
+        margin: 2rem 0;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    [data-testid="column"] {
+        padding: 0 !important;
+    }
+
+    [data-testid="stButton"] {
+        width: 100% !important;
+    }
+
+    [data-testid="stButton"] > button {
+        width: 100% !important;
+        background: var(--bg-secondary) !important;
+        color: var(--text-secondary) !important;
+        border: 2px solid var(--border) !important;
+        border-radius: 10px !important;
+        padding: 12px 16px !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        transition: all 0.3s ease !important;
+        white-space: nowrap !important;
+    }
+
+    [data-testid="stButton"] > button:hover {
+        border-color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.05) !important;
+        color: var(--primary) !important;
+    }
+
+    [data-testid="stButton"] > button[kind="primary"] {
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
+        color: white !important;
+        border-color: var(--primary) !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
+    }
+
+    [data-testid="stButton"] > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, var(--primary-dark), var(--primary)) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--shadow) !important;
+    }
+
+    /* ==================== PROGRESS BAR ==================== */
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 2rem 0 1rem;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+        transition: width 0.5s ease;
+        border-radius: 10px;
+    }
+
+    /* ==================== FORM ELEMENTS ==================== */
+    label, .stApp label {
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div,
+    .stMultiSelect > div > div {
+        background: var(--bg-secondary) !important;
+        border: 2px solid var(--border) !important;
+        border-radius: 10px !important;
+        color: var(--text-primary) !important;
+        padding: 0.75rem !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div:focus-within,
+    .stMultiSelect > div > div:focus-within {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
+    }
+
+    /* ==================== SECTION HEADERS ==================== */
+    .section-header {
+        text-align: center;
+        color: var(--primary);
+        font-size: 20px;
+        font-weight: 700;
+        margin: 3rem 0 2rem;
+        font-family: 'Archivo', sans-serif;
+    }
+
+    .section-divider {
+        width: 80px;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        margin: 0.5rem auto 2rem;
+    }
+
+    /* ==================== FILE UPLOADER ==================== */
+        /* File uploader */
+    .stFileUploader {
+        background: var(--bg-primary);
+        border: 3px dashed var(--border);
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        transition: all 0.4s ease;
+        text-align: center;
+        margin: 2rem 0 !important;
+    }
+
+    .stFileUploader:hover {
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.03);
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.1);
+    }
+
+    .stFileUploader section button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 12px 28px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stFileUploader section button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--shadow) !important;
+    }
+    /* ==================== ALERTS ==================== */
+    .stSuccess, .stError, .stWarning, .stInfo {
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        animation: slideInRight 0.5s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .stSuccess {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-left: 4px solid var(--success) !important;
+    }
+
+    .stError {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border-left: 4px solid var(--error) !important;
+    }
+
+    .stWarning {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border-left: 4px solid var(--warning) !important;
+    }
+
+    .stInfo {
+        background: rgba(59, 130, 246, 0.1) !important;
+        border-left: 4px solid #3b82f6 !important;
+    }
+
+    /* ==================== LOADER ==================== */
+    #overlay-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loader-spinner {
+        border: 5px solid rgba(255, 107, 53, 0.2);
+        border-top: 5px solid var(--primary);
+        border-radius: 50%;
+        width: 70px;
+        height: 70px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    #overlay-loader p {
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
+
+        .page-title {
+            font-size: 32px;
+        }
+
+        .stRadio > div {
+            flex-direction: column !important;
+        }
+
+        .tabs-wrapper {
+            overflow-x: scroll;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Build URLs
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
+change_url = f"change?user={current_user}"
+home_url = f"/?user={current_user}"
+jd_url = f"job?user={current_user}"
+
+# Navigation Bar
+st.markdown(f"""
+<div class="nav-wrapper">
+    <div class="nav-container">
+        <div class="logo">CVmate</div>
+        <div class="nav-menu">
+            <a class="nav-link" href="{home_url}" target="_self">Home</a>
+            <a class="nav-link" href="{jd_url}" target="_self">Add JD</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
+            <a class="nav-link" href="?logout=true" target="_self">⏻</a>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Handle logout
+if st.query_params.get("logout") == "true":
+    st.session_state.logged_in_user = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.query_params.clear()
+    st.switch_page("app.py")
+
+
 st.markdown("""
 <style>
-    /* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
-/* Global Styles */
-* {
-    font-family: 'Inter', sans-serif;
+/* ==================== MAIN WRAPPER ==================== */
+.ats-main-wrapper {
+    min-height: 30vh;
+    background: linear-gradient(135deg, #fff9f5 0%, #ffffff 50%, #fff5f0 100%);
+    padding: 110px 0 40px;
+    position: relative;
 }
 
-/* Main App Background */
-.stApp {
-    background: linear-gradient(135deg, rgba(0,0,0,0.85) 0%, rgba(26,26,26,0.9) 100%),
-                url('https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?q=80&w=1920&auto=format&fit=crop') center/cover fixed;
-    min-height: 100vh;
+.ats-main-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: radial-gradient(ellipse at top, rgba(232, 117, 50, 0.06) 0%, transparent 70%);
+    pointer-events: none;
 }
 
-/* Main Container - Centralized */
-.main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1.5rem;
-}
-
-.block-container {
-    max-width: 1200px;
-    padding: 2rem 3rem;
-    margin: 0 auto;
-}
-
-/* Header Section - Glassmorphism */
-.header-container {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 2.5rem;
+.ats-hero {
+    text-align: center;
     margin-bottom: 2.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
+    z-index: 1;
 }
 
-/* Title Styling */
-h1 {
-    color: #FFFFFF !important;
-    font-weight: 800 !important;
-    margin-bottom: 0.5rem !important;
-    font-size: 2.5rem !important;
-    letter-spacing: -0.5px !important;
-}
-
-/* Subtitle/Welcome Text */
-.welcome-text {
-    color: #FFFFFF;
-    font-size: 1.05rem;
-    margin-bottom: 0;
-    font-weight: 400;
-    line-height: 1.6;
-}
-
-.welcome-text strong {
-    color: #1a1a1a;
+.ats-hero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #fff5f0 0%, #ffe8d6 100%);
+    color: #e87532;
+    padding: 6px 20px;
+    border-radius: 50px;
+    font-size: 0.75rem;
     font-weight: 600;
-}
-
-/* Logout Button - Premium Style */
-.stButton > button[key="log-outbtn"] {
-    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%) !important;
-    color: white !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 12px !important;
-    padding: 0.75rem 2rem !important;
-    font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-    height: auto !important;
-    min-width: 120px !important;
-    letter-spacing: 0.3px !important;
-}
-
-.stButton > button[key="log-outbtn"]:hover {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
-}
-
-/* Content Cards - Glassmorphism */
-.content-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    padding: 2.5rem;
-    margin-bottom: 2.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-/* Section Headers */
-h2 {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    margin-top: 2.5rem !important;
-    margin-bottom: 1.5rem !important;
-    font-size: 1.75rem !important;
-    letter-spacing: -0.3px !important;
-    display: flex;
-    align-items: center;
-}
-
-h3 {
-    color: #1a1a1a !important;
-    font-weight: 600 !important;
-    margin-top: 1.5rem !important;
-    margin-bottom: 1rem !important;
-    font-size: 1.25rem !important;
-}
-
-/* Section Number Badge */
-.section-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    font-weight: 700;
-    font-size: 1.1rem;
-    margin-right: 15px;
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
-}
-
-/* Radio Buttons - Enhanced */
-.stRadio > label {
-    font-weight: 600 !important;
-    color: #ffffff !important;
-    font-size: 1.05rem !important;
-    margin-bottom: 1rem !important;
-}
-
-.stRadio > div {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    padding: 1.5rem;
-    border-radius: 16px;
-    gap: 1.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.stRadio > div > label {
-    background: rgba(255, 255, 255, 0.5) !important;
-    border: 2px solid rgba(26, 26, 26, 0.1) !important;
-    border-radius: 12px !important;
-    padding: 1rem 2rem !important;
-    transition: all 0.3s ease !important;
-    font-weight: 500 !important;
-    font-size: 1rem !important;
-    cursor: pointer !important;
-}
-
-.stRadio > div > label:hover {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: #ff6b35 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
-}
-
-.stRadio > div > label[data-checked="true"] {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
-    border-color: #ff6b35 !important;
-    color: white !important;
-    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
-}
-
-/* Input Fields - Modern & Larger */
-.stTextInput > div > div > input,
-.stSelectbox > div > div > div,
-.stMultiSelect > div > div,
-.stDateInput > div > div > input {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border: 2px solid rgba(26, 26, 26, 0.1) !important;
-    border-radius: 12px !important;
-    padding: 1rem 1.25rem !important;
-    font-size: 1rem !important;
-    transition: all 0.3s ease !important;
-    color: #1a1a1a !important;
-    font-weight: 400 !important;
-}
-
-.stTextInput > div > div > input:focus,
-.stSelectbox > div > div > div:focus-within,
-.stMultiSelect > div > div:focus-within,
-.stDateInput > div > div > input:focus {
-    border-color: #ff6b35 !important;
-    background: white !important;
-    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1) !important;
-    transform: translateY(-1px);
-}
-
-.stTextInput > div > div > input::placeholder {
-    color: #9ca3af !important;
-    opacity: 1 !important;
-}
-
-/* Labels - Enhanced */
-.stTextInput > label,
-.stSelectbox > label,
-.stMultiSelect > label,
-.stDateInput > label,
-.stRadio > label {
-    font-weight: 600 !important;
-    color: #ffffff !important;
-    font-size: 0.95rem !important;
-    margin-bottom: 0.6rem !important;
-    letter-spacing: 0.2px !important;
-}
-
-/* Experience/Education Cards */
-.experience-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(249, 250, 251, 0.95) 100%);
-    backdrop-filter: blur(20px);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 1.5rem;
-    border: 2px solid rgba(255, 107, 53, 0.1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-    transition: all 0.3s ease;
-}
-
-.experience-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-    border-color: rgba(255, 107, 53, 0.2);
-}
-
-.card-badge {
-    color: #ff6b35;
-    font-size: 0.9rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(232, 117, 50, 0.2);
 }
 
-/* Add Buttons - Eye-catching */
-.stButton > button[key^="add_"] {
-    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 1rem 2rem !important;
-    font-weight: 600 !important;
-    font-size: 1rem !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
-    letter-spacing: 0.3px !important;
+.ats-main-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0a0f14;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    letter-spacing: -1px;
 }
 
-.stButton > button[key^="add_"]:hover {
-    background: linear-gradient(135deg, #333333 0%, #1a1a1a 100%) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+.ats-main-title .highlight {
+    background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-/* Remove Buttons */
-.stButton > button[key^="remove_"] {
-    background: rgba(255, 68, 68, 0.1) !important;
-    color: #dc2626 !important;
-    border: 2px solid rgba(220, 38, 38, 0.2) !important;
-    border-radius: 10px !important;
-    padding: 0.6rem 1rem !important;
-    font-weight: 600 !important;
-    font-size: 0.9rem !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-}
-
-.stButton > button[key^="remove_"]:hover {
-    background: #dc2626 !important;
-    color: white !important;
-    border-color: #dc2626 !important;
-    transform: scale(1.05);
-}
-
-/* Submit/Generate Buttons - Hero Style */
-.stButton > button[key$="-btn"] {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 14px !important;
-    padding: 1.25rem 3rem !important;
-    font-size: 1.1rem !important;
-    font-weight: 700 !important;
-    width: 100% !important;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 8px 24px rgba(255, 107, 53, 0.35) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1px !important;
-}
-
-.stButton > button[key$="-btn"]:hover {
-    background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%) !important;
-    transform: translateY(-3px) !important;
-    box-shadow: 0 12px 32px rgba(255, 107, 53, 0.45) !important;
-}
-
-.stButton > button[key$="-btn"]:active {
-    transform: translateY(-1px) !important;
-}
-
-/* File Uploader - Attractive */
-.stFileUploader {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border: 3px dashed rgba(255, 107, 53, 0.3);
-    border-radius: 16px;
-    padding: 3rem;
-    transition: all 0.3s ease;
-}
-
-.stFileUploader:hover {
-    border-color: #ff6b35;
-    background: white;
-    box-shadow: 0 8px 24px rgba(255, 107, 53, 0.15);
-}
-
-.stFileUploader label {
-    color: #1a1a1a !important;
-    font-weight: 600 !important;
-    font-size: 1.05rem !important;
-}
-
-/* Text Area */
-.stTextArea > div > div > textarea {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border: 2px solid rgba(26, 26, 26, 0.1) !important;
-    border-radius: 12px !important;
-    font-family: 'Courier New', monospace !important;
-    color: #1a1a1a !important;
-    font-size: 0.95rem !important;
-    padding: 1rem !important;
-}
-
-.stTextArea > div > div > textarea:focus {
-    border-color: #ff6b35 !important;
-    box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1) !important;
-}
-
-/* Divider */
-hr {
-    border: none !important;
-    height: 2px !important;
-    background: linear-gradient(90deg, transparent, rgba(255, 107, 53, 0.3), transparent) !important;
-    margin: 3rem 0 !important;
-}
-
-/* Success/Error Messages */
-.stSuccess {
-    background: rgba(16, 185, 129, 0.1) !important;
-    border: 2px solid #10b981 !important;
-    border-radius: 12px !important;
-    color: #065f46 !important;
-    padding: 1rem 1.5rem !important;
-    font-weight: 500 !important;
-}
-
-.stError {
-    background: rgba(239, 68, 68, 0.1) !important;
-    border: 2px solid #ef4444 !important;
-    border-radius: 12px !important;
-    color: #991b1b !important;
-    padding: 1rem 1.5rem !important;
-    font-weight: 500 !important;
-}
-
-.stWarning {
-    background: rgba(245, 158, 11, 0.1) !important;
-    border: 2px solid #f59e0b !important;
-    border-radius: 12px !important;
-    color: #92400e !important;
-    padding: 1rem 1.5rem !important;
-    font-weight: 500 !important;
-}
-
-/* Spinner */
-.stSpinner > div {
-    border-color: #ff6b35 transparent transparent transparent !important;
-}
-
-/* Multi-select Tags */
-.stMultiSelect span[data-baseweb="tag"] {
-    background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%) !important;
-    border-radius: 8px !important;
-    color: white !important;
-    padding: 0.4rem 0.8rem !important;
-    font-weight: 500 !important;
-    font-size: 0.9rem !important;
-}
-
-.stMultiSelect button[aria-label*="Remove"] {
-    color: rgba(255, 255, 255, 0.8) !important;
-}
-
-.stMultiSelect button[aria-label*="Remove"]:hover {
-    color: white !important;
-}
-
-/* Columns Equal Height */
-[data-testid="column"] {
-    display: flex;
-    flex-direction: column;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    .block-container {
-        padding: 1.5rem 1rem;
-    }
-    
-    h1 {
-        font-size: 2rem !important;
-    }
-    
-    h2 {
-        font-size: 1.5rem !important;
-    }
-    
-    .section-number {
-        width: 35px;
-        height: 35px;
-        font-size: 1rem;
-    }
-    
-    .experience-card {
-        padding: 1.5rem;
-    }
-}
-
-/* Hide Streamlit Branding */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-
-/* Scrollbar Styling */
-::-webkit-scrollbar {
-    width: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+.ats-hero-description {
+    font-size: 1rem;
+    color: #64748b;
+    max-width: 600px;
+    margin-left: 220px !important; */
+    line-height: 1.6;
+    font-weight: 400;
 }
 </style>
 """, unsafe_allow_html=True)
 
+ 
+st.markdown("""
+<div class="ats-main-wrapper">
+    <div class="ats-hero">
+        <div class="ats-hero-badge">Step 1 of 3</div>
+        <h1 class="ats-main-title">Build Your <span class="highlight">Resume</span></h1>
+        <p class="ats-hero-description">
+            Choose how you'd like to provide your information - manually enter details or upload an existing resume
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Header Section
-col1, col2 = st.columns([5, 1])
-with col1:
-    st.title("Create Your Resume")
-    st.markdown(f'<p class="welcome-text">Welcome back, <strong>{st.session_state.get("username", "User")}</strong>! Let\'s build your professional resume.</p>', unsafe_allow_html=True)
-with col2:
-    if st.button("Logout", key="log-outbtn"):
-        st.switch_page("login.py")
 
-st.markdown("<br>", unsafe_allow_html=True)
+if st.session_state.logged_in_user:
+    input_method = st.radio(
+        "How would you like to provide your information?",
+        ["Manual Entry", "Upload Resume"],
+        horizontal=True,
+        key="input_method_radio"
+    )
+   
+    user_data = {}
+    professional_experience = []
+    education = []
+    certificate = []
+    project = []
 
-# Step 1 Header
-st.markdown('<h2><span class="section-number">1</span>Choose Input Method</h2>', unsafe_allow_html=True)
-input_method = st.radio(
-    "How would you like to provide your information?",
-    ["Manual Entry", "Upload Resume"],
-    horizontal=True
-)
+    remove_index_edu = None
+    remove_index_cert = None
+    remove_index = None
+    remove_index_project = None
 
-user_data = {}
-remove_index_edu = None
-remove_index_cert = None
-remove_index = None
-remove_index_project = None
-professional_experience = []
-education = []
-certificate = []
-project = []
+    # ====================================================================================
+    # MANUAL ENTRY
+    # ====================================================================================
+    if input_method == "Manual Entry":
+        st.session_state["input_method"] = input_method
+        # Initialize active tab in session state
+        if "active_tab" not in st.session_state:
+            st.session_state.active_tab = "personal"
 
-# Manual Entry Section
-if input_method == "Manual Entry":
-    st.session_state["input_method"] = input_method
-    
-    # Personal Information
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h2><span class="section-number">2</span>Personal Information</h2>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("Full Name *", placeholder="e.g., John Smith")
-        # roles_list = get_all_roles_from_llm()
-        # role = st.multiselect(
-        #     "Target Role *",
-        #     options=roles_list,
-        #     help="Select the job role(s) you're targeting"
-        # )
-        experience = st.text_input("Years of Experience *", placeholder="e.g., 5")
-    
-    with col2:
-        all_skills_list = get_all_skills_from_llm()
-        skills = st.multiselect(
-            "Your Skills *",
-            options=all_skills_list,
-            help="Select all relevant skills",
-            key="general_skills"
-        )
-    
-    st.markdown("---")
-    
-    # Professional Experience
-    st.markdown('<h2><span class="section-number">3</span>Professional Experience</h2>', unsafe_allow_html=True)
-    
-    for idx, i in enumerate(st.session_state.exp_indices):
-        with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">Experience {idx + 1}</p>', unsafe_allow_html=True)
+        # Tab data structure
+        tabs_config = [
+            {"id": "personal", "label": "Personal Info", "icon": "1"},
+            {"id": "experience", "label": "Experience", "icon": "2"},
+            {"id": "education", "label": "Education", "icon": "3"},
+            {"id": "certifications", "label": "Certifications", "icon": "4"},
+            {"id": "projects", "label": "Projects", "icon": "5"},
+            {"id": "custom", "label": "Custom Sections", "icon": "6"},
+        ]
+
+        # Function to change tabs
+        def change_tab(tab_id):
+            st.session_state.active_tab = tab_id
+
+        # Calculate progress
+        def calculate_progress():
+            completed_sections = 0
+            total_sections = 6
             
-            col1, col2, col3 = st.columns([3, 3, 1])
+            if st.session_state.saved_personal_info:
+                completed_sections += 1
+            if st.session_state.saved_experiences:
+                completed_sections += 1
+            if st.session_state.saved_education:
+                completed_sections += 1
+            if st.session_state.saved_certificates:
+                completed_sections += 1
+            if st.session_state.saved_projects:
+                completed_sections += 1
+            if st.session_state.saved_custom_sections:
+                completed_sections += 1
+            
+            return (completed_sections / total_sections) * 100
+            # Render tabs
+        st.markdown('<div class="tab-container">', unsafe_allow_html=True)
+
+        # Progress bar
+        progress = calculate_progress()
+        st.markdown(f"""
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {progress}%"></div>
+        </div>
+        <p style="text-align: center; color: #6b7280; font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Progress: {int(progress)}% Complete
+        </p>
+        """, unsafe_allow_html=True)
+
+        # Render tab buttons
+        st.markdown('<div class="tabs-wrapper">', unsafe_allow_html=True)
+
+        col_tabs = st.columns(len(tabs_config))
+        for idx, tab in enumerate(tabs_config):
+            with col_tabs[idx]:
+                active_class = "active" if st.session_state.active_tab == tab["id"] else ""
+                if st.button(
+                    f"{tab['icon']}  {tab['label']}", 
+                    key=f"tab_{tab['id']}",
+                    width='stretch',
+                    type="secondary" if active_class == "" else "primary"
+                ):
+                    change_tab(tab["id"])
+                    st.rerun()
+
+        st.markdown('</div></div>', unsafe_allow_html=True)
+
+        # Tab content rendering
+        st.markdown('<div class="tab-content">', unsafe_allow_html=True)
+
+        # PERSONAL INFO TAB
+        if st.session_state.active_tab == "personal":
+            st.markdown("""
+    <div class="section-header">Personal information</div>
+    <div class="section-divider-wave"></div>
+    """, unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
             with col1:
-                company_name = st.text_input("Company Name", key=f"company_{i}", placeholder="e.g., Google Inc.")
-                position_name = st.text_input("Position", key=f"position_{i}", placeholder="e.g., Senior Developer")
-                all_skills_list = get_all_skills_from_llm()
-                exp_skills = st.multiselect(
-                      "Your Skills * (Experience)",
+                name = st.text_input(
+                    "Full Name *",
+                    placeholder="e.g., John Smith",
+                    key="name_input",
+                    value=st.session_state.saved_personal_info.get("name", "")
+                )
+                experience = st.text_input(
+                    "Years of Experience *",
+                    placeholder="e.g., 5",
+                    key="experience_input",
+                    value=st.session_state.saved_personal_info.get("experience", "")
+                )
+                phone = st.text_input(
+                    "Phone number *",
+                    placeholder="e.g., +91 ",
+                    key="phone",
+                    value=st.session_state.saved_personal_info.get("phone", "")
+                )
+                email = st.text_input(
+                    "Email *",
+                    placeholder="e.g., google@gmail.com",
+                    key="email",
+                    value=st.session_state.saved_personal_info.get("email", "")
+                )
+
+            with col2:
+                all_skills_list = load_skills_from_json()
+                skills = st.multiselect(
+                    "Your Core Skills *",
                     options=all_skills_list,
                     help="Select all relevant skills",
-                    key="exp_skills" 
+                    key="general_skills",
+                    default=st.session_state.saved_personal_info.get("skills", [])
                 )
+                location = st.text_input(
+                    "Location *",
+                    placeholder="e.g., New York",
+                    key="location",
+                    value=st.session_state.saved_personal_info.get("location", "")
+                )
+                url = st.text_input(
+                    "LinkedIn/GitHub",
+                    placeholder="e.g., user/linkedin.com",
+                    key="url",
+                    value=st.session_state.saved_personal_info.get("url", "")
+                )
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
             with col2:
-                comp_startdate = st.date_input("Start Date", key=f"comp_startdate_{i}")
-                comp_enddate = st.date_input("End Date", key=f"comp_enddate_{i}")
-            with col3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Remove", key=f"remove_exp_{i}"):
-                    remove_index = i
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            professional_experience.append({
-                "company": company_name,
-                "position": position_name,
-                'exp_skills':exp_skills,
-                "start_date": comp_startdate,
-                "end_date": comp_enddate
-            })
-    
-    if remove_index is not None:
-        st.session_state.exp_indices.remove(remove_index)
-        st.rerun()
-    
-    if st.button("+ Add More Experience", key="add_exp"):
-        new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
-        st.session_state.exp_indices.append(new_idx)
-        st.rerun()
-    
-    st.markdown("---")
+                with stylable_container("save-personal-btn", css_styles=SAVEPER_STYLE):
+                    if st.button("Save & Continue", key="save_personal_tab", width='stretch'):
+                        if name and skills and experience and phone and email and location:
+                            if not is_valid_email(email):
+                                st.error("Please enter a valid email address")
+                            elif not is_valid_phone(phone):
+                                st.error("Please enter a valid phone number")
+                            else:
+                                st.session_state.saved_personal_info = {
+                                    "name": name,
+                                    "skills": skills,
+                                    "experience": experience,
+                                    "phone": phone,
+                                    "email": email,
+                                    "url": url,
+                                    "location": location
+                                }
+                                st.success("✅ Personal information saved!")
+                                change_tab("experience")
+                                st.rerun()
+                        else:
+                            st.error("Please fill in all required fields marked with *")
 
+        # EXPERIENCE TAB
+        elif st.session_state.active_tab == "experience":
+            
+            # Experience section code here (keep your existing experience code)
+            for idx, i in enumerate(st.session_state.exp_indices):
+                # st.markdown(f'<p class="section-header">EXPERIENCE {idx + 1}</p>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="section-header">Experience {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
 
-       
-    
-    # Education
-    st.markdown('<h2><span class="section-number">4</span>Education</h2>', unsafe_allow_html=True)
-    
-    for idx, i in enumerate(st.session_state.edu_indices):
-        with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">Education {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                course = st.text_input("Course/Degree", placeholder="e.g., Master of Computer Application", key=f"course_{i}")
-                university = st.text_input("Institution", placeholder="e.g., Texas University", key=f"university_{i}")
-            with col2:
-                edu_startdate = st.date_input("Start Date", key=f"edu_start_{i}")
-                edu_enddate = st.date_input("End Date", key=f"edu_end_{i}")
-            with col3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Remove", key=f"remove_edu_{i}"):
-                    remove_index_edu = i
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            education.append({
-                "course": course,
-                "university": university,
-                "start_date": edu_startdate,
-                "end_date": edu_enddate
-            })
-    
-    if remove_index_edu is not None:
-        st.session_state.edu_indices.remove(remove_index_edu)
-        st.rerun()
-    
-    if st.button("+ Add More Education", key="add_edu"):
-        new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
-        st.session_state.edu_indices.append(new_idx)
-        st.rerun()
-    
-    st.markdown("---")
-    
-    # Certifications
-    st.markdown('<h2><span class="section-number">5</span>Certifications</h2>', unsafe_allow_html=True)
-    
-    for idx, i in enumerate(st.session_state.cert_indices):
-        with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">Certification {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                certificate_name = st.text_input("Certificate Name", placeholder="e.g., AWS Solutions Architect", key=f"certificate_{i}")
-                provider = st.text_input("Provider", placeholder="e.g., Amazon Web Services", key=f"Provider_{i}")
-            with col2:
-                comp_date = st.date_input("Completion Date", key=f"comp_date_{i}")
-            with col3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Remove", key=f"remove_cert_{i}"):
-                    remove_index_cert = i
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            certificate.append({
-                "certificate_name": certificate_name,
-                "provider_name": provider,
-                "completed_date": comp_date,
-            })
-    
-    if remove_index_cert is not None:
-        st.session_state.cert_indices.remove(remove_index_cert)
-        st.rerun()
-    
-    if st.button("+ Add More Certification", key="add_cert"):
-        new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
-        st.session_state.cert_indices.append(new_idx)
-        st.rerun()
-    
-    st.markdown("---")
-
-     # Projects
-    st.markdown('<h2><span class="section-number">6</span>Projects</h2>', unsafe_allow_html=True)
-    
-    for idx, i in enumerate(st.session_state.project_indices):
-        with st.container():
-            st.markdown(f'<div class="experience-card">', unsafe_allow_html=True)
-            st.markdown(f'<p class="card-badge">Projects {idx + 1}</p>', unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns([3, 3, 1])
-            with col1:
-                projectname = st.text_input("Project Name", placeholder="e.g., Created An Integaration Toll", key=f"projectname_{i}")
-                tools = st.text_input("Tools/Languages", placeholder="e.g., PowerBI,SQL", key=f"tools_{i}")
-            with col2:
-                decription = st.text_input("Description", key=f"decription_{i}")
-            with col3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Remove", key=f"remove_project_{i}"):
-                    remove_index_project = i
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            project.append({
-                "projectname": projectname,
-                "tools": tools,
-                "decription": decription
-            })
-    
-    if remove_index_project is not None:
-        st.session_state.project_indices.remove(remove_index_project)
-        st.rerun()
-    
-    if st.button("+ Add More Projects", key="add_project"):
-        new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
-        st.session_state.project_indices.append(new_idx)
-        st.rerun()
-    
-    st.markdown("---")
-    
-    
-    # Submit Button
-    st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("Generate Resume", key="man-btn"):
-            if name and  skills and experience:
-                with st.spinner("Processing your resume..."):
-                    user_data = {
-                        'name': name,
-                        'skills': skills,
-                        'experience': experience,
-                        'professional_experience': professional_experience,
-                        'education': education,
-                        'certificate': certificate,
-                        'project':project
-                    }
-                    st.session_state.resume_source = user_data
+                saved_exp = st.session_state.saved_experiences.get(i, {})
                 
-                st.success("Resume data saved successfully!")
-                st.switch_page("pages/job.py")
-            else:
-                st.error("Please fill in all required fields marked with *")
+                col1, col2 = st.columns([3, 3])
+                with col1:
+                    company_name = st.text_input(
+                        "Company Name",
+                        key=f"company_{i}",
+                        placeholder="e.g., Google Inc.",
+                        value=saved_exp.get("company", "")
+                    )
+                    position_name = st.text_input(
+                        "Position",
+                        key=f"position_{i}",
+                        placeholder="e.g., Senior Developer",
+                        value=saved_exp.get("position", "")
+                    )
+                    exp_skills_list = load_skills_from_json()
+                    exp_skills = st.multiselect(
+                        "Skills Used",
+                        options=exp_skills_list,
+                        key=f"exp_skills_{i}",
+                        default=saved_exp.get("exp_skills", [])
+                    )
+                with col2:
+                    comp_startdate = st.text_input(
+                        "Start Date (MM/YYYY)",
+                        key=f"comp_startdate_{i}",
+                        placeholder="e.g., 01/2020",
+                        value=saved_exp.get("start_date", "")
+                    )
+                    comp_enddate = st.text_input(
+                        "End Date (MM/YYYY) or 'Present'",
+                        key=f"comp_enddate_{i}",
+                        placeholder="e.g., 12/2023 or Present",
+                        value=saved_exp.get("end_date", "")
+                    )
+                
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-exp-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Experience {idx + 1}", key=f"remove_exp_{i}", width='stretch'):
+                            remove_index = i
 
-# Upload Resume Section
-else:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<h2><span class="section-number">2</span>Upload Your Resume</h2>', unsafe_allow_html=True)
-    
-    uploaded_file = st.file_uploader(
-        "Drop your resume here or click to browse",
-        type=["pdf", "docx"],
-        help="Supported formats: PDF, DOCX"
-    )
-    
-    if uploaded_file:
-        with st.spinner("Extracting data from your file..."):
-            if uploaded_file.type == "application/pdf":
-                extracted_text = extract_text_from_pdf(uploaded_file)
-                # st.json(extracted_text)
-            else:
-                extracted_text = extract_text_from_docx(uploaded_file)
+                with col_save:
+                    with stylable_container(f"save-exp-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Experience {idx + 1}", key=f"save_exp_{i}", width='stretch'):
+                            if company_name and position_name:
+                                st.session_state.saved_experiences[i] = {
+                                    "company": company_name,
+                                    "position": position_name,
+                                    "exp_skills": exp_skills,
+                                    "start_date": comp_startdate,
+                                    "end_date": comp_enddate
+                                }
+                                st.success(f"✅ Experience {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in company name and position")
+
+                professional_experience.append({
+                    "company": company_name,
+                    "position": position_name,
+                    'exp_skills': exp_skills,
+                    "start_date": comp_startdate,
+                    "end_date": comp_enddate
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index is not None:
+                st.session_state.exp_indices.remove(remove_index)
+                st.rerun()
+
+            col_add_exp = st.columns([1, 2, 1])
+            with col_add_exp[1]:
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                with stylable_container("add-exp-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Experience", key="add_exp", width='stretch'):
+                        new_idx = max(st.session_state.exp_indices) + 1 if st.session_state.exp_indices else 0
+                        st.session_state.exp_indices.append(new_idx)
+                        st.rerun()
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("← Previous", key="exp_prev", width='stretch'):
+                    change_tab("personal")
+                    st.rerun()
+            with col2:
+                if st.button("Next →", key="exp_next", width='stretch'):
+                    change_tab("education")
+                    st.rerun()
         
-        st.success("File uploaded successfully!")
-        st.text_area("Extracted Content", value=extracted_text, height=300)
+        # EDUCATION TAB
+        elif st.session_state.active_tab == "education":
+            
+            for idx, i in enumerate(st.session_state.edu_indices):
+                st.markdown(f"""
+                <div class="section-header">Education {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_edu = st.session_state.saved_education.get(i, {})
+                col1, col2 = st.columns(2)
+                with col1:
+                    course = st.text_input(
+                        "Course/Degree",
+                        placeholder="e.g., Master of Computer Application",
+                        key=f"course_{i}",
+                        value=saved_edu.get("course", "")
+                    )
+                    university = st.text_input(
+                        "Institution",
+                        placeholder="e.g., Texas University",
+                        key=f"university_{i}",
+                        value=saved_edu.get("university", "")
+                    )
+                with col2:
+                    edu_startdate = st.text_input(
+                        "Start Date (MM/YYYY)",
+                        key=f"edu_start_{i}",
+                        placeholder="e.g., 08/2018",
+                        value=saved_edu.get("start_date", "")
+                    )
+                    edu_enddate = st.text_input(
+                        "End Date (MM/YYYY) or 'Present'",
+                        key=f"edu_end_{i}",
+                        placeholder="e.g., 05/2022 or Present",
+                        value=saved_edu.get("end_date", "")
+                    )
+
+                    if edu_startdate and edu_enddate and edu_enddate.lower() != "present":
+                        try:
+                            from datetime import datetime
+                            start = datetime.strptime(edu_startdate, "%m/%Y")
+                            end = datetime.strptime(edu_enddate, "%m/%Y")
+                            if start > end:
+                                st.warning("⚠️ Start date must be before end date")
+                        except:
+                            st.warning("⚠️ Use MM/YYYY format")
+
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-edu-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Education {idx + 1}", key=f"remove_edu_{i}", width='stretch'):
+                            remove_index_edu = i
+
+                with col_save:
+                    with stylable_container(f"save-edu-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Education {idx + 1}", key=f"save_edu_{i}", width='stretch'):
+                            if course and university:
+                                st.session_state.saved_education[i] = {
+                                    "course": course,
+                                    "university": university,
+                                    "start_date": edu_startdate,
+                                    "end_date": edu_enddate
+                                }
+                                st.success(f"✅ Education {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in course and institution")
+
+                education.append({
+                    "course": course,
+                    "university": university,
+                    "start_date": edu_startdate,
+                    "end_date": edu_enddate
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_edu is not None:
+                st.session_state.edu_indices.remove(remove_index_edu)
+                st.rerun()
+
+            col_add_edu = st.columns([1, 2, 1])
+            with col_add_edu[1]:
+                with stylable_container("add-edu-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Education", key="add_edu", width='stretch'):
+                        new_idx = max(st.session_state.edu_indices) + 1 if st.session_state.edu_indices else 0
+                        st.session_state.edu_indices.append(new_idx)
+                        st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("← Previous", key="eud_prev", width='stretch'):
+                    change_tab("experience")
+                    st.rerun()
+            with col2:
+                if st.button("Next →", key="eud_next", width='stretch'):
+                    change_tab("certifications")
+                    st.rerun()
+            st.markdown("---")
+            
+        # CERTIFICATIONS TAB
+        elif st.session_state.active_tab == "certifications":
+            for idx, i in enumerate(st.session_state.cert_indices):
+                st.markdown(f"""
+                <div class="section-header">Certification {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_cert = st.session_state.saved_certificates.get(i, {})
+                col1, col2 = st.columns(2)
+                with col1:
+                    certificate_name = st.text_input(
+                        "Certificate Name",
+                        placeholder="e.g., AWS Solutions Architect",
+                        key=f"certificate_{i}",
+                        value=saved_cert.get("certificate_name", "")
+                    )
+                    provider = st.text_input(
+                        "Provider",
+                        placeholder="e.g., Amazon Web Services",
+                        key=f"Provider_{i}",
+                        value=saved_cert.get("provider_name", "")
+                    )
+                with col2:
+                    comp_date = st.text_input(
+                        "Completion Date (MM/YYYY)",
+                        key=f"comp_date_{i}",
+                        placeholder="e.g., 06/2023",
+                        value=saved_cert.get("completed_date", "")
+                    )
+
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-cert-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Certification {idx + 1}", key=f"remove_cert_{i}", width='stretch'):
+                            remove_index_cert = i
+
+                with col_save:
+                    with stylable_container(f"save-cert-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Certification {idx + 1}", key=f"save_cert_{i}", width='stretch'):
+                            if certificate_name and provider:
+                                st.session_state.saved_certificates[i] = {
+                                    "certificate_name": certificate_name,
+                                    "provider_name": provider,
+                                    "completed_date": comp_date
+                                }
+                                st.success(f"✅ Certification {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in certificate name and provider")
+
+                certificate.append({
+                    "certificate_name": certificate_name,
+                    "provider_name": provider,
+                    "completed_date": comp_date
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_cert is not None:
+                st.session_state.cert_indices.remove(remove_index_cert)
+                st.rerun()
+
+            col_add_cert = st.columns([1, 2, 1])
+            with col_add_cert[1]:
+                with stylable_container("add-cert-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Certification", key="add_cert", width='stretch'):
+                        new_idx = max(st.session_state.cert_indices) + 1 if st.session_state.cert_indices else 0
+                        st.session_state.cert_indices.append(new_idx)
+                        st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("← Previous", key="cert_prev", width='stretch'):
+                    change_tab("education")
+                    st.rerun()
+            with col2:
+                if st.button("Next →", key="cert_next", width='stretch'):
+                    change_tab("projects")
+                    st.rerun()
+            st.markdown("---")
+
+        # PROJECTS TAB
+        elif st.session_state.active_tab == "projects":
+            for idx, i in enumerate(st.session_state.project_indices):
+                st.markdown(f"""
+                <div class="section-header">Project {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_proj = st.session_state.saved_projects.get(i, {})
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    projectname = st.text_input(
+                        "Project Name",
+                        placeholder="e.g., Created An Integration Tool",
+                        key=f"projectname_{i}",
+                        value=saved_proj.get("projectname", "")
+                    )
+                    tools = st.text_input(
+                        "Tools/Languages",
+                        placeholder="e.g., PowerBI, SQL, Python",
+                        key=f"tools_{i}",
+                        value=saved_proj.get("tools", "")
+                    )
+                with col2:
+                    decription = st.text_area(
+                        "Description (Key achievements)",
+                        key=f"decription_{i}",
+                        height=150,
+                        value=saved_proj.get("decription", "")
+                    )
+
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-proj-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Project {idx + 1}", key=f"remove_project_{i}", width='stretch'):
+                            remove_index_project = i
+
+                with col_save:
+                    with stylable_container(f"save-proj-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Project {idx + 1}", key=f"save_project_{i}", width='stretch'):
+                            if projectname:
+                                st.session_state.saved_projects[i] = {
+                                    "projectname": projectname,
+                                    "tools": tools,
+                                    "decription": decription
+                                }
+                                st.success(f"✅ Project {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in project name")
+
+                project.append({
+                    "projectname": projectname,
+                    "tools": tools,
+                    "decription": decription
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_project is not None:
+                st.session_state.project_indices.remove(remove_index_project)
+                st.rerun()
+
+            col_add_proj = st.columns([1, 2, 1])
+            with col_add_proj[1]:
+                with stylable_container("add-proj-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add More Projects", key="add_project", width='stretch'):
+                        new_idx = max(st.session_state.project_indices) + 1 if st.session_state.project_indices else 0
+                        st.session_state.project_indices.append(new_idx)
+                        st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("← Previous", key="pro_prev", width='stretch'):
+                    change_tab("certifications")
+                    st.rerun()
+            with col2:
+                if st.button("Next →", key="pro_next", width='stretch'):
+                    change_tab("custom")
+                    st.rerun()
+            st.markdown("---")
+
+
+        # CUSTOM SECTIONS TAB
+        elif st.session_state.active_tab == "custom":
+            remove_index_custom = None
+            custom_sections = []
+
+            for idx, i in enumerate(st.session_state.custom_indices):
+                st.markdown(f"""
+                <div class="section-header">Custom section {idx + 1}</div>
+                <div class="section-divider-wave"></div>
+                """, unsafe_allow_html=True)
+
+
+                saved_custom = st.session_state.saved_custom_sections.get(i, {})
+
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    section_title = st.text_input(
+                        "Section Heading *",
+                        placeholder="e.g., Languages, Achievements, Interests",
+                        key=f"custom_title_{i}",
+                        value=saved_custom.get("title", "")
+                    )
+                with col2:
+                    section_description = st.text_area(
+                        "Description / Details *",
+                        placeholder="Add details for this section...",
+                        key=f"custom_desc_{i}",
+                        height=120,
+                        value=saved_custom.get("description", "")
+                    )
+                
+                col_save, col_remove = st.columns(2)
+                with col_remove:
+                    with stylable_container(f"remove-custom-{i}", css_styles=REMOVE_STYLE):
+                        if st.button(f"Remove Custom Section {idx + 1}", key=f"remove_custom_{i}", width='stretch'):
+                            remove_index_custom = i
+
+                with col_save:
+                    with stylable_container(f"save-custom-{i}", css_styles=SAVE_STYLE):
+                        if st.button(f"Save Custom Section {idx + 1}", key=f"save_custom_{i}", width='stretch'):
+                            if section_title and section_description:
+                                st.session_state.saved_custom_sections[i] = {
+                                    "title": section_title,
+                                    "description": section_description
+                                }
+                                st.success(f"✅ Custom Section {idx + 1} saved!")
+                            else:
+                                st.error("Please fill in both the heading and description fields.")
+
+                custom_sections.append({
+                    "title": section_title,
+                    "description": section_description
+                })
+                st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+            if remove_index_custom is not None:
+                st.session_state.custom_indices.remove(remove_index_custom)
+                st.rerun()
+
+            col_add_custom = st.columns([1, 2, 1])
+            with col_add_custom[1]:
+                with stylable_container("add-custom-btn", css_styles=ADD_STYLE):
+                    st.markdown("<div style='margin-top:25px;'></div>", unsafe_allow_html=True)
+
+                    if st.button("+ Add Custom Section", key="add_custom", width='stretch'):
+                        new_idx = max(st.session_state.custom_indices) + 1 if st.session_state.custom_indices else 0
+                        st.session_state.custom_indices.append(new_idx)
+                        st.rerun()
+            if st.button("← Previous", key="cust_prev", width='stretch'):
+                    change_tab("projects")
+                    st.rerun()
+           
+            st.markdown("---")
         
+
+
+        # st.markdown('</div>', unsafe_allow_html=True)
+
+        # Final submit button (show on last tab)
+        # if st.session_state.active_tab == "custom":
+        #     st.markdown("<br>", unsafe_allow_html=True)
+        #     col1, col2, col3 = st.columns([1, 2, 1])
+        #     with col2:
+        #         with stylable_container("final-submit-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
+        #             if st.button("Complete & Generate Resume", key="final_submit", width='stretch'):
+        #                 # Your existing submit logic here
+        #                 st.balloons()
+        #                 st.switch_page("pages/job.py")
+
+        # ---------------- CONTINUE BUTTON (SUBMIT) ----------------
         st.markdown("<br>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("Process Resume", key="re-btn"):
-                if extracted_text:
-                    with st.spinner("Analyzing your resume..."):
-                        parsed_data = extract_details_from_text(extracted_text)
+            with stylable_container("continue-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
+                if st.button("Complete & Generate Resume", key="final_submit", width='stretch'):
+                    # Get values from saved session state
+                    name = st.session_state.saved_personal_info.get("name", "")
+                    skills = st.session_state.saved_personal_info.get("skills", [])
+                    experience = st.session_state.saved_personal_info.get("experience", "")
+                    phone = st.session_state.saved_personal_info.get("phone", "")
+                    email = st.session_state.saved_personal_info.get("email", "")
+                    url = st.session_state.saved_personal_info.get("url", "")
+                    location = st.session_state.saved_personal_info.get("location", "")
                     
-                    if parsed_data:
-                        st.session_state.resume_source = parsed_data
-                        st.session_state.resume_processed = True
-                        
-                        st.success("Resume processed successfully!")
-                        st.switch_page("pages/job.py")
+                    if name and skills and experience:  # ✅ Now it works
+                        with st.spinner("Processing your resume..."):
+                            # Build experience list from saved data
+                            professional_experience = [
+                                st.session_state.saved_experiences[i]
+                                for i in st.session_state.exp_indices
+                                if i in st.session_state.saved_experiences
+                            ]
+                            
+                            # Build education list from saved data
+                            education = [
+                                st.session_state.saved_education[i]
+                                for i in st.session_state.edu_indices
+                                if i in st.session_state.saved_education
+                            ]
+                            
+                            # Build certificate list
+                            certificate = [
+                                st.session_state.saved_certificates[i]
+                                for i in st.session_state.cert_indices
+                                if i in st.session_state.saved_certificates
+                            ]
+                            
+                            # Build project list
+                            project = [
+                                st.session_state.saved_projects[i]
+                                for i in st.session_state.project_indices
+                                if i in st.session_state.saved_projects
+                            ]
+                            
+                            # Build custom sections
+                            custom_sections = [
+                                st.session_state.saved_custom_sections[i]
+                                for i in st.session_state.custom_indices
+                                if i in st.session_state.saved_custom_sections
+                            ]
+
+                            user_data = {
+                                'name': name,
+                                'skills': skills,
+                                'experience': experience,
+                                'phone': phone,
+                                'email': email,
+                                'url': url,
+                                'location': location,
+                                'professional_experience': professional_experience,
+                                'education': education,
+                                'certificate': certificate,
+                                'project': project,
+                                'custom_sections': {
+                                    c["title"]: c["description"]
+                                    for c in custom_sections
+                                    if c.get("title") and c.get("description")
+                                }
+                            }
+
+                        st.session_state.resume_source = user_data
+                        if 'from_template_button' in st.session_state and st.session_state.from_template_button:
+                            # Clear the flag
+                            st.session_state.from_template_button = False
+                            # Navigate to template.py with the parsed data
+                            st.switch_page("pages/job.py")
+                        else:
+                            if 'logged_in_user' in st.session_state:
+                                st.session_state.input_method = "Manual Entry"
+                                save_success = save_user_resume(
+                                    st.session_state.logged_in_user,
+                                    user_data,
+                                    input_method="Manual Entry"
+                                )
+                                if save_success:
+                                    st.success("Resume processed and saved to profile!")
+                                else:
+                                    st.warning("Resume processed but couldn't save to profile")
+
+                            st.switch_page("pages/job.py")
                     else:
-                        st.error("Failed to process resume. Please try manual entry or upload a different file.")
-                else:
-                    st.error("Please upload your resume first")
+                        st.error("Please complete the Personal Info section first (Name, Skills, and Experience are required)")
+
+    # ====================================================================================
+    # UPLOAD RESUME
+    # ====================================================================================
+    else:
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        st.markdown("""
+    <style>
+        /* File uploader border */
+        [data-testid="stFileUploader"] > section {
+            border: 2px dashed #8b6f47 !important;
+            border-radius: 12px !important;
+            background: rgba(232, 117, 50, 0.05) !important;
+            padding: 2rem !important;
+        }
+        
+        /* Browse files button */
+        [data-testid="stFileUploader"] button {
+            background-color: #e87532 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 0.5rem 1.5rem !important;
+            font-weight: 600 !important;
+        }
+        
+        [data-testid="stFileUploader"] button:hover {
+            background-color: #d66429 !important;
+            color: white !important;
+        }
+        
+        /* Upload icon */
+        [data-testid="stFileUploader"] svg {
+            fill: #e87532 !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+        uploaded_file = st.file_uploader(
+            "Drop your PDF or DOCX resume here or click to browse",
+            type=["pdf", "docx"],
+            help="Supported formats: PDF, DOCX",
+            key="uploader_widget"
+        )
+
+
+        if uploaded_file:
+            with st.spinner("Reading file..."):
+                try:
+                    if uploaded_file.type == "application/pdf":
+                        extracted_text = extract_text_from_pdf(uploaded_file)
+                    else:  # DOCX
+                        # Reset file pointer to beginning
+                        uploaded_file.seek(0)
+                        extracted_text = extract_text_from_docx(uploaded_file)
+                    
+                    if not extracted_text or len(extracted_text.strip()) < 50:
+                        st.error("⚠️ Could not extract enough text from the file. Please ensure:")
+                        st.markdown("""
+                        - The file is not corrupted
+                        - The file contains actual text (not just images)
+                        - The file is a valid PDF or DOCX format
+                        """)
+                        st.stop()
+                    
+                except Exception as e:
+                    st.error(f"❌ Error reading file: {str(e)}")
+                    st.info("💡 Try saving your resume as a different format or re-export it from your word processor.")
+                    st.stop()
+
+            st.markdown('<h3>Extracted Text Preview</h3>', unsafe_allow_html=True)
+            st.text_area(
+                "Extracted Content",
+                value=extracted_text[:2000] + ("..." if len(extracted_text) > 2000 else ""),  # Preview first 2000 chars
+                height=300,
+                key="extracted_content_preview",
+                label_visibility="collapsed"
+            )
+            
+            # Show full text length
+            st.caption(f"📊 Total characters extracted: {len(extracted_text)}")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                with stylable_container("process-resume-btn", css_styles=PRIMARY_LARGE_BUTTON_STYLE):
+                    if st.button("Process Resume", key="re-btn", width='stretch'):
+                        if not extracted_text or len(extracted_text.strip()) < 50:
+                            st.error("❌ Not enough text to process. Please upload a valid resume.")
+                            st.stop()
+                        
+                        if 'logged_in_user' not in st.session_state or not st.session_state.logged_in_user:
+                            st.error("⚠️ Session expired. Please login again.")
+                            st.switch_page("app.py")
+
+                        parsed_data = None
+                        loading_placeholder = st.empty()
+                        loading_placeholder.markdown("""
+                            <div id="overlay-loader">
+                                <div class="loader-spinner"></div>
+                                <p>🤖 Analyzing your resume with AI...</p>
+                            </div>
+                            <style>
+                                #overlay-loader {
+                                    position: fixed;
+                                    top: 0;
+                                    left: 0;
+                                    width: 100vw;
+                                    height: 100vh;
+                                    background: rgba(255, 255, 255, 0.95);
+                                    backdrop-filter: blur(10px);
+                                    display: flex;
+                                    flex-direction: column;
+                                    justify-content: center;
+                                    align-items: center;
+                                    z-index: 9999;
+                                    color: #e87532 !important;
+                                    font-size: 1.2rem;
+                                    font-weight: 500;
+                                }
+                                .loader-spinner {
+                                    border: 5px solid rgba(232, 117, 50, 0.2);
+                                    border-top: 5px solid #e87532;
+                                    border-radius: 50%;
+                                    width: 70px;
+                                    height: 70px;
+                                    animation: spin 1s linear infinite;
+                                    margin-bottom: 20px;
+                                }
+                                @keyframes spin {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                            </style>
+                        """, unsafe_allow_html=True)
+
+                        try:
+                            # Call your AI extraction function
+                            parsed_data = extract_details_from_text(extracted_text)
+                            
+                            if not parsed_data:
+                                raise ValueError("AI returned empty data")
+                            
+                        except Exception as e:
+                            loading_placeholder.empty()
+                            st.error(f"❌ Error during AI processing: {str(e)}")
+                            
+                            with st.expander("🔍 Debug Information"):
+                                st.code(f"Error type: {type(e).__name__}")
+                                st.code(f"Error message: {str(e)}")
+                                st.code(f"Text length: {len(extracted_text)} characters")
+                                st.code(f"First 500 chars:\n{extracted_text[:500]}")
+                            
+                            st.warning("💡 Try these solutions:")
+                            st.markdown("""
+                            1. **Use Manual Entry** - Click the Manual Entry option above
+                            2. **Simplify your resume** - Remove complex formatting, tables, or images
+                            3. **Try a different format** - Convert to plain text PDF
+                            4. **Contact support** - If the issue persists
+                            """)
+                            parsed_data = None
+                        
+                        finally:
+                            loading_placeholder.empty()
+                        
+                        if parsed_data:
+                            # Store in session state
+                            st.session_state.resume_source = parsed_data
+                            st.session_state.resume_processed = True
+                            st.session_state.input_method = "Upload Entry"
+                            
+                            # Check if coming from template button
+                            if st.session_state.get('from_template_button'):
+                                st.session_state.from_template_button = False
+                                
+                                # Set this so template_preview.py knows to use it
+                                st.session_state.final_resume_data = parsed_data
+                                
+                                # Navigate to template preview
+                                st.query_params.clear()
+                                st.query_params["user"] = st.session_state.logged_in_user
+                                st.success("✅ Resume processed! Redirecting to templates...")
+                                time.sleep(0.5)
+                                st.switch_page("pages/job.py")
+                            else:
+                                # Normal flow - save and go to job page
+                                save_success = save_user_resume(
+                                    st.session_state.logged_in_user,
+                                    parsed_data,
+                                    input_method="Upload Entry"
+                                )
+
+                                if save_success:
+                                    st.success("✅ Resume processed and saved successfully!")
+                                    # st.balloons()
+                                    time.sleep(1)
+                                    st.query_params["user"] = st.session_state.logged_in_user
+                                    st.switch_page("pages/job.py")
+                                else:
+                                    st.error("❌ Failed to save resume. Please try again.")
+        else:
+            st.info("👆 Please upload your resume to continue")
+else:
+    st.error("please login first")
+
+# st.markdown('<div id="jd" style="scroll-margin-top: 100px;"></div>', unsafe_allow_html=True)
+# if st.session_state.get("show_job_inside_main", False):
+#     job()
+#     st.stop() 
+# if exsting:
+#     job()
+# if "show_job_inside_main" in st.session_state and st.session_state.show_job_inside_main:
+#         job()
+#         st.stop()   # Stop showing other sections

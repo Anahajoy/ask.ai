@@ -1,0 +1,235 @@
+<style>
+@page { margin: 0.5in; size: letter; }
+body { margin: 0; padding: 0; }
+
+.ats-two-col-container { 
+    font-family: 'Calibri', 'Arial', sans-serif; 
+    font-size: 10pt; 
+    color: #333; 
+    max-width: 100%; 
+    margin: 0; 
+    padding: 0.5in;
+    line-height: 1.3; 
+}
+
+/* Header Section */
+.ats-two-col-header { 
+    text-align: center; 
+    margin-bottom: 15px; 
+    padding-bottom: 10px;
+    border-bottom: 3px solid {{ color }};
+}
+
+.ats-two-col-header h1 { 
+    color: #000; 
+    font-size: 22pt; 
+    font-weight: 600;
+    margin: 0 0 3px 0; 
+    letter-spacing: 0.5px;
+}
+
+.ats-two-col-job-title { 
+    font-size: 12pt; 
+    color: #555;
+    font-weight: 500;
+    margin: 0;
+}
+
+.ats-two-col-contact-header {
+    font-size: 9pt;
+    color: #555;
+    margin-top: 5px;
+}
+
+/* Two Column Layout */
+.ats-two-col-body {
+    display: table;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.ats-left-column {
+    display: table-cell;
+    width: 30%;
+    padding-right: 20px;
+    vertical-align: top;
+    border-right: 1px solid #ddd;
+}
+
+.ats-right-column {
+    display: table-cell;
+    width: 70%;
+    padding-left: 20px;
+    vertical-align: top;
+}
+
+/* Section Titles */
+.ats-two-col-section-title { 
+    color: {{ color }}; 
+    font-size: 12pt; 
+    font-weight: bold; 
+    text-transform: uppercase; 
+    letter-spacing: 0.8px; 
+    margin-top: 12px; 
+    margin-bottom: 8px;
+    padding-bottom: 3px;
+    border-bottom: 2px solid {{ color }};
+}
+
+.ats-left-column .ats-two-col-section-title {
+    font-size: 11pt;
+}
+
+/* Objective Section */
+.ats-objective-text {
+    font-size: 9.5pt;
+    line-height: 1.4;
+    color: #444;
+    text-align: justify;
+    margin-bottom: 10px;
+}
+
+/* Skills Section */
+.ats-skills-list { 
+    list-style-type: disc; 
+    margin-left: 15px; 
+    padding-left: 0; 
+    margin-top: 5px; 
+    margin-bottom: 8px;
+}
+
+.ats-skills-list li { 
+    margin-bottom: 4px; 
+    line-height: 1.3; 
+    font-size: 9.5pt;
+}
+
+/* Contact Section */
+.ats-contact-list { 
+    list-style-type: none; 
+    margin: 0; 
+    padding: 0; 
+}
+
+.ats-contact-list li { 
+    margin-bottom: 5px; 
+    font-size: 9.5pt;
+    line-height: 1.3;
+}
+
+.ats-contact-list li::before {
+    content: "• ";
+    color: {{ color }};
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+/* Experience/Education Items */
+.ats-two-col-item-header { 
+    margin-top: 8px; 
+    margin-bottom: 4px; 
+}
+
+.ats-two-col-item-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2px;
+}
+
+.ats-two-col-item-title { 
+    font-weight: bold; 
+    color: #000; 
+    font-size: 11pt;
+}
+
+.ats-two-col-item-duration { 
+    font-size: 9pt; 
+    color: {{ color }}; 
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ats-two-col-item-company { 
+    font-style: italic; 
+    color: #555; 
+    font-size: 10pt;
+    margin-bottom: 3px;
+}
+
+.ats-two-col-item-subtitle { 
+    font-style: italic; 
+    color: #555; 
+    font-size: 9.5pt;
+    margin-left: 5px;
+    display: inline-block;
+}
+
+.ats-two-col-item-description { 
+    font-size: 9.5pt;
+    line-height: 1.4;
+    color: #444;
+    text-align: justify;
+    margin-top: 3px;
+    margin-bottom: 8px;
+}
+
+/* Education Specific */
+.ats-education-details {
+    font-size: 9.5pt;
+    line-height: 1.4;
+    color: #444;
+    margin-top: 3px;
+}
+
+.ats-degree-name {
+    font-weight: 600;
+    color: #000;
+}
+
+.ats-institution-name {
+    font-weight: 600;
+    color: {{ color }};
+}
+
+/* Bullet Points */
+.ats-two-col-bullet-list { 
+    list-style-type: disc; 
+    margin-left: 18px; 
+    padding-left: 0; 
+    margin-top: 3px; 
+    margin-bottom: 6px;
+}
+
+.ats-two-col-bullet-list li { 
+    margin-bottom: 2px; 
+    line-height: 1.3; 
+    font-size: 9.5pt;
+}
+
+/* General Typography */
+p { 
+    margin: 6px 0; 
+}
+
+.ats-two-col-strong {
+    font-weight: 600;
+    color: #000;
+}
+
+/* Spacing Adjustments */
+.ats-two-col-section {
+    margin-bottom: 10px;
+}
+
+/* Print Optimization */
+@media print {
+    .ats-two-col-container {
+        padding: 0.3in;
+    }
+    
+    .ats-page-break {
+        page-break-after: always;
+    }
+}
+</style>

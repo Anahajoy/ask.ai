@@ -1,435 +1,796 @@
 import streamlit as st
 import json
-from utils import extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
+import base64
+from utils import get_user_resume, extract_text_from_pdf, extract_text_from_docx, extract_details_from_jd
+from streamlit_extras.stylable_container import stylable_container
 
-# Custom CSS
+st.set_page_config(
+    page_title="CVmate Job Description",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Session state management
+if 'logged_in_user' not in st.session_state or st.session_state.logged_in_user is None:
+    logged_user = st.query_params.get("user")
+    if logged_user:
+        st.session_state.logged_in_user = logged_user
+    else:
+        st.warning("Please login first!")
+        st.switch_page("app.py")
+
+if st.session_state.logged_in_user:
+    st.query_params["user"] = st.session_state.logged_in_user
+
+current_user = st.session_state.get('logged_in_user', '')
+
+# Load existing resume if available
+if current_user and 'resume_source' not in st.session_state:
+    try:
+        stored_resume = get_user_resume(current_user)
+        if stored_resume:
+            st.session_state.resume_source = stored_resume
+    except Exception as e:
+        pass
+
+# CSS Styling - Aligned with homepage design
 st.markdown("""
-<style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    
-    /* Global Styles */
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Archivo:wght@400;500;600;700;800;900&display=swap');
+
+    /* ==================== RESET ==================== */
     * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"], 
+    [data-testid="stSidebarNav"],
+    #MainMenu, footer, header {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    .stMainBlockContainer, div.block-container, [data-testid="stMainBlockContainer"] {
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
+        max-width: 900px !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    /* ==================== VARIABLES ==================== */
+    :root {
+        --primary: #FF6B35;
+        --primary-dark: #E85A28;
+        --primary-light: #FF8C5A;
+        --accent: #FFA500;
+        --bg-primary: #FAFAFA;
+        --bg-secondary: #FFFFFF;
+        --text-primary: #1A1A1A;
+        --text-secondary: #666666;
+        --text-light: #999999;
+        --border: #E5E5E5;
+        --shadow: rgba(255, 107, 53, 0.12);
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
+    }
+
+    /* ==================== BASE ==================== */
+    html, body, .stApp {
         font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        scroll-behavior: smooth;
     }
-    
-    /* Main container */
-    .main {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        padding: 2rem;
-        min-height: 100vh;
-    }
-    
-    /* Header section */
-    .header-section {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
-        border-radius: 20px;
-        padding: 2rem 2.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .header-section::before {
-        content: '';
-        position: absolute;
+
+    /* ==================== NAVIGATION ==================== */
+    .nav-wrapper {
+        position: fixed;
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #1a1a1a, #4a4a4a, #1a1a1a);
-        opacity: 0.6;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        animation: slideDown 0.6s ease-out;
     }
-    
-    /* Title styling */
-    h2 {
-        color: #1a1a1a !important;
-        font-weight: 700 !important;
-        margin: 0 !important;
-        font-size: 1.8rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 1rem !important;
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
     }
-    
-    /* Step number badge */
-    .step-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
+
+    .nav-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 80px;
+    }
+
+    .logo {
+        font-family: 'Archivo', sans-serif;
+        font-size: 28px;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -1px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .nav-link {
+        color: var(--text-secondary) !important;
+        text-decoration: none !important;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .nav-link:hover {
+        color: var(--primary) !important;
+        background: rgba(255, 107, 53, 0.08);
+    }
+
+    /* ==================== MAIN CONTENT ==================== */
+    .main-content {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 120px 2rem 80px;
+        animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==================== PAGE HEADER ==================== */
+    .page-header {
         text-align: center;
-        line-height: 40px;
-        font-weight: 700;
-        font-size: 1.1rem;
-        box-shadow: 
-            0 4px 12px rgba(0,0,0,0.2),
-            inset 0 1px 0 rgba(255,255,255,0.15);
-        border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 3rem;
     }
-    
-    /* Alert box for returning users */
-    .returning-user-alert {
-        background: linear-gradient(145deg, #fff8e1 0%, #ffecb3 100%);
-        border: 2px solid #ffa726;
-        border-radius: 16px;
-        padding: 1.5rem 2rem;
+
+    .page-badge {
+        display: inline-block;
+        background: rgba(255, 107, 53, 0.1);
+        padding: 8px 20px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+
+    .page-title {
+        font-family: 'Archivo', sans-serif;
+        font-size: 48px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin-bottom: 1rem;
+        letter-spacing: -1px;
+    }
+
+    .page-subtitle {
+        font-size: 18px;
+        color: var(--text-secondary);
+        line-height: 1.7;
+    }
+
+    /* ==================== CONTENT CARD ==================== */
+    .content-card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        padding: 3rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border);
+        transition: all 0.4s ease;
+        animation: scaleIn 0.5s ease-out;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 16px rgba(255, 167, 38, 0.2);
     }
-    
-    .returning-user-alert h3 {
-        color: #e65100 !important;
-        margin-top: 0 !important;
-        font-size: 1.3rem !important;
-        font-weight: 700 !important;
-        margin-bottom: 0.5rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
+
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
-    
-    .returning-user-alert p {
-        color: #5d4037;
-        margin: 0.5rem 0 1rem 0;
-        font-size: 0.95rem;
-        line-height: 1.6;
+
+    .content-card:hover {
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.15);
     }
-    
-    /* Add New Resume button styling */
-    .stButton > button[key="add-new-resume-btn"] {
-        background: linear-gradient(145deg, #2c2c2c 0%, #1a1a1a 100%) !important;
-        color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 12px !important;
-        padding: 0.8rem 2rem !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        width: 100% !important;
-    }
-    
-    .stButton > button[key="add-new-resume-btn"]:hover {
-        background: linear-gradient(145deg, #3d3d3d 0%, #2c2c2c 100%) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15) !important;
-    }
-    
-    /* Content container */
-    .content-container {
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
+
+    /* ==================== FORM CONTAINER ==================== */
+    .form-container {
+        background: var(--bg-secondary);
         border-radius: 20px;
         padding: 2.5rem;
-        margin-bottom: 2rem;
-        box-shadow: 
-            0 10px 40px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        border: 1px solid rgba(0,0,0,0.06);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border);
+        margin: 2rem 0;
     }
     
-    /* Radio buttons */
-    .stRadio > label {
+    /* Add space above form elements when inside container */
+    .element-container:has(.stRadio),
+    .element-container:has(.stFileUploader), 
+    .element-container:has(.stTextArea) {
+        margin-top: 1.5rem !important;
+    }
+
+    /* ==================== FORM ELEMENTS ==================== */
+    
+    /* Streamlit element spacing */
+    [data-testid="stVerticalBlock"] > div {
+        gap: 1.5rem;
+    }
+    
+    .stRadio, .stFileUploader, .stTextArea {
+        margin-bottom: 1.5rem;
+    }
+    
+    label, .stApp label {
+        color: var(--text-primary) !important;
         font-weight: 600 !important;
-        color: #1a1a1a !important;
-        font-size: 1rem !important;
+        font-size: 15px !important;
+        margin-bottom: 0.8rem !important;
+        display: block !important;
+    }
+
+    /* Radio buttons */
+    .stRadio {
+        margin-bottom: 2rem !important;
+    }
+    
+    .stRadio > label {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
         margin-bottom: 1rem !important;
     }
     
     .stRadio > div {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-        padding: 1.2rem;
-        border-radius: 16px;
-        gap: 1rem;
-        border: 1px solid rgba(0,0,0,0.08);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
+        display: flex !important;
+        gap: 1.5rem !important;
     }
-    
+
     .stRadio > div > label {
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
-        border: 1px solid rgba(0,0,0,0.1) !important;
-        border-radius: 12px !important;
-        padding: 0.9rem 1.8rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
-        font-weight: 500 !important;
+        background: var(--bg-secondary);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        border: 2px solid var(--border);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        flex: 1;
+        text-align: center;
+        margin: 0 !important;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        max-width: 180px;
+        min-width: 150px;
     }
     
     .stRadio > div > label:hover {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
-        border-color: rgba(0,0,0,0.15) !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-        transform: translateY(-2px) !important;
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
     }
     
+    /* Hide default radio circle */
+    .stRadio > div > label > div:first-child {
+        display: none !important;
+    }
+    
+    /* Style the text */
+    .stRadio > div > label > div:last-child {
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        color: var(--text-primary) !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Selected state */
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) {
+        background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 140, 90, 0.1));
+        border-color: var(--primary);
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.2);
+    }
+    
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked) > div:last-child {
+        color: var(--primary) !important;
+    }
+    
+    /* Add checkmark icon for selected */
+    .stRadio > div > label[data-baseweb="radio"]:has(input:checked)::before {
+        content: '✓';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
     /* File uploader */
     .stFileUploader {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%) !important;
-        border: 2px dashed rgba(0,0,0,0.15) !important;
-        border-radius: 16px !important;
-        padding: 2.5rem !important;
-        box-shadow: inset 0 2px 8px rgba(0,0,0,0.04) !important;
-        transition: all 0.3s ease !important;
-        margin-top: 1rem !important;
+        background: var(--bg-primary);
+        border: 3px dashed var(--border);
+        border-radius: 20px;
+        padding: 3rem 2rem;
+        transition: all 0.4s ease;
+        text-align: center;
+        margin: 2rem 0 !important;
     }
-    
+
     .stFileUploader:hover {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #fafafa 0%, #f0f0f0 100%) !important;
-        box-shadow: 
-            inset 0 2px 8px rgba(0,0,0,0.06),
-            0 4px 12px rgba(0,0,0,0.08) !important;
+        border-color: var(--primary);
+        background: rgba(255, 107, 53, 0.03);
+        box-shadow: 0 8px 24px rgba(255, 107, 53, 0.1);
     }
-    
-    .stFileUploader label {
-        color: #666666 !important;
-        font-weight: 500 !important;
-    }
-    
-    /* Text area */
-    .stTextArea > label {
-        font-weight: 600 !important;
-        color: #1a1a1a !important;
-        font-size: 1rem !important;
-        margin-bottom: 0.8rem !important;
-    }
-    
-    .stTextArea > div > div > textarea {
-        background: linear-gradient(145deg, #fafafa 0%, #f5f5f5 100%) !important;
-        border: 1px solid rgba(0,0,0,0.08) !important;
-        border-radius: 12px !important;
-        font-family: 'Inter', sans-serif !important;
-        color: #1a1a1a !important;
-        padding: 1rem !important;
-        font-size: 0.9rem !important;
-        line-height: 1.6 !important;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-    
-    .stTextArea > div > div > textarea:focus {
-        border-color: #1a1a1a !important;
-        background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%) !important;
-        box-shadow: 
-            0 0 0 3px rgba(26, 26, 26, 0.08),
-            inset 0 2px 4px rgba(0,0,0,0.02) !important;
-        transform: translateY(-1px) !important;
-    }
-    
-    /* Submit button */
-    .stButton > button[key="jb-btn"] {
-        background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%) !important;
+
+    .stFileUploader section button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
         color: white !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        border-radius: 14px !important;
-        padding: 1.1rem 3rem !important;
-        font-size: 1rem !important;
-        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 12px 28px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        box-shadow: 0 4px 12px var(--shadow) !important;
+        transition: all 0.3s ease !important;
+    }
+
+    .stFileUploader section button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px var(--shadow) !important;
+    }
+
+    /* Text area */
+    .stTextArea {
+        margin: 1.5rem 0 !important;
+    }
+    
+    textarea, .stTextArea > div > div > textarea {
+        background: var(--bg-secondary) !important;
+        border: 2px solid var(--border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        padding: 1.2rem !important;
+        font-size: 15px !important;
+        line-height: 1.6 !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+    }
+
+    textarea:focus, .stTextArea > div > div > textarea:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1) !important;
+        outline: none !important;
+    }
+
+    /* ==================== ALERTS ==================== */
+    .stSuccess, .stError, .stWarning {
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        animation: slideInRight 0.5s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .stSuccess {
+        background: rgba(16, 185, 129, 0.1) !important;
+        border-left: 4px solid var(--success) !important;
+        color: var(--success) !important;
+    }
+
+    .stError {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border-left: 4px solid var(--error) !important;
+        color: var(--error) !important;
+    }
+
+    .stWarning {
+        background: rgba(245, 158, 11, 0.1) !important;
+        border-left: 4px solid var(--warning) !important;
+        color: var(--warning) !important;
+    }
+
+    /* ==================== BUTTONS ==================== */
+    .btn {
+        padding: 12px 28px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white !important;
+        box-shadow: 0 6px 20px var(--shadow);
+        border: 2px solid var(--primary);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px var(--shadow);
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    }
+
+    [data-testid="stButton"] > button {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
+        color: white !important;
+        border: 2px solid var(--primary) !important;
+        border-radius: 10px !important;
+        padding: 14px 32px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        font-family: 'Inter', sans-serif !important;
+        box-shadow: 0 4px 16px var(--shadow) !important;
+        transition: all 0.3s ease !important;
         width: 100% !important;
         margin-top: 2rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: 
-            0 8px 30px rgba(0,0,0,0.2),
-            inset 0 1px 0 rgba(255,255,255,0.15) !important;
-        text-transform: uppercase !important;
-        letter-spacing: 1px !important;
-        position: relative !important;
-        overflow: hidden !important;
     }
-    
-    .stButton > button[key="jb-btn"]::before {
-        content: '';
-        position: absolute;
+
+    [data-testid="stButton"] > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px var(--shadow) !important;
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
+    }
+
+    /* ==================== LOADER ==================== */
+    #overlay-loader {
+        position: fixed;
         top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
     }
-    
-    .stButton > button[key="jb-btn"]:hover::before {
-        left: 100%;
+
+    .loader-spinner {
+        border: 5px solid rgba(255, 107, 53, 0.2);
+        border-top: 5px solid var(--primary);
+        border-radius: 50%;
+        width: 70px;
+        height: 70px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
     }
-    
-    .stButton > button[key="jb-btn"]:hover {
-        background: linear-gradient(135deg, #3d3d3d 0%, #2c2c2c 100%) !important;
-        transform: translateY(-3px) !important;
-        box-shadow: 
-            0 12px 40px rgba(0,0,0,0.3),
-            inset 0 1px 0 rgba(255,255,255,0.2) !important;
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
     }
-    
-    /* Success/Error messages */
-    .stSuccess {
-        background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important;
-        border: 1px solid #86efac !important;
-        border-radius: 12px !important;
-        color: #166534 !important;
-        padding: 1rem !important;
-        font-weight: 500 !important;
-        box-shadow: 0 4px 12px rgba(134, 239, 172, 0.2) !important;
+
+    #overlay-loader p {
+        color: var(--text-primary);
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
-    
-    .stError {
-        background: linear-gradient(145deg, #fef2f2 0%, #fee2e2 100%) !important;
-        border: 1px solid #fca5a5 !important;
-        border-radius: 12px !important;
-        color: #991b1b !important;
-        padding: 1rem !important;
-        font-weight: 500 !important;
-        box-shadow: 0 4px 12px rgba(252, 165, 165, 0.2) !important;
+
+    /* ==================== RESPONSIVE ==================== */
+    @media (max-width: 768px) {
+        .nav-container {
+            padding: 0 1.5rem;
+        }
+
+        .nav-menu {
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .main-content {
+            padding: 100px 1.5rem 60px;
+        }
+
+        .page-title {
+            font-size: 36px;
+        }
+
+        .content-card {
+            padding: 2rem;
+        }
+
+        .stRadio > div {
+            flex-direction: column !important;
+        }
+            
+
     }
-    
-    /* Spinner */
-    .stSpinner > div {
-        border-color: #1a1a1a !important;
-    }
-    
-    /* Helper text */
-    .help-text {
-        color: #666666;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        font-style: italic;
-    }
-    
-    /* Section divider */
-    .section-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent);
-        margin: 2rem 0;
-    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Build URLs
+ats_url = f"ats?user={current_user}"
+qu_url = f"qu?user={current_user}"
+change_url = f"change?user={current_user}"
+
+# Navigation Bar
+st.markdown(f"""
+<div class="nav-wrapper">
+    <div class="nav-container">
+        <div class="logo">CVmate</div>
+        <div class="nav-menu">
+            <a class="nav-link" href="?home=true&user={current_user}" target="_self">Home</a>
+            <a class="nav-link" href="?create=true&user={current_user}" target="_self">Create Resume</a>
+            <a class="nav-link" href="{ats_url}" target="_self">ATS Checker</a>
+            <a class="nav-link" href="{qu_url}" target="_self">AI Assistant</a>
+            <a class="nav-link" href="{change_url}" target="_self">Change Template</a>
+            <a class="nav-link" href="?logout=true" target="_self">⏻</a>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Handle navigation
+if st.query_params.get("create") == "true":
+    if "create" in st.query_params:
+        del st.query_params["create"]
+    if st.session_state.logged_in_user:
+        st.query_params["user"] = st.session_state.logged_in_user
+    st.switch_page("pages/main.py")
+
+if st.query_params.get("logout") == "true":
+    st.session_state.logged_in_user = None
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.query_params.clear()
+    st.switch_page("app.py")
+
+if st.query_params.get("home") == "true":
+    if "home" in st.query_params:
+        del st.query_params["home"]
+    if st.session_state.logged_in_user:
+        st.query_params["user"] = st.session_state.logged_in_user
+    st.switch_page("app.py")
+
+# Main Content
+resume_data = st.session_state.get("resume_source", {})
+input_method = st.session_state.get(
+    "input_method", 
+    resume_data.get("input_method", "Manual Entry")
+)
+st.session_state["input_method"] = input_method
+
+resume_source = st.session_state.get("resume_source", None)
+
+# ✅ CORRECT - Wrapped in <style> tags
+st.markdown("""
+<style>
+/* ==================== MAIN WRAPPER ==================== */
+.ats-main-wrapper {
+    min-height: 30vh;
+    background: linear-gradient(135deg, #fff9f5 0%, #ffffff 50%, #fff5f0 100%);
+    padding: 110px 0 40px;
+    position: relative;
+}
+
+.ats-main-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: radial-gradient(ellipse at top, rgba(232, 117, 50, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ats-hero {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.ats-hero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #fff5f0 0%, #ffe8d6 100%);
+    color: #e87532;
+    padding: 6px 20px;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(232, 117, 50, 0.2);
+}
+
+.ats-main-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0a0f14;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    letter-spacing: -1px;
+}
+
+.ats-main-title .highlight {
+    background: linear-gradient(135deg, #e87532 0%, #ff8c42 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.ats-hero-description {
+    font-size: 1rem;
+    color: #64748b;
+    max-width: 600px;
+    margin-left: 120px !important;  
+    line-height: 1.6;
+    font-weight: 400;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# Check if user is logged in
-if 'logged_in_user' not in st.session_state:
-    st.warning("Please login first!")
-    st.switch_page("login.py")
+# Then your HTML (separate markdown call)
+st.markdown("""
+<div class="ats-main-wrapper">
+    <div class="ats-hero">
+        <div class="ats-hero-badge">Step 2 of 3</div>
+        <h1 class="ats-main-title">Target <span class="highlight">Job Description</span></h1>
+        <p class="ats-hero-description">
+           Provide the job description to tailor your resume for maximum impact
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Get input method from session state
-input_method = st.session_state.get("input_method", "Manual Entry")
-
-# Header Section
-st.markdown('<div class="header-section">', unsafe_allow_html=True)
-st.markdown('<h2><span class="step-badge">2</span>Target Job Description</h2>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Check if user has existing resume data (returning user)
-resume_source = st.session_state.get("resume_source", None)
-
-if resume_source:
-    # Show alert for users with existing resume data
-    st.markdown('<div class="returning-user-alert">', unsafe_allow_html=True)
-    st.markdown('<h3>👋 Welcome Back!</h3>', unsafe_allow_html=True)
-    st.markdown('<p>We found your saved resume data. You can continue with your existing resume or create a new one from scratch.</p>', unsafe_allow_html=True)
-    
-    if st.button("🔄 Add New Resume Content", key="add-new-resume-btn"):
-        # Clear all resume-related session state
-        keys_to_delete = ['resume_source', 'enhanced_resume', 'job_description', 
-                         'resume_processed', 'exp_indices', 'edu_indices', 'cert_indices']
-        
-        for key in keys_to_delete:
-            if key in st.session_state:
-                del st.session_state[key]
-        
-        # Reset indices to default
-        st.session_state.exp_indices = [0]
-        st.session_state.edu_indices = [0]
-        st.session_state.cert_indices = [0]
-        
-        st.success("Resume data cleared! Redirecting to create new resume...")
-        st.switch_page("pages/main.py")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# Check for resume data
 if resume_source is None:
-    st.error("No resume data found. Please upload or enter your data first.")
-    if st.button("Go to Resume Builder"):
-        st.switch_page("pages/main.py")
+    st.error("❌ No resume data found. Please go back to the main page to upload or enter your data first.")
 else:
-    # Main content
-    st.markdown('<div class="content-container">', unsafe_allow_html=True)
-    
-    # Job description input method
     jd_method = st.radio(
         "Choose how to provide the job description:",
-        ["Type or Paste", "Upload File"],
-        horizontal=True
+        ["Paste Text", "Upload File"],
+        horizontal=True,
+        key="jd_method_radio"
     )
-    
-    st.markdown('<div class="section-divider"></div>', unsafe_allow_html=True)
     
     job_description = ""
 
     if jd_method == "Upload File":
         jd_file = st.file_uploader(
-            "Upload Job Description",
+            "Upload Job Description (PDF or DOCX)",
             type=["pdf", "docx"],
             key="jd_upload",
-            help="Upload a PDF or DOCX file containing the job description"
+            help="Upload a file containing the complete job description"
         )
         if jd_file:
-            with st.spinner("Reading job description..."):
+            with st.spinner("📄 Reading job description..."):
                 if jd_file.type == "application/pdf":
                     job_description = extract_text_from_pdf(jd_file)
                 else:
                     job_description = extract_text_from_docx(jd_file)
-                st.success("Job description uploaded successfully!")
+                st.success("✅ Job description uploaded successfully!")
             
-            # Show extracted text in a disabled text area
             if job_description:
                 st.text_area(
-                    "Extracted Content",
+                    "Extracted Content (Review before processing)",
                     value=job_description,
                     height=200,
-                    disabled=True,
                     help="Preview of the extracted job description"
                 )
-
-    else:  # Type or Paste
+    else:
         job_description = st.text_area(
-            "Job Description",
+            "Paste the Job Description *",
             value="",
-            height=250,
-            placeholder="Paste the complete job description here...\n\nExample:\nWe are looking for a Senior Software Engineer with 5+ years of experience...",
-            help="The AI will analyze this job description and tailor your resume accordingly"
+            height=300,
+            placeholder="Paste the complete job description here, including responsibilities, requirements, and qualifications..."
         )
-        
-        if job_description:
-            word_count = len(job_description.split())
-            st.markdown(f'<p class="help-text">Word count: {word_count}</p>', unsafe_allow_html=True)
-
-    # Submit button in centered column
+    
+    # Button
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Continue to Resume", key="jb-btn"):
+        loading_placeholder = st.empty()
+        
+        if st.button("Continue to Resume Generation →", key="jb-btn"):
             if job_description:
-                with st.spinner("Analyzing job description..."):
+                loading_placeholder.markdown("""
+                    <div id="overlay-loader">
+                        <div class="loader-spinner"></div>
+                        <p>Analyzing Job Description...</p>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                try:
                     structured_jd = extract_details_from_jd(job_description)
-                    
-                    # Handle JSON parsing
                     if isinstance(structured_jd, str):
                         try:
                             structured_jd = json.loads(structured_jd)
                         except json.JSONDecodeError:
-                            structured_jd = {"text": structured_jd}
-                    
-                    st.session_state.job_description = structured_jd
-                
-                st.success("Job description processed successfully!")
+                            structured_jd = {"raw_text": job_description}
+                except Exception as e:
+                    st.error(f"❌ Error processing job description: {e}")
+                    structured_jd = {"raw_text": job_description}
+
+                # Store in session state
+                st.session_state.job_description = structured_jd
+
+                # ============= CRITICAL: ENCODE JD TO URL =============
+                try:
+                    # Encode to base64 for safe URL transmission
+                    jd_json = json.dumps(structured_jd)
+                    encoded_bytes = base64.b64encode(jd_json.encode('utf-8'))
+                    encoded_str = encoded_bytes.decode('utf-8')
+                    st.query_params["jd"] = encoded_str
+                except Exception as e:
+                    st.warning(f"Could not encode JD to URL: {e}")
+                # ============= END ENCODE =============
+
+                loading_placeholder.empty()
                 st.switch_page("pages/create.py")
             else:
-                st.error("Please provide a job description to continue")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                st.error("⚠️ Please provide a job description to continue")

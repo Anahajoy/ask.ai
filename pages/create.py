@@ -17,7 +17,7 @@ from utils import (
     save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
     docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
     match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
-    load_user_templates,load_user_ppt_templates,delete_user_doc_template,convert_html_to_docx_spire
+    load_user_templates,load_user_ppt_templates,delete_user_doc_template,convert_html_to_docx_spire,clear_template_state
 )
 
 # Page config
@@ -2885,6 +2885,7 @@ def render_template_card(template_name, template_config, template_categories):
     
     if st.button("Use Template", key=f"use_{template_name}", type="primary", use_container_width=True):
         # Generate resume data
+        clear_template_state()
         resume_data = generate_resume_for_template()
         
         # Generate template HTML
@@ -2904,6 +2905,7 @@ def render_template_card(template_name, template_config, template_categories):
         st.session_state.template_preview_html = full_html
         st.session_state.template_preview_css = css
         st.session_state.final_resume_data = resume_data
+        st.session_state['template_source'] = 'system'
         st.session_state.show_template_selector = False
         st.session_state.show_visual_editor = True
         st.rerun()
@@ -3516,6 +3518,7 @@ def render_saved_html_template_card(template_id, template_data):
         if st.button("Use Template", key=f"use_html_{template_id}", type="primary", use_container_width=True):
             try:
                 # Get resume data
+                clear_template_state()
                 user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
                 # Ensure enhanced_resume is initialized
@@ -3610,7 +3613,7 @@ def render_saved_doc_template_card(template_id, template_data):
         if st.button("Use Template", key=f"use_doc_{template_id}", type="primary", use_container_width=True):
             try:
                 import io
-                
+                clear_template_state()
                 # Get resume data
                 final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
@@ -3739,81 +3742,81 @@ def render_saved_ppt_template_card(template_id, template_data):
             try:
                 import io
                 from pptx import Presentation
-                
+                clear_template_state()
                 # Get resume data
                 user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
                 # Ensure enhanced_resume is initialized
                 if st.session_state.get('enhanced_resume') is None:
                     st.session_state['enhanced_resume'] = user_resume.copy()
-                
-                # Generate fresh resume data
-                resume_data = generate_resume_for_template()
-                st.spinner("Processing template...")
-                working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
-                prs = Presentation(io.BytesIO(template_data['ppt_data']))
-                
-                slide_texts = []
-                for slide_idx, slide in enumerate(prs.slides):
-                    text_blocks = []
-                    for shape_idx, shape in enumerate(slide.shapes):
-                        if shape.has_text_frame and shape.text.strip():
-                            text_blocks.append({
-                                "index": shape_idx,
-                                "text": shape.text.strip(),
-                                "position": {"x": shape.left, "y": shape.top}
-                            })
+                with st.spinner("Processing template..."):
+                    # Generate fresh resume data
+                    resume_data = generate_resume_for_template()
+                    st.spinner("Processing template...")
+                    working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
+                    prs = Presentation(io.BytesIO(template_data['ppt_data']))
                     
-                    if text_blocks:
-                        text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
-                        slide_texts.append({
-                            "slide_number": slide_idx + 1,
-                            "text_blocks": text_blocks
-                        })
-                
-                structured_slides = analyze_slide_structure(slide_texts)
-                generated_sections = generate_ppt_sections(resume_data, structured_slides)
-                
-                text_elements = template_data.get('text_elements', [])
-                if not text_elements:
-                    # Regenerate text elements if not stored
-                    text_elements = []
+                    slide_texts = []
                     for slide_idx, slide in enumerate(prs.slides):
+                        text_blocks = []
                         for shape_idx, shape in enumerate(slide.shapes):
                             if shape.has_text_frame and shape.text.strip():
-                                text_elements.append({
-                                    'slide': slide_idx + 1,
-                                    'shape': shape_idx,
-                                    'original_text': shape.text.strip(),
-                                    'shape_type': type(shape).__name__
+                                text_blocks.append({
+                                    "index": shape_idx,
+                                    "text": shape.text.strip(),
+                                    "position": {"x": shape.left, "y": shape.top}
                                 })
-                
-                content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
-                    text_elements, generated_sections, prs)
-                
-                edits = {}
-                for element in text_elements:
-                    key = f"{element['slide']}_{element['shape']}"
-                    if key not in heading_shapes:
-                        edits[key] = content_mapping.get(key, element['original_text'])
-                
-                for element in text_elements:
-                    key = f"{element['slide']}_{element['shape']}"
-                    if key not in heading_shapes and key in edits:
-                        slide_idx = element['slide'] - 1
-                        shape_idx = element['shape']
                         
-                        if slide_idx < len(working_prs.slides):
-                            slide = working_prs.slides[slide_idx]
-                            if shape_idx < len(slide.shapes):
-                                shape = slide.shapes[shape_idx]
-                                if shape.has_text_frame:
-                                    clear_and_replace_text(shape, edits[key])
-                
-                output = io.BytesIO()
-                working_prs.save(output)
-                output.seek(0)
-                
+                        if text_blocks:
+                            text_blocks.sort(key=lambda x: (x["position"]["y"], x["position"]["x"]))
+                            slide_texts.append({
+                                "slide_number": slide_idx + 1,
+                                "text_blocks": text_blocks
+                            })
+                    
+                    structured_slides = analyze_slide_structure(slide_texts)
+                    generated_sections = generate_ppt_sections(resume_data, structured_slides)
+                    
+                    text_elements = template_data.get('text_elements', [])
+                    if not text_elements:
+                        # Regenerate text elements if not stored
+                        text_elements = []
+                        for slide_idx, slide in enumerate(prs.slides):
+                            for shape_idx, shape in enumerate(slide.shapes):
+                                if shape.has_text_frame and shape.text.strip():
+                                    text_elements.append({
+                                        'slide': slide_idx + 1,
+                                        'shape': shape_idx,
+                                        'original_text': shape.text.strip(),
+                                        'shape_type': type(shape).__name__
+                                    })
+                    
+                    content_mapping, heading_shapes, basic_info_shapes = match_generated_to_original(
+                        text_elements, generated_sections, prs)
+                    
+                    edits = {}
+                    for element in text_elements:
+                        key = f"{element['slide']}_{element['shape']}"
+                        if key not in heading_shapes:
+                            edits[key] = content_mapping.get(key, element['original_text'])
+                    
+                    for element in text_elements:
+                        key = f"{element['slide']}_{element['shape']}"
+                        if key not in heading_shapes and key in edits:
+                            slide_idx = element['slide'] - 1
+                            shape_idx = element['shape']
+                            
+                            if slide_idx < len(working_prs.slides):
+                                slide = working_prs.slides[slide_idx]
+                                if shape_idx < len(slide.shapes):
+                                    shape = slide.shapes[shape_idx]
+                                    if shape.has_text_frame:
+                                        clear_and_replace_text(shape, edits[key])
+                    
+                    output = io.BytesIO()
+                    working_prs.save(output)
+                    output.seek(0)
+                    
                 # Store everything
                 st.session_state['generated_ppt'] = output.getvalue()
                 st.session_state['enhanced_resume'] = resume_data

@@ -11,6 +11,8 @@ if "db_initialized" not in st.session_state:
     try:
         init_db()
         st.session_state.db_initialized = True
+        st.cache_data.clear()  # 🔥 IMPORTANT
+
     except Exception as e:
         st.error(f"❌ Database initialization failed: {e}")
         st.stop()

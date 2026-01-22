@@ -7,7 +7,8 @@ import time
 from datetime import datetime
 from io import BytesIO
 from docx import Document
-from docx.shared import Pt, RGBColor, Inches
+import base64
+import hashlib
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 from utils import (
@@ -15,12 +16,12 @@ from utils import (
     get_score_label, ai_ats_score, extract_temp_from_docx,render_generic_section,
     should_regenerate_resume, generate_enhanced_resume, extract_template_from_html,save_user_templates,
     save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
-    docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,
+    docx_to_html_preview,save_user_doc_templates,analyze_slide_structure,generate_ppt_sections,save_user_doc_templates,
     match_generated_to_original,clear_and_replace_text,save_user_ppt_templates,ask_ai_for_mapping,auto_process_docx,
     load_user_templates,load_user_ppt_templates,delete_user_doc_template,convert_html_to_docx_spire,clear_template_state
 )
 
-# Page config
+
 st.set_page_config(
     page_title="CVmate Resume Creator",
     layout="wide",
@@ -28,24 +29,19 @@ st.set_page_config(
 )
 
 
-# Add this RIGHT AFTER st.set_page_config() and BEFORE any other code
 
-# ============= SESSION PERSISTENCE FIX =============
-# Handle logout first - ONLY clear on explicit logout
 if st.query_params.get("logout") == "true":
-    # Clear ALL session state on logout
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    # Clear query params
     st.query_params.clear()
     st.switch_page("app.py")
     st.stop()
 
-# Initialize logged_in_user if it doesn't exist
+
 if 'logged_in_user' not in st.session_state:
     st.session_state.logged_in_user = None
 
-# Restore user from query params if not already set
+
 if st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")
     if logged_user:
@@ -55,18 +51,17 @@ if st.session_state.logged_in_user is None:
         st.switch_page("app.py")
         st.stop()
 
-# Ensure query params stay synced with session
 if st.session_state.logged_in_user:
     current_param = st.query_params.get("user")
     if current_param != st.session_state.logged_in_user:
         st.query_params["user"] = st.session_state.logged_in_user
 
-# Now safely get email
+
 email = st.session_state.logged_in_user
 
-# ============= END SESSION FIX =============
+# ============= SESSIONS =============
 
-# Initialize ALL session states with proper defaults
+
 if 'selected_template' not in st.session_state:
     st.session_state.selected_template = None
 if 'template_preview_html' not in st.session_state:
@@ -93,28 +88,20 @@ if 'show_upload_modal' not in st.session_state:
     st.session_state.show_upload_modal = False
 if 'uploaded_templates' not in st.session_state:
     st.session_state.uploaded_templates = {}
-# Add these with your other session state initializations
 if 'generated_docx' not in st.session_state:
     st.session_state.generated_docx = None
 if 'generated_docx_temp' not in st.session_state:
     st.session_state.generated_docx_temp = None
 if 'generated_ppt' not in st.session_state:
     st.session_state.generated_ppt = None
-
-# ============= JOB DESCRIPTION PERSISTENCE FIX =============
-# ============= JOB DESCRIPTION PERSISTENCE FIX =============
-import base64
-
-# Initialize job_description if it doesn't exist
 if 'job_description' not in st.session_state:
     st.session_state.job_description = None
 
-# Try to restore from query params on first load
+
 if st.session_state.job_description is None:
     jd_param = st.query_params.get("jd")
     if jd_param:
         try:
-            # Decode from base64
             decoded_bytes = base64.b64decode(jd_param)
             decoded_json = decoded_bytes.decode('utf-8')
             st.session_state.job_description = json.loads(decoded_json)
@@ -123,19 +110,16 @@ if st.session_state.job_description is None:
     else:
         st.session_state.job_description = {}
 
-# CRITICAL: Always sync session state back to query params
+
 if st.session_state.job_description and isinstance(st.session_state.job_description, dict) and len(st.session_state.job_description) > 0:
     try:
-        # Encode to base64 for safe URL transmission
         jd_json = json.dumps(st.session_state.job_description)
         encoded_bytes = base64.b64encode(jd_json.encode('utf-8'))
         encoded_str = encoded_bytes.decode('utf-8')
         st.query_params["jd"] = encoded_str
     except:
         pass
-# ============= END JOB DESCRIPTION FIX =============
 
-# Get user resume data - Load from database if not in session
 if st.session_state.final_resume_data is None:
     user_resume = get_user_resume(email)
     if user_resume:
@@ -143,38 +127,32 @@ if st.session_state.final_resume_data is None:
 else:
     user_resume = st.session_state.final_resume_data
 
-# CRITICAL: Ensure enhanced_resume is properly initialized
+
 if st.session_state.enhanced_resume is None and user_resume:
     st.session_state.enhanced_resume = user_resume.copy()
 
-# chatbot(user_resume)
 
 resume_data = st.session_state.get('enhanced_resume')
 # st.write(resume_data)
-# st.write(resume_data)
 jd_data = st.session_state.get('job_description')
 
-# Initialize enhanced_resume if it doesn't exist
+
 if 'enhanced_resume' not in st.session_state or st.session_state.enhanced_resume is None:
-    # Use the original user resume as the starting point
     user_resume = get_user_resume(email)
     if user_resume:
         st.session_state.enhanced_resume = user_resume.copy()
 
-# Only enhance when user explicitly requests it OR when JD first added
+
 jd_data = st.session_state.get('job_description')
 
-# Check if we should enhance (only once per JD)
+
 if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
-    # Track if we've already enhanced for this JD
     if 'last_enhanced_jd' not in st.session_state:
         st.session_state.last_enhanced_jd = None
-    
-    # Create a hash of the JD to detect changes
-    import hashlib
+  
     jd_hash = hashlib.md5(str(jd_data).encode()).hexdigest()
     
-    # Only enhance if JD changed OR user explicitly requested
+  
     if st.session_state.last_enhanced_jd != jd_hash or st.session_state.get('force_enhance', False):
         resume_data = st.session_state.enhanced_resume
         generate_enhanced_resume(resume_data, jd_data)
@@ -182,25 +160,23 @@ if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
         st.session_state.force_enhance = False
 
 resume_data = st.session_state.get('enhanced_resume')
-# st.write(resume_data)
-# ============= ATS SCORING WITH PROPER CHECKS =============
+
+
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
     try:
-        # Only calculate if we don't already have a score OR if data changed
         if not st.session_state.ats_result or st.session_state.ats_result.get('overall_score', 0) == 0:
             st.session_state.ats_result = ai_ats_score(st.session_state.enhanced_resume, jd_data)
     except Exception as e:
         st.warning(f"Could not calculate ATS score: {str(e)}")
         st.session_state.ats_result = {}
 else:
-    # No JD available, set empty ATS result
     st.session_state.ats_result = {}
 
 
 
 
 
-# Define resume order
+
 RESUME_ORDER = ["education", "experience", "skills", "projects", "certifications", "achievements"]
 st.markdown("""
 <style>
@@ -340,7 +316,7 @@ st.markdown("""
         border: 1px solid var(--medium-gray);
     }
     
-    /* Ensure iframe scrolls */
+  
     iframe {
         overflow: auto !important;
     }
@@ -384,7 +360,7 @@ st.markdown("""
         color: var(--dark-gray);
     }
     
-    /* ================= FORCE ORANGE PRIMARY BUTTONS ================= */
+   
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #FF6B35 0%, #FF8B5C 100%) !important;
     color: #FFFFFF !important;
@@ -398,12 +374,12 @@ st.markdown("""
     transform: translateY(-2px);
 }
 
-/* Active */
+
 .stButton > button[kind="primary"]:active {
     background: #D45A2B !important;
 }
 
-    /* Header styling */
+
     .editor-header {
         background: var(--white);
         padding: 1rem;
@@ -413,7 +389,7 @@ st.markdown("""
         border: 1px solid var(--medium-gray);
     }
     
-    /* Inline Editor */
+ 
     .inline-editor {
         position: absolute;
         background: var(--white);
@@ -477,12 +453,12 @@ st.markdown("""
         background-color: rgba(255, 107, 53, 0.1) !important;
     }
     
-    /* Hide empty sections */
+
     .empty-section {
         display: none !important;
     }
     
-    /* Make text areas look better */
+
     .stTextArea textarea {
         border-radius: 8px !important;
         border: 2px solid var(--medium-gray) !important;
@@ -614,11 +590,10 @@ if "logged_in_user" not in st.session_state or st.session_state.logged_in_user i
     if logged_user:
         st.session_state.logged_in_user = logged_user
 
-# Get user info for navigation
 current_user = st.session_state.get('logged_in_user', '')
 is_logged_in = bool(current_user)
 
-# Build URLs
+
 if is_logged_in and current_user:
     home_url = f"/?user={current_user}"
     ats_url = f"ats?user={current_user}"
@@ -635,7 +610,7 @@ if is_logged_in:
 else:
     auth_button = '<a class="nav-link" href="#Login" target="_self">Login</a>'
 
-# Navigation Bar
+
 st.markdown(f"""
 <div class="nav-wrapper">
     <div class="nav-container">
@@ -673,7 +648,7 @@ def process_html_upload(uploaded_file):
         'original_filename': uploaded_file.name
     }
     
-    # Generate preview
+
     preview_html = f"""
         <style>{parsed_template.get('css', '')}</style>
         <div class="ats-page">{generate_generic_html(resume_data)}</div>
@@ -687,7 +662,7 @@ def show_inline_doc_mapping_editor():
     st.markdown("---")
     st.markdown("### ✏️ Edit Document Mapping")
     
-    # Check if we have the necessary data
+  
     if 'mapping' not in st.session_state or 'doc_original_bytes' not in st.session_state:
         st.warning("⚠️ No mapping data available. Generate document first.")
         return
@@ -696,11 +671,11 @@ def show_inline_doc_mapping_editor():
     
     st.info("💡 Edit the values below to change how your resume data maps to the document")
     
-    # Show current mappings in a scrollable container
+   
     st.markdown("#### Current Mappings")
     
     if mapping:
-        # Create a container for mappings
+       
         for idx, (template_key, resume_value) in enumerate(mapping.items()):
             with st.container():
                 col1, col2, col3 = st.columns([2, 3, 1])
@@ -736,7 +711,7 @@ def show_inline_doc_mapping_editor():
     else:
         st.warning("No mappings found.")
     
-    # Add new mapping section
+    
     st.markdown("---")
     st.markdown("#### Add New Mapping")
     
@@ -757,7 +732,7 @@ def show_inline_doc_mapping_editor():
                 st.success("✅ Added!")
                 st.rerun()
     
-    # Apply changes button
+    
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -765,23 +740,20 @@ def show_inline_doc_mapping_editor():
     with col1:
         if st.button("✨ Apply Changes & Regenerate", type="primary", use_container_width=True):
             try:
-                import io
+             
                 
-                # Get original template bytes
+                import io
                 original_bytes = st.session_state['doc_original_bytes']
                 
-                # Apply updated mapping
                 with st.spinner("Regenerating document..."):
                     output_doc = auto_process_docx(
                         io.BytesIO(original_bytes),
                         st.session_state['mapping']
                     )
-                
-                # Update generated document
+           
                 st.session_state['generated_docx'] = output_doc.getvalue()
                 
                 st.success("✅ Document regenerated with new mapping!")
-                # 
                 time.sleep(1)
                 st.rerun()
                 
@@ -794,8 +766,7 @@ def show_inline_doc_mapping_editor():
         if st.button("🔄 Reset to Original", type="secondary", use_container_width=True):
             try:
                 import io
-                
-                # Re-extract and regenerate original mapping
+
                 original_bytes = st.session_state['doc_original_bytes']
                 uploadtext = extract_temp_from_docx(io.BytesIO(original_bytes))
                 
@@ -825,9 +796,9 @@ def show_inline_ppt_content_editor():
     st.markdown("---")
     st.markdown("### ✏️ Edit Presentation Content")
     
-    # ✅ FIX: Regenerate text elements if they don't exist
+
     if 'temp_ppt_text_elements' not in st.session_state or not st.session_state.get('temp_ppt_text_elements'):
-        # Try to regenerate from the generated PPT or template
+
         if st.session_state.get('generated_ppt'):
             try:
                 import io
@@ -853,7 +824,7 @@ def show_inline_ppt_content_editor():
                 st.info("💡 Try regenerating the presentation using 'Save & Auto-Improve'")
                 return
         
-        # Try from saved template
+
         elif st.session_state.get('selected_ppt_template'):
             template_data = st.session_state['selected_ppt_template']
             if 'text_elements' in template_data:
@@ -865,7 +836,7 @@ def show_inline_ppt_content_editor():
             st.warning("⚠️ No presentation data found. Generate presentation first.")
             return
     
-    # Initialize edits if not exists
+
     if 'temp_ppt_edits' not in st.session_state:
         st.session_state['temp_ppt_edits'] = {}
     
@@ -877,8 +848,7 @@ def show_inline_ppt_content_editor():
         return
     
     st.info("💡 Edit the content for each slide below")
-    
-    # Group by slide
+
     slides_dict = {}
     for element in text_elements:
         slide_num = element['slide']
@@ -886,7 +856,7 @@ def show_inline_ppt_content_editor():
             slides_dict[slide_num] = []
         slides_dict[slide_num].append(element)
     
-    # Display by slide
+
     for slide_num in sorted(slides_dict.keys()):
         with st.expander(f"📊 Slide {slide_num}", expanded=(slide_num==1)):
             for element in slides_dict[slide_num]:
@@ -913,7 +883,7 @@ def show_inline_ppt_content_editor():
     
     st.session_state['temp_ppt_edits'] = edits
     
-    # Apply changes button
+
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -924,13 +894,13 @@ def show_inline_ppt_content_editor():
                 import io
                 from pptx import Presentation
                 
-                # Get original PPT data
+      
                 ppt_data = None
                 
-                # Try to get from generated_ppt first
+        
                 if st.session_state.get('generated_ppt'):
                     ppt_data = st.session_state['generated_ppt']
-                # Fallback to template data
+   
                 elif st.session_state.get('selected_ppt_template'):
                     ppt_data = st.session_state['selected_ppt_template'].get('ppt_data')
                 
@@ -940,7 +910,7 @@ def show_inline_ppt_content_editor():
                 
                 working_prs = Presentation(io.BytesIO(ppt_data))
                 
-                # Apply edits
+        
                 with st.spinner("Regenerating presentation..."):
                     for element in text_elements:
                         key = f"{element['slide']}_{element['shape']}"
@@ -974,7 +944,7 @@ def show_inline_ppt_content_editor():
     
     with col2:
         if st.button("🔄 Reset All", type="secondary", use_container_width=True):
-            # Reset to original text
+
             for element in text_elements:
                 key = f"{element['slide']}_{element['shape']}"
                 edits[key] = element['original_text']
@@ -989,16 +959,16 @@ def show_inline_doc_mapping_editor():
     st.markdown("---")
     st.markdown("### ✏️ Edit Document Mapping")
     
-    # ✅ FIX: Regenerate mapping if it doesn't exist
+  
     if 'mapping' not in st.session_state or not st.session_state.get('mapping'):
         if st.session_state.get('doc_original_bytes'):
             try:
                 import io
                 
-                # Re-extract text from template
+     
                 uploadtext = extract_temp_from_docx(io.BytesIO(st.session_state['doc_original_bytes']))
                 
-                # Get resume data
+         
                 resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or {}
                 
                 with st.spinner("Generating mapping..."):
@@ -1022,7 +992,7 @@ def show_inline_doc_mapping_editor():
             st.warning("⚠️ No document data found. Generate document first.")
             return
     
-    # Check again after potential regeneration
+
     if 'mapping' not in st.session_state or 'doc_original_bytes' not in st.session_state:
         st.warning("⚠️ No mapping data available. Generate document first.")
         return
@@ -1031,11 +1001,11 @@ def show_inline_doc_mapping_editor():
     
     st.info("💡 Edit the values below to change how your resume data maps to the document")
     
-    # Show current mappings in a scrollable container
+
     st.markdown("#### Current Mappings")
     
     if mapping:
-        # Create a container for mappings
+
         for idx, (template_key, resume_value) in enumerate(mapping.items()):
             with st.container():
                 col1, col2, col3 = st.columns([2, 3, 1])
@@ -1071,7 +1041,7 @@ def show_inline_doc_mapping_editor():
     else:
         st.warning("No mappings found.")
     
-    # Add new mapping section
+
     st.markdown("---")
     st.markdown("#### Add New Mapping")
     
@@ -1092,7 +1062,7 @@ def show_inline_doc_mapping_editor():
                 st.success("✅ Added!")
                 st.rerun()
     
-    # Apply changes button
+
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -1101,18 +1071,17 @@ def show_inline_doc_mapping_editor():
         if st.button("✨ Apply Changes & Regenerate", type="primary", use_container_width=True):
             try:
                 import io
-                
-                # Get original template bytes
+      
                 original_bytes = st.session_state['doc_original_bytes']
                 
-                # Apply updated mapping
+  
                 with st.spinner("Regenerating document..."):
                     output_doc = auto_process_docx(
                         io.BytesIO(original_bytes),
                         st.session_state['mapping']
                     )
                 
-                # Update generated document
+  
                 st.session_state['generated_docx'] = output_doc.getvalue()
                 
                 st.success("✅ Document regenerated with new mapping!")
@@ -1130,7 +1099,7 @@ def show_inline_doc_mapping_editor():
             try:
                 import io
                 
-                # Re-extract and regenerate original mapping
+      
                 original_bytes = st.session_state['doc_original_bytes']
                 uploadtext = extract_temp_from_docx(io.BytesIO(original_bytes))
                 
@@ -1175,8 +1144,7 @@ def save_uploaded_template(template_name, file_type):
                 'original_filename': st.session_state.get('uploaded_file_name', 'unknown.html'),
                 'type': 'html'
             }
-            
-            # Save to database
+  
             save_user_templates(current_user, st.session_state.uploaded_templates)
         
         elif file_type in ['docx', 'doc']:
@@ -1196,8 +1164,8 @@ def save_uploaded_template(template_name, file_type):
                 'sections_detected': temp_config.get('sections_detected', [])
             }
             
-            # Save to database
-            from utils import save_user_doc_templates
+ 
+
             save_user_doc_templates(current_user, st.session_state.doc_templates)
         
         elif file_type in ['pptx', 'ppt']:
@@ -1218,8 +1186,6 @@ def save_uploaded_template(template_name, file_type):
                 'text_elements': temp_config.get('text_elements', [])
             }
             
-            # Save to database
-            from utils import save_user_ppt_templates
             save_user_ppt_templates(current_user, st.session_state.ppt_templates)
         
     except Exception as e:
@@ -1230,7 +1196,7 @@ def save_uploaded_template(template_name, file_type):
 def show_word_doc_preview_and_save(uploaded_file, final_data):
     """Display Word document preview with save template section."""
     try:
-        # ========== SAVE TEMPLATE SECTION ==========
+ 
         st.markdown("---")
         st.markdown("### 💾 Save Word Template")
         
@@ -3986,14 +3952,15 @@ def show_visual_editor_with_tools():
 
         resume_data = st.session_state['enhanced_resume']
         
-        # ✅ FIX: Only show Edit Mode checkbox for HTML templates
+      
+  
         template_source = st.session_state.get('template_source', 'html_saved')
-        
-        # Only show Edit Mode for HTML templates, not for Word/PPT
-        if template_source in ['html_saved', 'temp_upload', None]:
-            is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+
+ 
+        if template_source in ['doc_saved', 'ppt_saved']:
+            is_edit_mode = False 
         else:
-            is_edit_mode = False  # Force edit mode off for Doc/PPT
+            is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
             
         if is_edit_mode:
             with st.container():
@@ -4222,9 +4189,8 @@ def show_visual_editor_with_tools():
                 st.session_state.final_resume_data = st.session_state.enhanced_resume.copy()
                 save_and_improve()
                 loading_placeholder.empty()
-            
-            # Only show "Add New" buttons for HTML templates in edit mode
-            if template_source in ['html_saved', 'temp_upload', None]:
+
+            if template_source not in ['doc_saved', 'ppt_saved']: 
                 if not st.session_state.get('edit_toggle', False):
                     st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
                 else:
@@ -4276,7 +4242,6 @@ def show_visual_editor_with_tools():
                         type="secondary",
                         use_container_width=True
                     )
-            
             # Continue with HTML/PDF downloads and ATS analysis...
             # (Rest of your existing tools_col code)
 # In your show_visual_editor_with_tools() function, replace the PDF download section with:
@@ -4287,7 +4252,7 @@ def show_visual_editor_with_tools():
         css_content = st.session_state.template_preview_css or ""
         template_source = st.session_state.get('template_source', 'html_saved')
 
-        if template_source in ['html_saved', 'temp_upload', None]:
+        if template_source not in ['doc_saved', 'ppt_saved']: 
             # Single HTML for both downloads
             download_html = f"""
             <!DOCTYPE html>

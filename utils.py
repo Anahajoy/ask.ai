@@ -437,54 +437,30 @@ def load_skills_from_json():
         st.error(f"Error loading skills: {e}")
         # return get_fallback_skills()
 
-SKILL_CACHE_FILE = "skills.csv"
+SKILL_CACHE_FILE = "./ask.ai/skills.csv"
 
-def get_all_skills_from_csv(csv_file_path: str = SKILL_CACHE_FILE) -> int:
-    """
-    Load skills from CSV into Supabase PostgreSQL.
-    Inserts only once and ignores duplicates safely.
-
-    Returns:
-        int: Total number of skills in database
-    """
-
+def get_all_skills_from_csv(csv_file_path: str) -> int:
     try:
+        df = pd.read_csv(csv_file_path)
+
+        if "Skill" not in df.columns:
+            raise ValueError("CSV must contain a 'Skill' column")
+
+        df["Skill"] = (
+            df["Skill"]
+            .astype(str)
+            .str.strip()
+            .str.strip('"')
+            .str.title()
+        )
+
+        df = df[df["Skill"].notna() & (df["Skill"] != "")]
+        df = df.drop_duplicates(subset=["Skill"])
+
+        skill_rows = [(s,) for s in df["Skill"]]
+
         with get_connection() as conn:
             with conn.cursor() as cursor:
-
-                # Check existing count
-                cursor.execute("SELECT COUNT(*) FROM skills")
-                existing_count = cursor.fetchone()[0]
-
-                if existing_count > 0:
-                    print(f"✅ Database already contains {existing_count} skills. Skipping import.")
-                    return existing_count
-
-                print(f"📂 Loading skills from {csv_file_path}...")
-
-                # Load CSV
-                df = pd.read_csv(csv_file_path)
-
-                if "Skill" not in df.columns:
-                    raise ValueError("CSV must contain a 'Skill' column")
-
-                # Clean data
-                df["Skill"] = (
-                    df["Skill"]
-                    .astype(str)
-                    .str.strip()
-                    .str.strip('"')
-                    .str.title()
-                )
-
-                df = df[df["Skill"].notna() & (df["Skill"] != "")]
-                df = df.drop_duplicates(subset=["Skill"])
-
-                print(f"📊 Found {len(df)} unique skills in CSV")
-
-                # Prepare batch insert
-                skill_rows = [(skill,) for skill in df["Skill"]]
-
                 cursor.executemany(
                     """
                     INSERT INTO skills (skill_name)
@@ -493,20 +469,11 @@ def get_all_skills_from_csv(csv_file_path: str = SKILL_CACHE_FILE) -> int:
                     """,
                     skill_rows
                 )
+            conn.commit()
 
-                conn.commit()
-
-                # Final count
+            with conn.cursor() as cursor:
                 cursor.execute("SELECT COUNT(*) FROM skills")
-                final_count = cursor.fetchone()[0]
-
-                print(f"✅ Skills table now contains {final_count} records")
-
-                return final_count
-
-    except FileNotFoundError:
-        print(f"❌ CSV file not found: {csv_file_path}")
-        return 0
+                return cursor.fetchone()[0]
 
     except Exception as e:
         print(f"❌ Error loading skills: {e}")

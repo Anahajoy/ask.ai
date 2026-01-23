@@ -1,32 +1,27 @@
 import pyodbc
-import yaml
-from pathlib import Path
-
-CONFIG_PATH = Path(__file__).parent / "config.yaml"
+import streamlit as st
 
 
 def get_connection(database_override=None, autocommit=False):
-    with open(CONFIG_PATH, "r") as f:
-        config = yaml.safe_load(f)
-
-    db = config["database"]
-    database = database_override or db["database"]
+    database = database_override or st.secrets["DB_NAME"]
 
     conn_str = (
-        f"DRIVER={{{db['driver']}}};"
-        f"SERVER={db['server']};"
+        f"DRIVER={{{st.secrets['DB_DRIVER']}}};"
+        f"SERVER={st.secrets['DB_SERVER']};"
         f"DATABASE={database};"
     )
 
-    if db.get("trusted_connection", "").lower() == "yes":
+    if st.secrets.get("DB_TRUSTED_CONNECTION", "").lower() == "yes":
         conn_str += "Trusted_Connection=yes;"
     else:
-        conn_str += f"UID={db['username']};PWD={db['password']};"
+        conn_str += (
+            f"UID={st.secrets['DB_USERNAME']};"
+            f"PWD={st.secrets['DB_PASSWORD']};"
+        )
 
-    if db.get("trust_server_certificate", "").lower() == "yes":
+    if st.secrets.get("DB_TRUST_SERVER_CERTIFICATE", "").lower() == "yes":
         conn_str += "TrustServerCertificate=yes;"
 
     conn = pyodbc.connect(conn_str)
     conn.autocommit = autocommit
-    
     return conn

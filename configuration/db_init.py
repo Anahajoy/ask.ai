@@ -2,7 +2,7 @@ from pathlib import Path
 from .db import get_connection
 
 
-DB_NAME = "dbs"
+DB_NAME = "cvmate_db"
 SCHEMA_VERSION = 1
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 

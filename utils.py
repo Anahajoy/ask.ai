@@ -33,7 +33,7 @@ import json
 from lxml import etree
 import mammoth
 import pyodbc
-from configuration.db import get_connection
+from db.db import get_connection
 
 
 # Recommended models:

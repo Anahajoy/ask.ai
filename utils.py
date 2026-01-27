@@ -21,7 +21,7 @@ from pptx import Presentation
 from pptx.util import Pt
 from docx import Document
 from docx.shared import RGBColor
-from datetime import date, datetime
+from collections import Counter
 import hashlib
 from copy import deepcopy
 import time
@@ -33,9 +33,7 @@ import json
 from lxml import etree
 import mammoth
 import pyodbc
-from db.db_init import get_connection
-
-
+from db.db import get_connection
 
 
 # Recommended models:
@@ -66,29 +64,29 @@ def get_base64_of_file(file_path):
         data = f.read()
     return base64.b64encode(data).decode()
 
-# def set_image_as_bg(image_file):
-#     # Get file extension to set correct MIME type
-#     ext = os.path.splitext(image_file)[1].lower()
-#     if ext == ".png":
-#         mime_type = "image/png"
-#     elif ext == ".jpg" or ext == ".jpeg":
-#         mime_type = "image/jpeg"
-#     else:
-#         st.error("Unsupported file type!")
-#         return
+def set_image_as_bg(image_file):
+    # Get file extension to set correct MIME type
+    ext = os.path.splitext(image_file)[1].lower()
+    if ext == ".png":
+        mime_type = "image/png"
+    elif ext == ".jpg" or ext == ".jpeg":
+        mime_type = "image/jpeg"
+    else:
+        st.error("Unsupported file type!")
+        return
 
-#     bin_str = get_base64_of_file(image_file)
-#     page_bg_img = f"""
-#     <style>
-#     .stApp {{
-#         background-image: url("data:{mime_type};base64,{bin_str}");
-#         background-size: cover;
-#         background-position: center;
-#         background-repeat: no-repeat;
-#     }}
-#     </style>
-#     """
-#     st.markdown(page_bg_img, unsafe_allow_html=True)
+    bin_str = get_base64_of_file(image_file)
+    page_bg_img = f"""
+    <style>
+    .stApp {{
+        background-image: url("data:{mime_type};base64,{bin_str}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
+    </style>
+    """
+    st.markdown(page_bg_img, unsafe_allow_html=True)
 
 
 
@@ -408,25 +406,25 @@ def call_llm(payload):
 def load_skills_from_json():
     """Load all skills from database"""
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT skill_name FROM skills ORDER BY skill_name")
-                count = cursor.fetchone()[0]
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM skills")
+        count = cursor.fetchone()[0]
         
         if count == 0:
-            # cursor.close()
-            # conn.close()
+            cursor.close()
+            conn.close()
             
             st.info("🔄 Initializing skills from CSV...")
             get_all_skills_from_csv("skills.csv")
             
-            # # Re-fetch
-            # conn = get_connection()
-            # cursor = conn.cursor()
-        with get_connection() as conn:
-            with conn.cursor() as cursor: 
-                cursor.execute("SELECT skill_name FROM skills ORDER BY skill_name")
-                skills = [row[0] for row in cursor.fetchall()]
+            # Re-fetch
+            conn = get_connection()
+            cursor = conn.cursor()
+        
+        cursor.execute("SELECT skill_name FROM skills ORDER BY skill_name")
+        skills = [row[0] for row in cursor.fetchall()]
         
         cursor.close()
         conn.close()
@@ -437,95 +435,138 @@ def load_skills_from_json():
         st.error(f"Error loading skills: {e}")
         # return get_fallback_skills()
 
-SKILL_CACHE_FILE = "./ask.ai/skills.csv"
+SKILL_CACHE_FILE = "../ask.ai/json/skill.csv"
 
-def get_all_skills_from_csv(csv_file_path: str) -> int:
+def get_all_skills_from_csv(csv_file_path=SKILL_CACHE_FILE):
+    """
+    Load skills from CSV file and insert into database.
+    Only inserts skill_name, added_date is auto-generated.
+    
+    Args:
+        csv_file_path: Path to the CSV file containing skills
+        
+    Returns:
+        int: Total number of skills in database
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Check if skills already exist
+    cursor.execute("SELECT COUNT(*) FROM skills")
+    existing_count = cursor.fetchone()[0]
+    
+    if existing_count > 0:
+        print(f"✅ Database already contains {existing_count} skills. Skipping import.")
+        cursor.close()
+        conn.close()
+        return existing_count
+    
     try:
+        print(f"📂 Loading skills from {csv_file_path}...")
+        
+        # Read CSV file
         df = pd.read_csv(csv_file_path)
-
-        if "Skill" not in df.columns:
-            raise ValueError("CSV must contain a 'Skill' column")
-
-        df["Skill"] = (
-            df["Skill"]
-            .astype(str)
-            .str.strip()
-            .str.strip('"')
-            .str.title()
-        )
-
-        df = df[df["Skill"].notna() & (df["Skill"] != "")]
-        df = df.drop_duplicates(subset=["Skill"])
-
-        skill_rows = [(s,) for s in df["Skill"]]
-
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.executemany(
-                    """
-                    INSERT INTO skills (skill_name)
-                    VALUES (%s)
-                    ON CONFLICT (skill_name) DO NOTHING
-                    """,
-                    skill_rows
-                )
-            conn.commit()
-
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT COUNT(*) FROM skills")
-                return cursor.fetchone()[0]
-
-    except Exception as e:
-        print(f"❌ Error loading skills: {e}")
+        
+        # Clean the skill names
+        df['Skill'] = df['Skill'].str.strip().str.strip('"').str.strip()
+        
+        # Remove empty rows and duplicates
+        df = df[df['Skill'].notna() & (df['Skill'] != '')]
+        df = df.drop_duplicates(subset=['Skill'])
+        df['Skill'] = df['Skill'].str.title()
+        
+        print(f"📊 Found {len(df)} unique skills in CSV")
+        
+        # Insert into database
+        insert_query = "INSERT INTO skills (skill_name) VALUES (?)"
+        
+        inserted = 0
+        skipped = 0
+        
+        for _, row in df.iterrows():
+            try:
+                cursor.execute(insert_query, (row['Skill'],))
+                conn.commit()
+                inserted += 1
+            except Exception:
+                # Skip duplicates
+                skipped += 1
+                continue
+        
+        print(f"✅ Inserted {inserted} skills")
+        if skipped > 0:
+            print(f"⚠️ Skipped {skipped} duplicates")
+        
+        # Get final count
+        cursor.execute("SELECT COUNT(*) FROM skills")
+        final_count = cursor.fetchone()[0]
+        
+        cursor.close()
+        conn.close()
+        
+        return final_count
+        
+    except FileNotFoundError:
+        print(f"❌ CSV file not found: {csv_file_path}")
+        cursor.close()
+        conn.close()
         return 0
-
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ Error loading skills: {e}")
+        import traceback
+        traceback.print_exc()
+        cursor.close()
+        conn.close()
+        return 0
 
 
 # ALL THE JOB ROLE LIST#
 
 
-# CACHE_FILE = "../ask.ai/json/job_roles.json"
+CACHE_FILE = "../ask.ai/json/job_roles.json"
 
-# def get_all_roles_from_llm():
-#     if os.path.exists(CACHE_FILE):
-#         with open(CACHE_FILE, "r") as f:
-#             return json.load(f)
-#     prompt = (
-#     "You are a global expert in careers. Provide an exhaustive list of job roles "
-#     "across all industries worldwide. Include detailed job roles from major fields like "
-#     "software development, software testing, hardware engineering, IT infrastructure, networking, "
-#     "cybersecurity, manufacturing, healthcare, finance, marketing, and more. "
-#     "List entry-level, mid-level, senior, and specialized roles such as 'Software Tester', "
-#     "'Automation Tester', 'Hardware Design Engineer', 'Firmware Developer', 'Network Administrator', "
-#     "'Security Analyst', and all variations in these fields. "
-#     "Return only a JSON array of job role names without extra text."
-# )
+def get_all_roles_from_llm():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+    prompt = (
+    "You are a global expert in careers. Provide an exhaustive list of job roles "
+    "across all industries worldwide. Include detailed job roles from major fields like "
+    "software development, software testing, hardware engineering, IT infrastructure, networking, "
+    "cybersecurity, manufacturing, healthcare, finance, marketing, and more. "
+    "List entry-level, mid-level, senior, and specialized roles such as 'Software Tester', "
+    "'Automation Tester', 'Hardware Design Engineer', 'Firmware Developer', 'Network Administrator', "
+    "'Security Analyst', and all variations in these fields. "
+    "Return only a JSON array of job role names without extra text."
+)
 
 
-#     payload = {
-#         "model": "meta/llama-3.1-70b-instruct",
-#         "messages": [
-#             {"role": "system", "content": "You are a global expert in careers worldwide."},
-#             {"role": "user", "content": prompt}
-#         ],
-#         "temperature": 0.1,
-#         "max_tokens": 3500
-#     }
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": [
+            {"role": "system", "content": "You are a global expert in careers worldwide."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1,
+        "max_tokens": 3500
+    }
 
-#     llm_response = call_llm(payload)
+    llm_response = call_llm(payload)
 
-#     try:
-#         roles_list = json.loads(llm_response)
-#         roles = sorted(set(role.strip().title() for role in roles_list if role.strip()))
-#     except json.JSONDecodeError:
-#         cleaned = llm_response.replace("[", "").replace("]", "").replace('"', "").replace("\n", "")
-#         roles = [role.strip().title() for role in cleaned.split(",") if role.strip()]
-#         roles = sorted(set(roles))
+    try:
+        roles_list = json.loads(llm_response)
+        roles = sorted(set(role.strip().title() for role in roles_list if role.strip()))
+    except json.JSONDecodeError:
+        cleaned = llm_response.replace("[", "").replace("]", "").replace('"', "").replace("\n", "")
+        roles = [role.strip().title() for role in cleaned.split(",") if role.strip()]
+        roles = sorted(set(roles))
 
-#     with open(CACHE_FILE, "w") as f:
-#         json.dump(roles, f, indent=2)
+    with open(CACHE_FILE, "w") as f:
+        json.dump(roles, f, indent=2)
 
-#     return roles
+    return roles
 
 
 
@@ -1862,99 +1903,98 @@ def is_valid_phone(phone):
 
 
 def save_user_resume(email, resume_data, input_method=None):
-    """
-    Insert or update a user's resume using PostgreSQL UPSERT.
-    """
 
-    # Convert datetime/date objects to ISO strings (JSON-safe)
     def convert_dates(obj):
         if isinstance(obj, dict):
             return {k: convert_dates(v) for k, v in obj.items()}
         elif isinstance(obj, list):
-            return [convert_dates(v) for v in obj]
-        elif isinstance(obj, (datetime, date)):
+            return [convert_dates(item) for item in obj]
+        elif hasattr(obj, "isoformat"):
             return obj.isoformat()
         return obj
 
     resume_data = convert_dates(resume_data)
 
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO user_resumes (
-                        email,
-                        resume_data,
-                        input_method,
-                        created_at,
-                        updated_at
-                    )
-                    VALUES (%s, %s, %s, NOW(), NOW())
-                    ON CONFLICT (email)
-                    DO UPDATE SET
-                        resume_data = EXCLUDED.resume_data,
-                        input_method = EXCLUDED.input_method,
-                        updated_at = NOW();
-                    """,
-                    (
-                        email,
-                        json.dumps(resume_data),
-                        input_method,
-                    ),
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-            conn.commit()
-            return True
+        cursor.execute("""
+            MERGE user_resumes AS target
+            USING (
+                SELECT 
+                    ? AS email,
+                    ? AS resume_data,
+                    ? AS input_method
+            ) AS source
+            ON target.email = source.email
+            WHEN MATCHED THEN
+                UPDATE SET
+                    resume_data = source.resume_data,
+                    input_method = source.input_method,
+                    updated_at = SYSDATETIME()
+            WHEN NOT MATCHED THEN
+                INSERT (email, resume_data, input_method, created_at, updated_at)
+                VALUES (
+                    source.email,
+                    source.resume_data,
+                    source.input_method,
+                    SYSDATETIME(),
+                    SYSDATETIME()
+                );
+        """,
+        email,
+        json.dumps(resume_data),
+        input_method
+        )
+
+        conn.commit()
+        return True
 
     except Exception as e:
         st.error(f"Error saving resume data: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
+
 
 def get_user_template_path(email):
-    """
-    Fetch all templates for a user, keyed by template_key.
-    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT template_key, template_name, html, css, uploaded_at, original_filename
+        FROM user_templates
+        WHERE email = ?
+        ORDER BY uploaded_at DESC
+    """, email)
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
     templates = {}
+    for row in rows:
+        templates[row[0]] = {
+            "name": row[1],
+            "html": row[2],
+            "css": row[3],
+            "uploaded_at": row[4],
+            "original_filename": row[5]
+        }
 
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        template_key,
-                        template_name,
-                        html,
-                        css,
-                        created_at,
-                        original_filename
-                    FROM user_templates
-                    WHERE email = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (email,)
-                )
+    return templates
 
-                rows = cursor.fetchall()
 
-        for row in rows:
-            templates[row[0]] = {
-                "name": row[1],
-                "html": row[2],
-                "css": row[3],
-                "uploaded_at": row[4],
-                "original_filename": row[5],
-            }
 
-        return templates
-
-    except Exception as e:
-        # Optional: log instead of raising in UI paths
-        print(f"Error fetching templates for {email}: {e}")
-        return {}
-    
 # def get_user_template_path(user_email):
 #     """Return the JSON path for the given user's templates."""
 #     if not user_email:
@@ -1970,88 +2010,126 @@ def get_user_template_path(email):
 
 
 
+
 def load_user_templates(user_email):
     """Load templates for the logged-in user from database."""
     templates = {}
 
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        template_key,
-                        template_name,
-                        html,
-                        css,
-                        created_at,
-                        original_filename
-                    FROM user_templates
-                    WHERE email = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (user_email,)
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-                for row in cursor.fetchall():
-                    templates[row[0]] = {
-                        "name": row[1],
-                        "html": row[2],
-                        "css": row[3],
-                        "uploaded_at": row[4],
-                        "original_filename": row[5],
-                    }
+        cursor.execute("""
+            SELECT template_key,
+                   template_name,
+                   html,
+                   css,
+                   uploaded_at,
+                   original_filename
+            FROM user_templates
+            WHERE email = ?
+            ORDER BY uploaded_at DESC
+        """, user_email)
+
+        for row in cursor.fetchall():
+            templates[row[0]] = {
+                "name": row[1],
+                "html": row[2],
+                "css": row[3],
+                "uploaded_at": row[4],
+                "original_filename": row[5]
+            }
 
     except Exception as e:
         st.error(f"Error loading templates: {e}")
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
     return templates
 
 
 
-def save_user_templates(user_email, templates):
-    """Save or update templates for the logged-in user in PostgreSQL (Supabase)."""
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                for template_key, data in templates.items():
-                    cursor.execute(
-                        """
-                        INSERT INTO user_templates (
-                            email,
-                            template_key,
-                            template_name,
-                            html,
-                            css,
-                            created_at,
-                            updated_at,
-                            original_filename
-                        )
-                        VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), %s)
-                        ON CONFLICT (email, template_key)
-                        DO UPDATE SET
-                            template_name = EXCLUDED.template_name,
-                            html = EXCLUDED.html,
-                            css = EXCLUDED.css,
-                            original_filename = EXCLUDED.original_filename,
-                            updated_at = NOW();
-                        """,
-                        (
-                            user_email,
-                            template_key,
-                            data.get("name"),
-                            data.get("html"),
-                            data.get("css"),
-                            data.get("original_filename"),
-                        ),
-                    )
 
-            conn.commit()
-            return True
+def save_user_templates(user_email, templates):
+    """Save or update templates for the logged-in user in database."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        for template_key, data in templates.items():
+            cursor.execute("""
+                MERGE user_templates AS target
+                USING (
+                    SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS html,
+                        ? AS css,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        html = source.html,
+                        css = source.css,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
+                        template_key,
+                        template_name,
+                        html,
+                        css,
+                        uploaded_at,
+                        original_filename,
+                        created_at,
+                        updated_at
+                    )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.html,
+                        source.css,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            user_email,
+            template_key,
+            data.get("name"),
+            data.get("html"),
+            data.get("css"),
+            data.get("uploaded_at"),
+            data.get("original_filename")
+            )
+
+        conn.commit()
+        return True
 
     except Exception as e:
         st.error(f"Error saving templates: {e}")
         return False
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
 
 # import base64
@@ -3413,48 +3491,57 @@ def replace_content(doc, structure, final_data):
 
 
 def load_user_doc_templates(username):
-    """Load user's saved document templates from PostgreSQL (Supabase)."""
+    """Load user's saved document templates from database"""
     templates = {}
 
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT
-                        template_key,
-                        template_name,
-                        doc_data,
-                        doc_text,
-                        created_at,
-                        original_filename
-                    FROM user_doc_templates
-                    WHERE email = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (username,)
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-                for row in cursor.fetchall():
-                    template_key = row[0]
-                    template_name = row[1]
-                    doc_data = row[2]
-                    doc_text = row[3]
-                    uploaded_at = row[4]
-                    original_filename = row[5]
+        cursor.execute("""
+            SELECT template_key,
+                   template_name,
+                   doc_data,
+                   doc_text,
+                   uploaded_at,
+                   original_filename
+            FROM user_doc_templates
+            WHERE email = ?
+            ORDER BY uploaded_at DESC
+        """, username)
 
-                    # BYTEA → bytes (psycopg2 already returns bytes)
-                    doc_content = doc_data if doc_data is not None else doc_text
+        rows = cursor.fetchall()
 
-                    templates[template_key] = {
-                        "name": template_name,
-                        "doc_data": doc_content,
-                        "uploaded_at": uploaded_at,
-                        "original_filename": original_filename,
-                    }
+        for row in rows:
+            template_key = row[0]
+            template_name = row[1]
+            doc_data = row[2]
+            doc_text = row[3]
+            uploaded_at = row[4]
+            original_filename = row[5]
+
+            # Decide which content to return
+            if doc_data is not None:
+                doc_content = bytes(doc_data)   # VARBINARY → bytes
+            else:
+                doc_content = doc_text           # NVARCHAR text
+
+            templates[template_key] = {
+                "name": template_name,
+                "doc_data": doc_content,
+                "uploaded_at": uploaded_at,
+                "original_filename": original_filename
+            }
 
     except Exception as e:
         print(f"Error loading doc templates: {e}")
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
     return templates
 
@@ -3463,82 +3550,117 @@ import psycopg2
 
 
 def save_user_doc_templates(username, templates):
-    """Save or update user's document templates in PostgreSQL (Supabase)."""
+    """Save user's document templates to database"""
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                for template_key, template_data in templates.items():
-                    doc_data = template_data.get("doc_data")
+        conn = get_connection()
+        cursor = conn.cursor()
 
-                    # Decide storage: BYTEA vs TEXT
-                    if isinstance(doc_data, (bytes, bytearray)):
-                        doc_binary = bytes(doc_data)
-                        doc_text = None
-                    else:
-                        doc_binary = None
-                        doc_text = doc_data
+        for template_id, template_data in templates.items():
+            doc_data = template_data.get("doc_data")
 
-                    cursor.execute(
-                        """
-                        INSERT INTO user_doc_templates (
-                            email,
-                            template_key,
-                            template_name,
-                            doc_data,
-                            doc_text,
-                            created_at,
-                            updated_at,
-                            original_filename
-                        )
-                        VALUES (%s, %s, %s, %s, %s, NOW(), NOW(), %s)
-                        ON CONFLICT (email, template_key)
-                        DO UPDATE SET
-                            template_name = EXCLUDED.template_name,
-                            doc_data = EXCLUDED.doc_data,
-                            doc_text = EXCLUDED.doc_text,
-                            original_filename = EXCLUDED.original_filename,
-                            updated_at = NOW();
-                        """,
-                        (
-                            username,
-                            template_key,
-                            template_data.get("name"),
-                            doc_binary,
-                            doc_text,
-                            template_data.get("original_filename"),
-                        ),
+            # Decide storage (SQL Server)
+            if isinstance(doc_data, (bytes, bytearray)):
+                doc_binary = doc_data          # VARBINARY(MAX)
+                doc_text = None
+            else:
+                doc_binary = None
+                doc_text = doc_data            # NVARCHAR(MAX)
+
+            cursor.execute("""
+                MERGE user_doc_templates AS target
+                USING (
+                    SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS doc_data,
+                        ? AS doc_text,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        doc_data = source.doc_data,
+                        doc_text = source.doc_text,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
+                        template_key,
+                        template_name,
+                        doc_data,
+                        doc_text,
+                        uploaded_at,
+                        original_filename,
+                        created_at,
+                        updated_at
                     )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.doc_data,
+                        source.doc_text,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            username,
+            template_id,
+            template_data.get("name"),
+            doc_binary,
+            doc_text,
+            template_data.get("uploaded_at"),
+            template_data.get("original_filename")
+            )
 
-            conn.commit()
-            return True
+        conn.commit()
+        return True
 
     except Exception as e:
         print(f"❌ Error saving doc templates: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
 
 
 
 def delete_user_doc_template(username, template_id):
-    """Delete a user's document template from PostgreSQL (Supabase)."""
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    DELETE FROM user_doc_templates
-                    WHERE email = %s AND template_key = %s
-                    """,
-                    (username, template_id)
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-            conn.commit()
-            return True
+        cursor.execute("""
+            DELETE FROM user_doc_templates
+            WHERE email = ? AND template_key = ?
+        """, username, template_id)
+
+        conn.commit()
+        return True
 
     except Exception as e:
         print(f"Error deleting doc template: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
 
 # ============= PPT TEMPLATE STORAGE FUNCTIONS =============
@@ -3546,131 +3668,184 @@ def delete_user_doc_template(username, template_id):
 
 
 def load_user_ppt_templates(username):
-    """Load user's saved PPT templates from PostgreSQL (Supabase)."""
+    """Load user's saved PPT templates from database"""
     templates = {}
 
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT template_key,
+                   template_name,
+                   ppt_data,
+                   heading_shapes,
+                   basic_info_shapes,
+                   uploaded_at,
+                   original_filename
+            FROM user_ppt_templates
+            WHERE email = ?
+            ORDER BY uploaded_at DESC
+        """, username)
+
+        rows = cursor.fetchall()
+
+        for row in rows:
+            template_key = row[0]
+            template_name = row[1]
+            ppt_data = row[2]
+            heading_shapes_json = row[3]
+            basic_info_shapes_json = row[4]
+            uploaded_at = row[5]
+            original_filename = row[6]
+
+            templates[template_key] = {
+                "name": template_name,
+                "ppt_data": bytes(ppt_data),  # VARBINARY → bytes
+                "heading_shapes": set(json.loads(heading_shapes_json)) if heading_shapes_json else set(),
+                "basic_info_shapes": set(json.loads(basic_info_shapes_json)) if basic_info_shapes_json else set(),
+                "uploaded_at": uploaded_at,
+                "original_filename": original_filename
+            }
+
+    except Exception as e:
+        print(f"Error loading PPT templates: {e}")
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+    return templates
+
+
+import psycopg2
+
+
+
+def save_user_ppt_templates(username, templates):
+    """Save user's PPT templates to database"""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        for template_id, template_data in templates.items():
+            ppt_bytes = template_data.get("ppt_data")
+
+            # Convert sets/lists → JSON strings for SQL Server
+            heading_shapes_json = json.dumps(
+                list(template_data.get("heading_shapes", []))
+            )
+            basic_info_shapes_json = json.dumps(
+                list(template_data.get("basic_info_shapes", []))
+            )
+
+            cursor.execute("""
+                MERGE user_ppt_templates AS target
+                USING (
                     SELECT
+                        ? AS email,
+                        ? AS template_key,
+                        ? AS template_name,
+                        ? AS ppt_data,
+                        ? AS heading_shapes,
+                        ? AS basic_info_shapes,
+                        ? AS uploaded_at,
+                        ? AS original_filename
+                ) AS source
+                ON target.email = source.email
+                   AND target.template_key = source.template_key
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        template_name = source.template_name,
+                        ppt_data = source.ppt_data,
+                        heading_shapes = source.heading_shapes,
+                        basic_info_shapes = source.basic_info_shapes,
+                        uploaded_at = source.uploaded_at,
+                        original_filename = source.original_filename,
+                        updated_at = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (
+                        email,
                         template_key,
                         template_name,
                         ppt_data,
                         heading_shapes,
                         basic_info_shapes,
+                        uploaded_at,
+                        original_filename,
                         created_at,
-                        original_filename
-                    FROM user_ppt_templates
-                    WHERE email = %s
-                    ORDER BY created_at DESC
-                    """,
-                    (username,)
-                )
-
-                for row in cursor.fetchall():
-                    template_key = row[0]
-                    template_name = row[1]
-                    ppt_data = row[2]
-                    heading_shapes = row[3]
-                    basic_info_shapes = row[4]
-                    uploaded_at = row[5]
-                    original_filename = row[6]
-
-                    templates[template_key] = {
-                        "name": template_name,
-                        # psycopg2 returns BYTEA as bytes already
-                        "ppt_data": ppt_data,
-                        # JSONB columns are returned as Python objects (dict/list)
-                        "heading_shapes": set(heading_shapes) if heading_shapes else set(),
-                        "basic_info_shapes": set(basic_info_shapes) if basic_info_shapes else set(),
-                        "uploaded_at": uploaded_at,
-                        "original_filename": original_filename,
-                    }
-
-    except Exception as e:
-        print(f"Error loading PPT templates: {e}")
-
-    return templates
-
-
-
-
-def save_user_ppt_templates(username, templates):
-    """Save or update user's PPT templates in PostgreSQL (Supabase)."""
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                for template_key, template_data in templates.items():
-                    ppt_bytes = template_data.get("ppt_data")
-
-                    # JSONB columns accept native Python list/set
-                    heading_shapes = list(template_data.get("heading_shapes", []))
-                    basic_info_shapes = list(template_data.get("basic_info_shapes", []))
-
-                    cursor.execute(
-                        """
-                        INSERT INTO user_ppt_templates (
-                            email,
-                            template_key,
-                            template_name,
-                            ppt_data,
-                            heading_shapes,
-                            basic_info_shapes,
-                            created_at,
-                            updated_at,
-                            original_filename
-                        )
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW(), %s)
-                        ON CONFLICT (email, template_key)
-                        DO UPDATE SET
-                            template_name = EXCLUDED.template_name,
-                            ppt_data = EXCLUDED.ppt_data,
-                            heading_shapes = EXCLUDED.heading_shapes,
-                            basic_info_shapes = EXCLUDED.basic_info_shapes,
-                            original_filename = EXCLUDED.original_filename,
-                            updated_at = NOW();
-                        """,
-                        (
-                            username,
-                            template_key,
-                            template_data.get("name"),
-                            ppt_bytes,
-                            heading_shapes,
-                            basic_info_shapes,
-                            template_data.get("original_filename"),
-                        ),
+                        updated_at
                     )
+                    VALUES (
+                        source.email,
+                        source.template_key,
+                        source.template_name,
+                        source.ppt_data,
+                        source.heading_shapes,
+                        source.basic_info_shapes,
+                        source.uploaded_at,
+                        source.original_filename,
+                        SYSDATETIME(),
+                        SYSDATETIME()
+                    );
+            """,
+            username,
+            template_id,
+            template_data.get("name"),
+            ppt_bytes,                      # VARBINARY(MAX)
+            heading_shapes_json,            # JSON string
+            basic_info_shapes_json,         # JSON string
+            template_data.get("uploaded_at"),
+            template_data.get("original_filename")
+            )
 
-            conn.commit()
-            return True
+        conn.commit()
+        return True
 
     except Exception as e:
         print(f"Error saving PPT templates: {e}")
         return False
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
+
+
 
 
 def delete_user_ppt_template(username, template_id):
-    """Delete a user's PPT template from PostgreSQL (Supabase)."""
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    DELETE FROM user_ppt_templates
-                    WHERE email = %s AND template_key = %s
-                    """,
-                    (username, template_id)
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-            conn.commit()
-            return True
+        cursor.execute("""
+            DELETE FROM user_ppt_templates
+            WHERE email = ? AND template_key = ?
+        """, username, template_id)
+
+        conn.commit()
+        return True
 
     except Exception as e:
         st.error(f"Error deleting PPT template: {e}")
         return False
+
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
 
 def get_resume_hash(resume_data):
     """Generate a hash of resume data to detect changes"""
@@ -4277,83 +4452,104 @@ def load_users():
     users = {}
 
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    "SELECT email, password_hash, name FROM users"
-                )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-                for email, password_hash, name in cursor.fetchall():
-                    users[email] = {
-                        "password": password_hash,
-                        "name": name,
-                    }
+        cursor.execute(
+            "SELECT email, password_hash, name FROM users"
+        )
+
+        for row in cursor.fetchall():
+            email, password_hash, name = row
+            users[email] = {
+                "password": password_hash,
+                "name": name
+            }
 
     except Exception as e:
         st.error(f"Failed to load users: {e}")
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
     return users
+
+
+    
+
+
 def save_users(users):
     try:
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                for email, data in users.items():
-                    cursor.execute(
-                        """
-                        INSERT INTO users (email, password_hash, name)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (email)
-                        DO UPDATE SET
-                            password_hash = EXCLUDED.password_hash,
-                            name = EXCLUDED.name;
-                        """,
-                        (
-                            email,
-                            data["password"],
-                            data["name"],
-                        ),
-                    )
+        conn = get_connection()
+        cursor = conn.cursor()
 
-            conn.commit()
+        for email, data in users.items():
+            cursor.execute("""
+                MERGE users AS target
+                USING (SELECT ? AS email, ? AS password_hash, ? AS name) AS source
+                ON target.email = source.email
+                WHEN MATCHED THEN
+                    UPDATE SET
+                        password_hash = source.password_hash,
+                        name = source.name
+                WHEN NOT MATCHED THEN
+                    INSERT (email, password_hash, name)
+                    VALUES (source.email, source.password_hash, source.name);
+            """, email, data["password"], data["name"])
+
+        conn.commit()
 
     except Exception as e:
         st.error(f"Failed to save users: {e}")
 
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
+
+
 
 
 def load_user_resume_data(email):
-    """Load resume data for a user from PostgreSQL (Supabase)."""
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT resume_data, input_method
-                    FROM user_resumes
-                    WHERE email = %s
-                    """,
-                    (email,)
-                )
+    conn = get_connection()
+    cur = conn.cursor()
 
-                row = cur.fetchone()
+    cur.execute("""
+        SELECT resume_data, input_method
+        FROM user_resumes
+        WHERE email = ?
+    """, email)
 
-        if row:
-            return {
-                "resume_data": row[0],   # JSONB → Python dict
-                "input_method": row[1],
-            }
+    row = cur.fetchone()
 
-    except Exception as e:
-        print(f"Error loading resume data: {e}")
+    cur.close()
+    conn.close()
+
+    if row:
+        return {
+            "resume_data": row[0],
+            "input_method": row[1]
+        }
 
     return None
 
 
 
 def get_user_resume(email):
-    """Get resume data for a specific user."""
+    """Get resume data for a specific user"""
+
     resume_data = load_user_resume_data(email)
-    return resume_data if isinstance(resume_data, dict) else None
+
+    if resume_data and isinstance(resume_data, dict):
+        return resume_data
+
+    return None
 
 
 def is_valid_email(email):
@@ -4366,9 +4562,9 @@ def is_valid_email(email):
 def show_login_modal():
     import streamlit as st
     import time 
-    # from PIL import Image
-    # from streamlit_extras.stylable_container import stylable_container
-    # from utils import load_users, save_users, is_valid_email, get_user_resume
+    from PIL import Image
+    from streamlit_extras.stylable_container import stylable_container
+    from utils import load_users, save_users, is_valid_email, get_user_resume
 
     # Clear cache
     st.cache_data.clear()
@@ -7004,54 +7200,3 @@ def convert_html_to_docx_spire(html_content, css_content=""):
                 os.unlink(temp_docx_path)
             except Exception as e:
                 print(f"Warning: Could not delete temporary DOCX file: {e}")
-
-
-
-
-def clear_template_state():
-    """Clear all template-related session state when switching templates."""
-    keys_to_clear = [
-        # HTML template states
-        'template_preview_html',
-        'template_preview_css',
-        
-        # Word document states
-        'generated_docx',
-        'generated_docx_temp',
-        'doc_original_bytes',
-        'doc_original_filename',
-        'mapping',
-        'template_text',
-        'doc_already_processed',
-        'selected_doc_template_id',
-        'selected_doc_template',
-        'show_inline_doc_editor',
-        'doc_template_name_input',
-        
-        # PowerPoint states
-        'generated_ppt',
-        'temp_ppt_data',
-        'temp_ppt_structure',
-        'temp_ppt_edits',
-        'temp_ppt_text_elements',
-        'temp_ppt_filename',
-        'ppt_already_processed',
-        'selected_ppt_template_id',
-        'selected_ppt_template',
-        'show_inline_ppt_editor',
-        'ppt_template_name_input',
-        
-        # Upload interface states
-        'temp_upload_html',
-        'temp_upload_css',
-        'temp_upload_preview',
-        'uploaded_file_name',
-        'uploaded_file_type',
-        'temp_upload_config',
-        'show_upload_doc_editor',
-        'show_upload_ppt_editor',
-    ]
-    
-    for key in keys_to_clear:
-        if key in st.session_state:
-            del st.session_state[key]

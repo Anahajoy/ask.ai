@@ -1,21 +1,27 @@
 import streamlit as st
 # from PIL import Image
 from utils import chatbot, show_login_modal, get_user_resume, load_users
-from db.db_init import init_db
+from db.db_init import initialize_database
 # /, load_user_templates, load_user_doc_templates, save_user_templates, replace_content, save_user_doc_templates, load_user_ppt_templates, analyze_slide_structure, generate_ppt_sections, match_generated_to_original, clear_and_replace_text, save_user_ppt_templates
 # from streamlit_extras.stylable_container import stylable_container
 # from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 
 
-if "db_initialized" not in st.session_state:
+if 'db_initialized' not in st.session_state:
     try:
-        init_db()
+        initialize_database()
         st.session_state.db_initialized = True
-        st.cache_data.clear()  # 🔥 IMPORTANT
-
+        print("✅ Database initialized successfully")
     except Exception as e:
         st.error(f"❌ Database initialization failed: {e}")
         st.stop()
+        
+st.set_page_config(
+    page_title="Cvmate",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 
 
         

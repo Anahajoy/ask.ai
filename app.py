@@ -25,6 +25,23 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Add the hide_streamlit_style code here
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    button[kind="header"] {display: none !important;}
+    .viewerBadge_link__1S137 {display: none !important;}
+    .viewerBadge_text__1JaDK {display: none !important;}
+    .stApp > header {visibility: hidden !important;}
+    div[data-testid="stDecoration"] {display: none !important;}
+    div[data-testid="stStatusWidget"] {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # Session State Initialization
 if "logged_in_user" not in st.session_state or st.session_state.logged_in_user is None:
     logged_user = st.query_params.get("user")

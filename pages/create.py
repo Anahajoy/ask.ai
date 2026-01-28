@@ -4420,7 +4420,7 @@ def show_visual_editor_with_tools():
                         file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
                         mime="text/html",
                         use_container_width=True,
-                        type="secondary",
+                        type="primary",
                         key="download_html_btn"
                     )
                 

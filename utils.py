@@ -4114,7 +4114,8 @@ def render_basic_details(data, is_edit):
         data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
         data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
 
-        col1, col2, col3,col4 = st.columns(4)
+        # Contact Information
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             data['phone'] = st.text_input("Phone", data.get('phone', ''), key="edit_phone")
         with col2:
@@ -4122,30 +4123,283 @@ def render_basic_details(data, is_edit):
         with col3:
             data['location'] = st.text_input("Location", data.get('location', ''), key="edit_location")
         with col4:
-            data['url'] = st.text_input("url", data.get('url', ''), key="edit_url")
- 
+            data['url'] = st.text_input("URL", data.get('url', ''), key="edit_url")
+        
+        # Additional Links
+        # Get existing values BEFORE they might be deleted
+        existing_linkedin = data.get('linkedin', '')
+        existing_github = data.get('github', '')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            linkedin_value = st.text_input("LinkedIn", existing_linkedin, key='edit_linkedin', placeholder="linkedin.com/in/...")
+        with col2:
+            github_value = st.text_input("GitHub", existing_github, key='edit_github', placeholder="github.com/...")
+        
+        # Personal Information Section
+        st.markdown("**Personal Information:**")
+        
+        # Parse personal_information - handle BOTH string and dict formats
+        personal_info = data.get('personal_information', {})
+        personal_info_dict = {}
+        
+        if isinstance(personal_info, str):
+            # Parse string format: "Date of Birth: 30/05/1992\nGender: Female\n..."
+            for line in personal_info.strip().split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    # Clean up the key
+                    clean_key = key.strip().lower().replace(' ', '_')
+                    personal_info_dict[clean_key] = value.strip()
+        elif isinstance(personal_info, dict):
+            personal_info_dict = personal_info
+        
+        # IMPORTANT: Get all existing values with multiple fallback options
+        # Priority: 1) personal_info_dict, 2) root level data
+        dob_value = personal_info_dict.get('date_of_birth', '') or data.get('date_of_birth', '')
+        gender_value = personal_info_dict.get('gender', '') or data.get('gender', '')
+        marital_value = personal_info_dict.get('marital_status', '') or data.get('marital_status', '')
+        nationality_value = personal_info_dict.get('nationality', '') or data.get('nationality', '')
+        
+        # DEBUG: Show what values we extracted (you can remove this after testing)
+        # st.write(f"DEBUG - DOB: {dob_value}, Gender: {gender_value}, Marital: {marital_value}, Nationality: {nationality_value}")
+        
+        # Date of Birth - WITH LABEL
+        dob = st.text_input(
+            "Date of Birth",
+            value=dob_value,
+            key='edit_dob',
+            placeholder="DD/MM/YYYY"
+        )
+        
+        # Gender - WITH LABEL
+        gender_options = ['', 'Male', 'Female', 'Other', 'Prefer not to say']
+        gender_index = 0
+        if gender_value:
+            try:
+                gender_index = gender_options.index(gender_value)
+            except (ValueError, AttributeError):
+                # If exact match fails, try to find it
+                for idx, option in enumerate(gender_options):
+                    if option.lower() == gender_value.lower():
+                        gender_index = idx
+                        break
+        
+        gender = st.selectbox(
+            "Gender",
+            options=gender_options,
+            index=gender_index,
+            key='edit_gender'
+        )
+        
+        # Marital Status - WITH LABEL
+        marital_options = ['', 'Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say']
+        marital_index = 0
+        if marital_value:
+            try:
+                marital_index = marital_options.index(marital_value)
+            except (ValueError, AttributeError):
+                # If exact match fails, try to find it
+                for idx, option in enumerate(marital_options):
+                    if option.lower() == marital_value.lower():
+                        marital_index = idx
+                        break
+        
+        marital_status = st.selectbox(
+            "Marital Status",
+            options=marital_options,
+            index=marital_index,
+            key='edit_marital_status'
+        )
+        
+        # Nationality - WITH LABEL
+        nationality = st.text_input(
+            "Nationality",
+            value=nationality_value,
+            key='edit_nationality',
+            placeholder="e.g., Indian"
+        )
+        
+        # NOW update personal_information dict with NEW values
+        data['personal_information'] = {
+            'date_of_birth': dob,
+            'gender': gender,
+            'marital_status': marital_status,
+            'nationality': nationality,
+            'linkedin': linkedin_value,
+            'github': github_value
+        }
+        
+        # Fields to remove from root level AFTER we've saved them (to prevent duplication in custom sections)
+        fields_to_remove = ['date_of_birth', 'gender', 'marital_status', 'nationality', 'linkedin', 'github', 'portfolio']
+        
+        for field in fields_to_remove:
+            if field in data:
+                del data[field]
+        
+        # Languages Section
+        st.markdown("**Languages:**")
+        languages = data.get('languages', [])
+        
+        # Convert string list to dict format if needed
+        if languages and len(languages) > 0 and isinstance(languages[0], str):
+            languages = [{'language': lang, 'proficiency': 'Fluent'} for lang in languages]
+        
+        # Display existing languages - one per row
+        for idx, lang in enumerate(languages):
+            col1, col2, col3 = st.columns([3, 2, 1])
+            
+            with col1:
+                lang_name = st.text_input(
+                    f"Language {idx + 1}",
+                    value=lang.get('language', '') if isinstance(lang, dict) else str(lang),
+                    key=f'edit_lang_name_{idx}',
+                    label_visibility="collapsed",
+                    placeholder="e.g., English"
+                )
+            
+            with col2:
+                proficiency_value = lang.get('proficiency', 'Fluent') if isinstance(lang, dict) else 'Fluent'
+                proficiency_options = ['Native', 'Fluent', 'Professional', 'Intermediate', 'Basic']
+                
+                try:
+                    default_index = proficiency_options.index(proficiency_value)
+                except ValueError:
+                    default_index = 1
+                
+                proficiency = st.selectbox(
+                    f"Proficiency {idx + 1}",
+                    options=proficiency_options,
+                    index=default_index,
+                    key=f'edit_lang_prof_{idx}',
+                    label_visibility="collapsed"
+                )
+            
+            with col3:
+                if st.button("🗑️", key=f'delete_lang_{idx}', use_container_width=True):
+                    languages.pop(idx)
+                    data['languages'] = languages
+                    st.session_state['enhanced_resume'] = data
+                    st.rerun()
+            
+            languages[idx] = {'language': lang_name, 'proficiency': proficiency}
+        
+        data['languages'] = languages
+        
+        # Add language button
+        if st.button("➕ Add Language", key='add_language_btn', use_container_width=False):
+            if 'languages' not in data:
+                data['languages'] = []
+            data['languages'].append({'language': '', 'proficiency': 'Fluent'})
+            st.session_state['enhanced_resume'] = data
+            st.rerun()
 
+        # Summary Section
         st.markdown('<div class="resume-section">', unsafe_allow_html=True)
         st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
         data['summary'] = st.text_area("Summary", data.get('summary', ''), height=150, key="edit_summary")
         st.markdown('</div>', unsafe_allow_html=True)
+
     else:
+        # View Mode
         st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
         if data.get('job_title'):
             st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
 
-        contact_html = f"""
-        <div class="contact-info">
-            {data.get('phone', '')} | {data.get('email', '')} | {data.get('location', '')}
-        </div>
-        """
-        st.markdown(contact_html, unsafe_allow_html=True)
+        # Contact Information (all in one line)
+        contact_parts = []
+        if data.get('phone'):
+            contact_parts.append(data['phone'])
+        if data.get('email'):
+            contact_parts.append(data['email'])
+        if data.get('location'):
+            contact_parts.append(data['location'])
+        if data.get('url'):
+            contact_parts.append(f"<a href='{data['url']}' target='_blank'>Portfolio</a>")
+        
+        # Check in personal_information dict for linkedin/github
+        personal_info = data.get('personal_information', {})
+        if isinstance(personal_info, str):
+            personal_info_dict = {}
+            for line in personal_info.split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    personal_info_dict[key.strip().lower().replace(' ', '_')] = value.strip()
+            personal_info = personal_info_dict
+        
+        linkedin = personal_info.get('linkedin') if isinstance(personal_info, dict) else data.get('linkedin')
+        github = personal_info.get('github') if isinstance(personal_info, dict) else data.get('github')
+        
+        if linkedin:
+            contact_parts.append(f"<a href='{linkedin}' target='_blank'>LinkedIn</a>")
+        if github:
+            contact_parts.append(f"<a href='{github}' target='_blank'>GitHub</a>")
+        
+        if contact_parts:
+            contact_html = f"""
+            <div class="contact-info">
+                {' | '.join(contact_parts)}
+            </div>
+            """
+            st.markdown(contact_html, unsafe_allow_html=True)
+        
+        # Personal Information (handle both dict and string formats)
+        personal_info = data.get('personal_information', {})
+        
+        # If it's a string, parse it
+        if isinstance(personal_info, str):
+            personal_info_dict = {}
+            for line in personal_info.split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    personal_info_dict[key.strip().lower().replace(' ', '_')] = value.strip()
+            personal_info = personal_info_dict
+        
+        # Build personal info parts
+        personal_parts = []
+        
+        # Check in personal_information dict first, then fallback to root level
+        dob = personal_info.get('date_of_birth') if isinstance(personal_info, dict) else data.get('date_of_birth')
+        gender = personal_info.get('gender') if isinstance(personal_info, dict) else data.get('gender')
+        marital = personal_info.get('marital_status') if isinstance(personal_info, dict) else data.get('marital_status')
+        nationality = personal_info.get('nationality') if isinstance(personal_info, dict) else data.get('nationality')
+        
+        if dob:
+            personal_parts.append(f"DOB: {dob}")
+        if gender:
+            personal_parts.append(f"Gender: {gender}")
+        if marital:
+            personal_parts.append(f"Marital Status: {marital}")
+        if nationality:
+            personal_parts.append(f"Nationality: {nationality}")
+        
+        if personal_parts:
+            st.markdown(f"<div style='color:#666; font-size:0.9em; margin-bottom:1rem;'><strong>Personal Information:</strong> {' | '.join(personal_parts)}</div>", unsafe_allow_html=True)
+        
+        # Languages (inline if they exist)
+        languages = data.get('languages', [])
+        if languages and len(languages) > 0:
+            lang_texts = []
+            for lang in languages:
+                if isinstance(lang, dict):
+                    lang_texts.append(f"{lang.get('language', 'Unknown')} ({lang.get('proficiency', 'N/A')})")
+                else:
+                    lang_texts.append(str(lang))
+            
+            if lang_texts:
+                st.markdown(f"<div style='color:#666; font-size:0.9em; margin-bottom:1rem;'><strong>Languages:</strong> {', '.join(lang_texts)}</div>", unsafe_allow_html=True)
 
+        # Summary
         if data.get('summary'):
             st.markdown('<div class="resume-section">', unsafe_allow_html=True)
             st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
             st.markdown(f"<p style='color:#000000;'>{data['summary']}</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Update session state
+    st.session_state['enhanced_resume'] = data
+    
+    return data
 
 
 def format_date(date_string):

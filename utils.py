@@ -4090,7 +4090,7 @@ def generate_enhanced_resume(resume_data=None, jd_data=None):
         except:
             pass  # Query params can fail if data is too large
         
-        chatbot(enhanced_resume)
+        # chatbot(enhanced_resume)
         
         return enhanced_resume
         
@@ -5231,7 +5231,7 @@ def ask_llama(message, resume_data=None):
 
     
 def chatbot(user_resume):
-    import streamlit as st
+ 
 
     # Page config
   

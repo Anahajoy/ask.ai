@@ -12,7 +12,7 @@ import hashlib
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from templates.templateconfig import SYSTEM_TEMPLATES, ATS_COLORS, load_css_template
 from utils import (
-    generate_generic_html, get_user_resume, get_score_color, render_skills_section,
+    generate_generic_html, get_user_resume, get_score_color, render_skills_section,chatbot,
     get_score_label, ai_ats_score, extract_temp_from_docx,render_generic_section,
     should_regenerate_resume, generate_enhanced_resume, extract_template_from_html,save_user_templates,
     save_and_improve, add_new_item,delete_user_ppt_template,render_basic_details,load_user_doc_templates,
@@ -205,7 +205,7 @@ if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
 
 resume_data = st.session_state.get('enhanced_resume')
 # st.write(resume_data)
-
+chatbot(resume_data)
 
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
     try:
@@ -4164,379 +4164,365 @@ def show_visual_editor_with_tools():
 
     with tools_col:
         with st.container():
-            st.title("Resume Tools")
+            # ========== HEADER ==========
+            st.markdown("""
+            <div style="
+                background: linear-gradient(135deg, #FF6B35 0%, #FF8B5C 100%);
+                padding: 1rem;
+                border-radius: 12px 12px 0 0;
+                margin-bottom: 0;
+            ">
+                <h2 style="
+                    color: white;
+                    margin: 0;
+                    font-size: 1.3rem;
+                    text-align: center;
+                    font-weight: 700;
+                ">Resume Tools</h2>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # ========== EDIT MODE TOGGLE (ONLY FOR HTML TEMPLATES) ==========
+            # Main container with padding
+            st.markdown("""
+            <div style="
+                background: white;
+                padding: 1rem;
+                border-radius: 0 0 12px 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                margin-bottom: 1rem;
+            "></div>
+            """, unsafe_allow_html=True)
+            
             template_source = st.session_state.get('template_source', 'html_saved')
             
+            # ========== SECTION 1: EDITOR SETTINGS ==========
             if template_source not in ['doc_saved', 'ppt_saved']:
-                # st.markdown("---")
-                st.markdown("### ⚙️ Editor Settings")
-                is_edit_mode = st.checkbox(
-                    "Enable Edit Mode", 
-                    key='edit_toggle',
-                    help="Enable editing to modify resume content directly"
-                )
-                
-                # if is_edit_mode:
-                #     st.info("✏️ **Edit mode active** - Modify content in the left panel")
-                # else:
-                #     st.success("👁️ **Preview mode** - Toggle to edit")
+                with st.expander("Editor Settings", expanded=True):
+                    is_edit_mode = st.checkbox(
+                        "Enable Edit Mode", 
+                        key='edit_toggle',
+                        help="Enable editing to modify resume content directly"
+                    )
+                    
+                    if is_edit_mode:
+                        st.info("Edit mode is active. Make your changes, then click 'Save & Check Grammar' below.")
+                    else:
+                        st.success("Preview mode - Toggle above to edit")
             
-            # ========== INLINE EDITOR TOGGLE BUTTONS ==========
+            # ========== SECTION 2: TEMPLATE-SPECIFIC EDITORS ==========
             if template_source == 'doc_saved':
-                # st.markdown("---")
-                
-                current_state = st.session_state.get('show_inline_doc_editor', False)
-                button_label = "✏️ Hide Document Editor" if current_state else "✏️ Edit Document Mapping"
-                
-                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary"):
-                    st.session_state.show_inline_doc_editor = not current_state
-                    st.rerun()
+                with st.expander("Document Editor", expanded=False):
+                    current_state = st.session_state.get('show_inline_doc_editor', False)
+                    button_label = "Hide Editor" if current_state else "Show Editor"
+                    
+                    if st.button(
+                        button_label, 
+                        use_container_width=True, 
+                        type="primary" if not current_state else "secondary",
+                        key="toggle_doc_editor"
+                    ):
+                        st.session_state.show_inline_doc_editor = not current_state
+                        st.rerun()
             
             elif template_source == 'ppt_saved':
-                # st.markdown("---")
-                
-                current_state = st.session_state.get('show_inline_ppt_editor', False)
-                button_label = "✏️ Hide Content Editor" if current_state else "✏️ Edit Presentation Content"
-                
-                if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary"):
-                    st.session_state.show_inline_ppt_editor = not current_state
-                    st.rerun()
-        
-      
+                with st.expander("Presentation Editor", expanded=False):
+                    current_state = st.session_state.get('show_inline_ppt_editor', False)
+                    button_label = "Hide Editor" if current_state else "Show Editor"
+                    
+                    if st.button(
+                        button_label, 
+                        use_container_width=True, 
+                        type="primary" if not current_state else "secondary",
+                        key="toggle_ppt_editor"
+                    ):
+                        st.session_state.show_inline_ppt_editor = not current_state
+                        st.rerun()
             
-            # ========== DOWNLOAD BUTTONS ==========
-            if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
+            # ========== SECTION 3: SAVE & IMPROVE (ONLY IN EDIT MODE) ==========
+            if template_source not in ['doc_saved', 'ppt_saved'] and st.session_state.get('edit_toggle', False):
                 st.markdown("---")
+                st.markdown("### Actions")
+                
+                loading_placeholder = st.empty()
+                
+                if st.button("Save & Check Grammar", type="primary", use_container_width=True, key="save_improve_btn"):
+                    loading_placeholder.markdown("""
+                        <div id="overlay-loader">
+                            <div class="loader-spinner"></div>
+                            <p>Checking grammar and improving content...</p>
+                        </div>
+                        <style>
+                            #overlay-loader {
+                                position: fixed;
+                                top: 0;
+                                left: 0;
+                                width: 100vw;
+                                height: 100vh;
+                                background: rgba(255, 255, 255, 0.95);
+                                backdrop-filter: blur(6px);
+                                display: flex;
+                                flex-direction: column;
+                                justify-content: center;
+                                align-items: center;
+                                z-index: 9999;
+                                font-size: 1.2rem;
+                                font-weight: 500;
+                            }
+                            .loader-spinner {
+                                border: 5px solid rgba(232, 117, 50, 0.2);
+                                border-top: 5px solid #e87532;
+                                border-radius: 50%;
+                                width: 70px;
+                                height: 70px;
+                                animation: spin 1s linear infinite;
+                                margin-bottom: 20px;
+                            }
+                            @keyframes spin {
+                                0% { transform: rotate(0deg); }
+                                100% { transform: rotate(360deg); }
+                            }
+                            #overlay-loader p {
+                                color: #1f2937;
+                                font-size: 1.1rem;
+                                letter-spacing: 0.5px;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
+                    save_custom_sections()
+                    st.session_state.final_resume_data = st.session_state.enhanced_resume.copy()
+                    save_and_improve()
+                    loading_placeholder.empty()
+                    st.success("Content saved and improved!")
+                    st.rerun()
+                
+                st.caption("💡 This will save your changes and check for grammar/spelling errors")
+            
+            # ========== SECTION 4: ADD NEW ITEMS (ONLY IN EDIT MODE) ==========
+            if template_source not in ['doc_saved', 'ppt_saved'] and st.session_state.get('edit_toggle', False):
+                with st.expander("Add New Items", expanded=False):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.button(
+                            "Experience",
+                            on_click=add_new_item,
+                            args=('experience', {
+                                "position": "Job Title",
+                                "company": "Company",
+                                "start_date": "2025-01",
+                                "end_date": "Present",
+                                "description": ["Responsibility 1"]
+                            }),
+                            use_container_width=True,
+                            key="add_exp_btn"
+                        )
+                        
+                        st.button(
+                            "Certification",
+                            on_click=add_new_item,
+                            args=('certifications', {
+                                "name": "Certification Name",
+                                "issuer": "Issuer",
+                                "completed_date": "2025-01"
+                            }),
+                            use_container_width=True,
+                            key="add_cert_btn"
+                        )
+                    
+                    with col2:
+                        st.button(
+                            "Education",
+                            on_click=add_new_item,
+                            args=('education', {
+                                "institution": "University",
+                                "degree": "Degree",
+                                "start_date": "2025-01",
+                                "end_date": "2029-01"
+                            }),
+                            use_container_width=True,
+                            key="add_edu_btn"
+                        )
+                        
+                        st.button(
+                            "Project",
+                            on_click=add_new_item,
+                            args=('projects', {
+                                "name": "Project Name",
+                                "description": ["Description"]
+                            }),
+                            use_container_width=True,
+                            key="add_proj_btn"
+                        )
+            
+            # ========== SECTION 5: DOWNLOADS ==========
+            st.markdown("---")
+            st.markdown("### Downloads")
+            
+            # Template-specific downloads
+            if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.docx"
                 st.download_button(
-                    label="⬇️ Download Word Document",
+                    label="Word Document",
                     data=st.session_state['generated_docx'],
                     file_name=filename,
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     use_container_width=True,
-                    type="primary"
+                    type="secondary",
+                    key="download_word_btn"
                 )
             
-            if template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
-                st.markdown("---")
+            elif template_source == 'ppt_saved' and st.session_state.get('generated_ppt'):
                 filename = f"Resume_{st.session_state.final_resume_data.get('name', 'User').replace(' ', '_')}.pptx"
                 st.download_button(
-                    label="⬇️ Download PowerPoint",
+                    label="PowerPoint",
                     data=st.session_state['generated_ppt'],
                     file_name=filename,
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     use_container_width=True,
-                    type="primary"
+                    type="secondary",
+                    key="download_ppt_btn"
                 )
             
-            st.markdown("---")
-            
-         
-            loading_placeholder = st.empty()
-            
-           
-            if st.button("✨ **Save & Auto-Improve**", type="primary", use_container_width=True):
-                loading_placeholder.markdown("""
-                    <div id="overlay-loader">
-                        <div class="loader-spinner"></div>
-                        <p>Performing auto-improvement...</p>
-                    </div>
+            # HTML/DOCX downloads for HTML templates
+            elif template_source not in ['doc_saved', 'ppt_saved']:
+                html_content = st.session_state.template_preview_html or ""
+                css_content = st.session_state.template_preview_css or ""
+                resume_data = st.session_state.get('enhanced_resume', {})
+                
+                download_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
                     <style>
-                        #overlay-loader {
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            width: 100vw;
-                            height: 100vh;
-                            background: rgba(255, 255, 255, 0.95);
-                            backdrop-filter: blur(6px);
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
-                            align-items: center;
-                            z-index: 9999;
-                            font-size: 1.2rem;
-                            font-weight: 500;
-                        }
-                        .loader-spinner {
-                            border: 5px solid rgba(232, 117, 50, 0.2);
-                            border-top: 5px solid #e87532;
-                            border-radius: 50%;
-                            width: 70px;
-                            height: 70px;
-                            animation: spin 1s linear infinite;
-                            margin-bottom: 20px;
-                        }
-                        @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                        }
-                        #overlay-loader p {
-                            color: #1f2937;
-                            font-size: 1.1rem;
-                            letter-spacing: 0.5px;
-                        }
+                        @page {{ size: A4; margin: 0.5in; }}
+                        * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+                        {css_content}
                     </style>
-                    """, unsafe_allow_html=True)
-                save_custom_sections()
-                st.session_state.final_resume_data = st.session_state.enhanced_resume.copy()
-                save_and_improve()
-                loading_placeholder.empty()
-
-            if template_source not in ['doc_saved', 'ppt_saved']: 
-                if not st.session_state.get('edit_toggle', False):
-                    st.info("⚠️ Enable Edit Mode to add new items.\n\nFor saving newly added content, disable Edit Mode after making changes.")
-                else:
-                    st.markdown("---")
-                    st.subheader("➕ Add New Section Items")
-                    st.button(
-                        "Add New Experience",
-                        on_click=add_new_item,
-                        args=('experience', {
-                            "position": "New Job Title",
-                            "company": "New Company",
-                            "start_date": "2025-01-01",
-                            "end_date": "2025-12-31",
-                            "description": ["New responsibility 1."]
-                        }),
-                        type="secondary",
-                        use_container_width=True
-                    )
-                    st.button(
-                        "Add New Education",
-                        on_click=add_new_item,
-                        args=('education', {
-                            "institution": "New University",
-                            "degree": "New Degree",
-                            "start_date": "2025-01-01",
-                            "end_date": "2025-12-31"
-                        }),
-                        type="secondary",
-                        use_container_width=True
-                    )
-                    st.button(
-                        "Add New Certification",
-                        on_click=add_new_item,
-                        args=('certifications', {
-                            "name": "New Certification Name",
-                            "issuer": "Issuing Body",
-                            "completed_date": "2025-01-01"
-                        }),
-                        type="secondary",
-                        use_container_width=True
-                    )
-                    st.button(
-                        "Add New Project",
-                        on_click=add_new_item,
-                        args=('projects', {
-                            "name": "New Project Title",
-                            "description": ["Project detail"]
-                        }),
-                        type="secondary",
-                        use_container_width=True
-                    )
-          
-
-        st.markdown("---")
-
-        html_content = st.session_state.template_preview_html or ""
-        css_content = st.session_state.template_preview_css or ""
-        template_source = st.session_state.get('template_source', 'html_saved')
-
-        if template_source not in ['doc_saved', 'ppt_saved']: 
-           
-            download_html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    @page {{ size: A4; margin: 0.5in; }}
-                    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
-                    {css_content}
-                </style>
-            </head>
-            <body style="margin: 0; padding: 0; background: #fff;">
-                <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 1in;">
-                    {html_content}
-                </div>
-                <script>
-                    window.onload = function() {{ setTimeout(function() {{ window.print(); }}, 500); }};
-                </script>
-            </body>
-            </html>
-            """
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.download_button(
-                    label="⬇️ Download HTML",
-                    data=download_html,
-                    file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
-                    mime="text/html",
-                    use_container_width=True,
-                    type="primary",
-                    key="download_html_btn"
-                )
-            
-            with col2:
-                filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
-
-               
-                with st.spinner("Preparing DOCX..."):
-                    docx_data = convert_html_to_docx_spire(html_content, css_content)
-
-                if docx_data:
+                </head>
+                <body style="margin: 0; padding: 0; background: #fff;">
+                    <div style="width: 8.5in; min-height: 11in; margin: 0 auto; padding: 1in;">
+                        {html_content}
+                    </div>
+                    <script>
+                        window.onload = function() {{ setTimeout(function() {{ window.print(); }}, 500); }};
+                    </script>
+                </body>
+                </html>
+                """
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
                     st.download_button(
-                        label="📄 Download DOCX",
-                        data=docx_data,
-                        file_name=filename,
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        label="HTML",
+                        data=download_html,
+                        file_name=f"resume_{st.session_state.selected_template.replace(' ', '_')}.html",
+                        mime="text/html",
                         use_container_width=True,
-                        type="primary",
-                        key="download_docx_btn"
+                        type="secondary",
+                        key="download_html_btn"
                     )
-                else:
-                    st.error("❌ Failed to convert HTML to DOCX")
-            st.info("📄 **To save as PDF:** Open downloaded file → Print dialog appears → Select 'Save as PDF' → Save")
-
-        st.markdown("---")
-
-        # try:
-        #     template_source = st.session_state.get('template_source', 'html_saved')
-        #     resume_data = st.session_state.get('enhanced_resume', {})
+                
+                with col2:
+                    filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
+                    
+                    with st.spinner("Preparing..."):
+                        docx_data = convert_html_to_docx_spire(html_content, css_content)
+                    
+                    if docx_data:
+                        st.download_button(
+                            label="DOCX",
+                            data=docx_data,
+                            file_name=filename,
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True,
+                            type="secondary",
+                            key="download_docx_btn"
+                        )
+                    else:
+                        st.error("Failed to convert")
+                
+                st.caption("💡 For PDF: Download → Print → Save as PDF")
             
-        #     # Check if we have a Word document to download
-        #     if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
-        #         # Already have DOCX from saved template
-        #         docx_data = st.session_state['generated_docx']
-                
-        #         # Create filename
-        #         filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
-                
-        #         # Download button
-        #         st.download_button(
-        #             label="⬇️ Download Word Document",
-        #             data=docx_data,
-        #             file_name=filename,
-        #             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        #             use_container_width=True,
-        #             type="primary",
-        #             key="download_doc_saved"
-        #         )
-                
-               
+            # ========== SECTION 6: ATS ANALYSIS ==========
+            ats_data = st.session_state.get("ats_result", {})
             
-        # except Exception as e:
-        #     st.error(f"Error with DOCX: {str(e)}")
-        #     import traceback
-        #     st.error(traceback.format_exc())
-        # st.markdown("---")
-        
-        # ats_data = st.session_state.get('ats_result', {})
-        # st.write("### ATS Analysis")
-        ats_data = st.session_state.get("ats_result", {})
-
-        if isinstance(ats_data, dict) and "overall_score" in ats_data:
-
-        
-            st.markdown("### ✅ Strengths")
-            strengths = ats_data.get("strengths", [])
-            if strengths:
-                for s in strengths:
-                    st.markdown(f"- {s}")
-            else:
-                st.write("No strengths identified.")
-
-          
-            st.markdown("### ⚠️ Weaknesses")
-            weaknesses = ats_data.get("weaknesses", [])
-            if weaknesses:
-                for w in weaknesses:
-                    st.markdown(f"- {w}")
-            else:
-                st.write("No weaknesses identified.")
-
-           
-            explanation = ats_data.get("explanation")
-            if explanation:
-                st.markdown("### 🧠 Explanation")
-                st.write(explanation)
-
-        if ats_data and ats_data.get("overall_score", 0) > 0:
-                score = ats_data.get("overall_score", 0)  
+            if isinstance(ats_data, dict) and ats_data.get("overall_score", 0) > 0:
+                st.markdown("---")
+                score = ats_data.get("overall_score", 0)
                 label = get_score_label(score)
                 color = get_score_color(score)
                 
-                st.markdown(f"### ATS Score: {score}/100")
-                st.markdown(f"**{label}**", unsafe_allow_html=True)
-                st.markdown(f"""
-                <div style="
-                    text-align:center;
-                    padding:15px;
-                    margin-bottom:18px;
-                    background:white;
-                    border-radius:16px;
-                    box-shadow:0 4px 12px rgba(0,0,0,0.08);
-                    border:1px solid #e8e8e8;
-                ">
-                    <div style="position: relative; width:140px; height:140px; margin:auto;">
-                        <svg width="140" height="140">
-                            <circle cx="70" cy="70" r="60" stroke="#f0f0f0" stroke-width="12" fill="none"/>
-                            <circle cx="70" cy="70" r="60"
-                                stroke="{color}" stroke-width="12" fill="none"
-                                stroke-linecap="round"
-                                stroke-dasharray="{round(score*3.6)}, 360"
-                                transform="rotate(-90 70 70)"
-                            />
-                            <text x="70" y="78" text-anchor="middle" font-size="28" font-weight="700" fill="#333">{score}%</text>
-                        </svg>
+                with st.expander("ATS Analysis", expanded=True):
+                    # Score display (compact)
+                    st.markdown(f"""
+                    <div style="text-align:center; padding:1rem; background:white; border-radius:12px; 
+                        box-shadow:0 2px 8px rgba(0,0,0,0.08); border:1px solid #e8e8e8; margin-bottom:1rem;">
+                        <div style="position: relative; width:100px; height:100px; margin:auto;">
+                            <svg width="100" height="100">
+                                <circle cx="50" cy="50" r="40" stroke="#f0f0f0" stroke-width="8" fill="none"/>
+                                <circle cx="50" cy="50" r="40" stroke="{color}" stroke-width="8" fill="none"
+                                    stroke-linecap="round" stroke-dasharray="{round(score*2.51)}, 251"
+                                    transform="rotate(-90 50 50)"/>
+                                <text x="50" y="55" text-anchor="middle" font-size="20" font-weight="700" fill="#333">{score}%</text>
+                            </svg>
+                        </div>
+                        <div style="font-size:13px; margin-top:6px; font-weight:600; color:#333;">{label}</div>
                     </div>
-                    <div style="font-size:15px; margin-top:8px; font-weight:600; color:#333;">
-                        {label}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # ================= Keyword Table Expander ====================
-                with st.expander("🔎 View ATS Keyword Analysis"):
-                  
-                    st.markdown("## 🛠 Technical Skills")
-
-                    st.markdown("### 🟢 Matched")
-                    tech_matched = ats_data.get("technical_skills", {}).get("matched", [])
-                    if tech_matched:
-                        st.write(", ".join(tech_matched))
-                    else:
-                        st.write("None")
-
-                    st.markdown("### 🔴 Missing")
-                    tech_missing = ats_data.get("technical_skills", {}).get("missing", [])
-                    if tech_missing:
-                        st.write(", ".join(tech_missing))
-                    else:
-                        st.write("None")
-
-                
-                    st.markdown("---")
-                    st.markdown("## 🤝 Soft Skills")
-
-                    st.markdown("### 🟢 Matched")
-                    soft_matched = ats_data.get("soft_skills", {}).get("matched", [])
-                    if soft_matched:
-                        st.write(", ".join(soft_matched))
-                    else:
-                        st.write("None")
-
-                    st.markdown("### 🔴 Missing")
-                    soft_missing = ats_data.get("soft_skills", {}).get("missing", [])
-                    if soft_missing:
-                        st.write(", ".join(soft_missing))
-                    else:
-                        st.write("None")
+                    """, unsafe_allow_html=True)
+                    
+                    # Strengths (limit to 2)
+                    strengths = ats_data.get("strengths", [])
+                    if strengths:
+                        st.markdown("**Strengths**")
+                        for s in strengths[:2]:
+                            st.markdown(f"• {s}")
+                    
+                    # Weaknesses (limit to 2)
+                    weaknesses = ats_data.get("weaknesses", [])
+                    if weaknesses:
+                        st.markdown("**Weaknesses**")
+                        for w in weaknesses[:2]:
+                            st.markdown(f"• {w}")
+                    
+                    # Detailed breakdown
+                    with st.expander("View Details"):
+                        # Technical Skills
+                        st.markdown("**Technical Skills**")
+                        tech_matched = ats_data.get("technical_skills", {}).get("matched", [])
+                        tech_missing = ats_data.get("technical_skills", {}).get("missing", [])
+                        
+                        if tech_matched:
+                            st.success(f"Matched: {', '.join(tech_matched)}")
+                        else:
+                            st.info("None matched")
+                        
+                        if tech_missing:
+                            st.warning(f"Missing: {', '.join(tech_missing)}")
+                        else:
+                            st.info("None missing")
+                        
+                        # Soft Skills
+                        st.markdown("**Soft Skills**")
+                        soft_matched = ats_data.get("soft_skills", {}).get("matched", [])
+                        soft_missing = ats_data.get("soft_skills", {}).get("missing", [])
+                        
+                        if soft_matched:
+                            st.success(f"Matched: {', '.join(soft_matched)}")
+                        else:
+                            st.info("None matched")
+                        
+                        if soft_missing:
+                            st.warning(f"Missing: {', '.join(soft_missing)}")
+                        else:
+                            st.info("None missing")
+                        
+                        # Explanation
+                        explanation = ats_data.get("explanation")
+                        if explanation:
+                            st.markdown("**Explanation**")
+                            st.write(explanation)
 
 def main():
  

@@ -3956,11 +3956,12 @@ def show_visual_editor_with_tools():
   
         template_source = st.session_state.get('template_source', 'html_saved')
 
- 
+        # Move edit mode to sidebar
         if template_source in ['doc_saved', 'ppt_saved']:
             is_edit_mode = False 
         else:
-            is_edit_mode = st.checkbox("⚙️ **Enable Edit Mode**", key='edit_toggle')
+            # This will be set in the sidebar instead
+            is_edit_mode = st.session_state.get('edit_toggle', False)
             
         if is_edit_mode:
             with st.container():
@@ -4088,11 +4089,26 @@ def show_visual_editor_with_tools():
         with st.container():
             st.title("Resume Tools")
             
-            # ========== INLINE EDITOR TOGGLE BUTTONS ==========
+            # ========== EDIT MODE TOGGLE (ONLY FOR HTML TEMPLATES) ==========
             template_source = st.session_state.get('template_source', 'html_saved')
             
+            if template_source not in ['doc_saved', 'ppt_saved']:
+                # st.markdown("---")
+                st.markdown("### ⚙️ Editor Settings")
+                is_edit_mode = st.checkbox(
+                    "Enable Edit Mode", 
+                    key='edit_toggle',
+                    help="Enable editing to modify resume content directly"
+                )
+                
+                # if is_edit_mode:
+                #     st.info("✏️ **Edit mode active** - Modify content in the left panel")
+                # else:
+                #     st.success("👁️ **Preview mode** - Toggle to edit")
+            
+            # ========== INLINE EDITOR TOGGLE BUTTONS ==========
             if template_source == 'doc_saved':
-                st.markdown("---")
+                # st.markdown("---")
                 # Toggle button for Word editor
                 current_state = st.session_state.get('show_inline_doc_editor', False)
                 button_label = "✏️ Hide Document Editor" if current_state else "✏️ Edit Document Mapping"
@@ -4102,7 +4118,7 @@ def show_visual_editor_with_tools():
                     st.rerun()
             
             elif template_source == 'ppt_saved':
-                st.markdown("---")
+                # st.markdown("---")
                 # Toggle button for PPT editor
                 current_state = st.session_state.get('show_inline_ppt_editor', False)
                 button_label = "✏️ Hide Content Editor" if current_state else "✏️ Edit Presentation Content"
@@ -4110,6 +4126,8 @@ def show_visual_editor_with_tools():
                 if st.button(button_label, use_container_width=True, type="primary" if not current_state else "secondary"):
                     st.session_state.show_inline_ppt_editor = not current_state
                     st.rerun()
+        
+        # ... rest of your existing code continues here ...
             
             # ========== DOWNLOAD BUTTONS ==========
             if template_source == 'doc_saved' and st.session_state.get('generated_docx'):

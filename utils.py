@@ -148,6 +148,74 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
       "decription": "string or null (key achievements)"
     }
   ],
+  "internships": [
+    {
+      "company": "string or null",
+      "position": "string or null",
+      "location": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": ["array of strings - bullet points"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "string or null",
+      "proficiency": "string or null (e.g., Native, Fluent, Intermediate, Basic)"
+    }
+  ],
+  "achievements": [
+    {
+      "title": "string or null",
+      "description": "string or null",
+      "date": "string or null (MM/YYYY format)"
+    }
+  ],
+  "publications": [
+    {
+      "title": "string or null",
+      "authors": "string or null",
+      "publisher": "string or null",
+      "date": "string or null (MM/YYYY format)",
+      "url": "string or null"
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "string or null",
+      "role": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": ["array of strings - bullet points"]
+    }
+  ],
+  "leadership": [
+    {
+      "organization": "string or null",
+      "position": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": "string or null"
+    }
+  ],
+  "interests": ["array of strings"],
+  "portfolio_links": [
+    {
+      "platform": "string or null (e.g., GitHub, LinkedIn, Portfolio, Behance)",
+      "url": "string or null"
+    }
+  ],
+  "personal_details": {
+    "date_of_birth": "string or null (DD/MM/YYYY format)",
+    "nationality": "string or null",
+    "gender": "string or null",
+    "marital_status": "string or null",
+    "passport_number": "string or null",
+    "driving_license": "string or null",
+    "visa_status": "string or null",
+    "other_info": "string or null"
+  },
+  "additional_information": "string or null (any other relevant info)",
   "custom_sections": {
     "section_title": "section content as string"
   }
@@ -164,6 +232,10 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
         "4. For dates, use MM/YYYY format (e.g., '01/2020').",
         "5. For current positions, use 'Present' as end_date.",
         "6. Split multi-line descriptions into arrays of strings.",
+        "7. Extract ALL sections including: Languages, Achievements, Publications, Volunteer Experience, Leadership, Interests, Portfolio Links, Internships, Personal Details, Additional Information.",
+        "8. For portfolio/social links, identify the platform (GitHub, LinkedIn, Portfolio, etc.) and URL.",
+        "9. For Personal Details section, extract: date of birth, nationality, gender, marital status, passport number, driving license, visa status, and any other personal information.",
+        "10. If a section exists but doesn't match predefined fields, add it to 'custom_sections'.",
         "",
         "SCHEMA TO FOLLOW:",
         SCHEMA_DEFINITION,
@@ -187,7 +259,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                 "messages": [
                     {
                         "role": "system", 
-                        "content": "You are an expert resume parser. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
+                        "content": "You are an expert resume parser. Extract ALL sections from resumes including standard sections (experience, education) and additional sections (languages, achievements, publications, volunteer work, leadership, interests, portfolio links, internships, personal details, awards, training, hobbies, additional information). Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
                     },
                     {
                         "role": "user", 
@@ -195,7 +267,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     }
                 ],
                 "temperature": 0.1,
-                "max_tokens": 3000,  # Reduced for faster response
+                "max_tokens": 4000,  # Increased to accommodate more sections
                 "top_p": 0.7
             }
 
@@ -227,7 +299,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
             json_str = response_text[json_start:json_end]
             data = json.loads(json_str)
 
-            # Post-processing
+            # Post-processing for experience
             if "experience" in data and isinstance(data["experience"], list):
                 for exp in data["experience"]:
                     desc = exp.get("description", [])
@@ -239,6 +311,25 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     if "exp_skills" not in exp or not isinstance(exp["exp_skills"], list):
                         exp["exp_skills"] = []
 
+            # Post-processing for internships
+            if "internships" in data and isinstance(data["internships"], list):
+                for intern in data["internships"]:
+                    desc = intern.get("description", [])
+                    if isinstance(desc, str):
+                        intern["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    elif not isinstance(desc, list):
+                        intern["description"] = []
+
+            # Post-processing for volunteer
+            if "volunteer" in data and isinstance(data["volunteer"], list):
+                for vol in data["volunteer"]:
+                    desc = vol.get("description", [])
+                    if isinstance(desc, str):
+                        vol["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    elif not isinstance(desc, list):
+                        vol["description"] = []
+
+            # Post-processing for projects
             if "project" in data and isinstance(data["project"], list):
                 for proj in data["project"]:
                     desc = proj.get("decription", "")
@@ -247,29 +338,53 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     elif not isinstance(desc, str):
                         proj["decription"] = ""
 
-            list_fields = ["skills", "experience", "education", "certificate", "project"]
+            # Ensure all list fields exist
+            list_fields = [
+                "skills", "experience", "education", "certificate", "project",
+                "internships", "languages", "achievements", "publications",
+                "volunteer", "leadership", "interests", "portfolio_links"
+            ]
             for field in list_fields:
                 if field not in data:
                     data[field] = []
                 elif not isinstance(data[field], list):
                     data[field] = [data[field]] if data[field] else []
 
-            string_fields = ["name", "email", "phone", "location", "url", "summary"]
+            # Ensure all string fields exist
+            string_fields = ["name", "email", "phone", "location", "url", "summary", "additional_information"]
             for field in string_fields:
                 if field not in data:
                     data[field] = ""
                 elif data[field] is None:
                     data[field] = ""
 
+            # Ensure personal_details exists as a dictionary
+            if "personal_details" not in data:
+                data["personal_details"] = {}
+            elif not isinstance(data["personal_details"], dict):
+                data["personal_details"] = {}
+            
+            # Ensure personal_details has all expected fields
+            personal_detail_fields = [
+                "date_of_birth", "nationality", "gender", "marital_status",
+                "passport_number", "driving_license", "visa_status", "other_info"
+            ]
+            for field in personal_detail_fields:
+                if field not in data["personal_details"]:
+                    data["personal_details"][field] = ""
+
+            # Ensure custom_sections exists
             if "custom_sections" not in data:
                 data["custom_sections"] = {}
             elif not isinstance(data["custom_sections"], dict):
                 data["custom_sections"] = {}
 
+            # Validate minimum required fields
             if not data.get("name") or not data.get("email"):
                 raise ValueError("Resume must contain at least a name and email address")
 
             print(f"✅ Successfully parsed resume on attempt {attempt + 1}")
+            print(f"📊 Extracted sections: {', '.join([k for k, v in data.items() if v and k != 'custom_sections'])}")
             return data
 
         except requests.exceptions.Timeout:
@@ -311,7 +426,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
 
 def _fallback_parse(text: str) -> Dict[str, Any]:
     """
-    Simple regex-based fallback parser when API fails.
+    Enhanced regex-based fallback parser when API fails.
     Extracts basic information using pattern matching.
     """
     import re
@@ -330,6 +445,16 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
         "education": [],
         "certificate": [],
         "project": [],
+        "internships": [],
+        "languages": [],
+        "achievements": [],
+        "publications": [],
+        "volunteer": [],
+        "leadership": [],
+        "interests": [],
+        "portfolio_links": [],
+        "personal_details": {},
+        "additional_information": "",
         "custom_sections": {}
     }
     
@@ -343,10 +468,26 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
     if phone_match:
         data["phone"] = phone_match.group()
     
+    # Extract URLs (GitHub, LinkedIn, Portfolio)
+    url_patterns = [
+        (r'github\.com/[\w-]+', 'GitHub'),
+        (r'linkedin\.com/in/[\w-]+', 'LinkedIn'),
+        (r'(?:https?://)?(?:www\.)?[\w-]+\.(?:com|io|net|org)/[\w-/]+', 'Portfolio')
+    ]
+    for pattern, platform in url_patterns:
+        matches = re.finditer(pattern, text, re.IGNORECASE)
+        for match in matches:
+            url = match.group()
+            if not url.startswith('http'):
+                url = 'https://' + url
+            data["portfolio_links"].append({
+                "platform": platform,
+                "url": url
+            })
+    
     # Extract name (first line typically)
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     if lines:
-        # Name is usually first non-empty line
         data["name"] = lines[0]
     
     # Extract skills section
@@ -354,9 +495,68 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
                                 text, re.IGNORECASE | re.DOTALL)
     if skills_section:
         skills_text = skills_section.group(1)
-        # Split by common delimiters
         skills = re.split(r'[,•|]', skills_text)
         data["skills"] = [s.strip() for s in skills if s.strip() and len(s.strip()) > 2][:20]
+    
+    # Extract languages
+    lang_section = re.search(r'(?:LANGUAGES?)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                             text, re.IGNORECASE | re.DOTALL)
+    if lang_section:
+        lang_text = lang_section.group(1)
+        langs = re.split(r'[,•|]', lang_text)
+        for lang in langs:
+            lang = lang.strip()
+            if lang and len(lang) > 2:
+                # Try to split language and proficiency
+                parts = re.split(r'[-–:]', lang, maxsplit=1)
+                if len(parts) == 2:
+                    data["languages"].append({
+                        "language": parts[0].strip(),
+                        "proficiency": parts[1].strip()
+                    })
+                else:
+                    data["languages"].append({
+                        "language": lang,
+                        "proficiency": ""
+                    })
+    
+    # Extract interests/hobbies
+    interests_section = re.search(r'(?:INTERESTS?|HOBBIES)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                                  text, re.IGNORECASE | re.DOTALL)
+    if interests_section:
+        interests_text = interests_section.group(1)
+        interests = re.split(r'[,•|]', interests_text)
+        data["interests"] = [i.strip() for i in interests if i.strip() and len(i.strip()) > 2][:10]
+    
+    # Extract personal details section
+    personal_section = re.search(r'(?:PERSONAL DETAILS?|PERSONAL INFORMATION)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                                 text, re.IGNORECASE | re.DOTALL)
+    if personal_section:
+        personal_text = personal_section.group(1)
+        personal_lines = personal_text.split('\n')
+        
+        personal_data = {}
+        for line in personal_lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Try to extract key-value pairs
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip().lower().replace(' ', '_')
+                value = value.strip()
+                personal_data[key] = value
+            elif 'dob' in line.lower() or 'date of birth' in line.lower():
+                personal_data['date_of_birth'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'nationality' in line.lower():
+                personal_data['nationality'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'gender' in line.lower():
+                personal_data['gender'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'marital' in line.lower():
+                personal_data['marital_status'] = line.split(':', 1)[1].strip() if ':' in line else line
+        
+        data["personal_details"] = personal_data
     
     # Add generic experience entry
     exp_section = re.search(r'(?:EXPERIENCE|WORK EXPERIENCE)[:\s]+(.*?)(?=\n[A-Z]{3,}|EDUCATION|$)', 
@@ -389,10 +589,11 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
     if not data["email"]:
         data["email"] = "email@example.com"
     
-    print(f"✅ Fallback parser extracted: {len(data['skills'])} skills, "
-          f"{len(data['experience'])} experience entries")
+    sections_found = [k for k, v in data.items() if v and k not in ['name', 'email', 'custom_sections']]
+    print(f"✅ Fallback parser extracted: {len(sections_found)} sections")
     
     return data
+
 
 def call_llm(payload):
     response = requests.post(API_URL, json=payload, headers=headers)
@@ -400,7 +601,6 @@ def call_llm(payload):
     data = response.json()
     llm_text = data['choices'][0]['message']['content']
     return llm_text
-
 
 
 

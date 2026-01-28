@@ -679,7 +679,7 @@ if analyze_btn:
                     st.markdown("""
                     <div style="text-align: center; margin: 2rem 0;">
                         <h2 style="font-size: 2rem; font-weight: 800; color: #0a0f14;">
-                            📊 Your ATS Analysis Results
+                             Your ATS Analysis Results
                         </h2>
                     </div>
                     """, unsafe_allow_html=True)

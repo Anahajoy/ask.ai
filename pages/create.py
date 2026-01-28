@@ -155,7 +155,51 @@ if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
   
     if st.session_state.last_enhanced_jd != jd_hash or st.session_state.get('force_enhance', False):
         resume_data = st.session_state.enhanced_resume
+        
+        # Show spinner
+        loading_placeholder = st.empty()
+        loading_placeholder.markdown("""
+            <div id="overlay-loader">
+                <div class="loader-spinner"></div>
+                <p>🤖 Analyzing your resume with AI...</p>
+            </div>
+            <style>
+                #overlay-loader {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background: rgba(255, 255, 255, 0.95);
+                    backdrop-filter: blur(10px);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    color: #e87532 !important;
+                    font-size: 1.2rem;
+                    font-weight: 500;
+                }
+                .loader-spinner {
+                    border: 5px solid rgba(232, 117, 50, 0.2);
+                    border-top: 5px solid #e87532;
+                    border-radius: 50%;
+                    width: 70px;
+                    height: 70px;
+                    animation: spin 1s linear infinite;
+                    margin-bottom: 20px;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        """, unsafe_allow_html=True)
+        
         generate_enhanced_resume(resume_data, jd_data)
+        
+        loading_placeholder.empty()  # Clear the spinner
         st.session_state.last_enhanced_jd = jd_hash
         st.session_state.force_enhance = False
 
@@ -2443,24 +2487,66 @@ def clean_resume_data(data):
 
 def generate_resume_for_template():
     """Generate enhanced resume data for template."""
-    # Return enhanced resume if it exists
+
     if st.session_state.enhanced_resume:
         return clean_resume_data(st.session_state.enhanced_resume)
     
-    # Check if we should regenerate (only if job description exists)
+
     jd_data = st.session_state.get('job_description')
     has_jd = jd_data is not None and isinstance(jd_data, dict) and len(jd_data) > 0
     
-    # Only regenerate if JD exists and edit mode is off
+
     if has_jd and should_regenerate_resume() and not st.session_state.get('edit_toggle', False):
         try:
-            generate_enhanced_resume(resume_data,jd_data)
+     
+            loading_placeholder = st.empty()
+            loading_placeholder.markdown("""
+                <div id="overlay-loader">
+                    <div class="loader-spinner"></div>
+                    <p>🤖 Analyzing your resume with AI...</p>
+                </div>
+                <style>
+                    #overlay-loader {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100vh;
+                        background: rgba(255, 255, 255, 0.95);
+                        backdrop-filter: blur(10px);
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 9999;
+                        color: #e87532 !important;
+                        font-size: 1.2rem;
+                        font-weight: 500;
+                    }
+                    .loader-spinner {
+                        border: 5px solid rgba(232, 117, 50, 0.2);
+                        border-top: 5px solid #e87532;
+                        border-radius: 50%;
+                        width: 70px;
+                        height: 70px;
+                        animation: spin 1s linear infinite;
+                        margin-bottom: 20px;
+                    }
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            generate_enhanced_resume(resume_data, jd_data)
+            
+            loading_placeholder.empty() 
         except Exception as e:
             st.warning(f"Could not enhance resume: {str(e)}")
-            # Fall back to original resume
             pass
     
-    # Get resume data - enhanced if available, otherwise original
+ 
     resume_data = st.session_state.get('enhanced_resume') or st.session_state.get('final_resume_data') or user_resume
     # st.write(resume_data)
     if not resume_data:
@@ -2882,7 +2968,7 @@ def show_upload_modal():
     st.markdown("---")
     st.markdown("### 📤 Upload Custom Template")
     
-    # Create tabs for different file types
+ 
     tab1, tab2, tab3 = st.tabs(["📄 HTML Template", "📝 Word Document", "📊 PowerPoint"])
     
     with tab1:
@@ -2894,7 +2980,7 @@ def show_upload_modal():
     with tab3:
         show_powerpoint_upload()
     
-    # Close button
+  
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         if st.button("❌ Close Upload", type="secondary", use_container_width=True):
@@ -2921,15 +3007,15 @@ def show_html_upload():
             encoding = detected["encoding"] or "utf-8"
             content = raw_data.decode(encoding, errors="ignore")
             
-            # Extract template structure (you'll need to implement this based on your needs)
+           
             from templates.templateconfig import extract_template_from_html
             parsed_template = extract_template_from_html(content)
             
-            # FIXED: Changed key from 'html_template_name' to be more unique
+           
             template_name = st.text_input(
                 "Template Name:",
                 value=f"Custom_{uploaded_file.name.split('.')[0]}",
-                key="modal_html_template_name"  # Changed key here
+                key="modal_html_template_name"  
             )
             
             col1, col2 = st.columns(2)
@@ -2947,7 +3033,7 @@ def show_html_upload():
                 if st.button("👁️ Preview & Use", type="secondary", use_container_width=True, key="preview_html_template_btn"):
                     use_uploaded_html_template(template_name, parsed_template)
             
-            # Show preview
+           
             st.markdown("#### Preview")
             resume_data = st.session_state.get('final_resume_data') or {}
             preview_html = f"""
@@ -2975,25 +3061,25 @@ def show_word_upload():
         try:
             from templates.templateconfig import extract_document_structure, replace_content
             
-            # Extract structure
+          
             uploaded_file.seek(0)
             doc, structure = extract_document_structure(uploaded_file)
             
-            # Store template data
+           
             uploaded_file.seek(0)
             doc_data = uploaded_file.read()
             
-            # FIXED: Changed key to be unique
+           
             template_name = st.text_input(
                 "Template Name:",
                 value=f"Word_{uploaded_file.name.split('.')[0]}",
-                key="modal_word_template_name"  # Changed key here
+                key="modal_word_template_name"  
             )
             
-            # Get resume data
+            
             resume_data = st.session_state.get('final_resume_data') or {}
             
-            # Generate preview
+           
             uploaded_file.seek(0)
             doc, _ = extract_document_structure(uploaded_file)
             output, replaced, removed = replace_content(doc, structure, resume_data)
@@ -3019,7 +3105,7 @@ def show_word_upload():
                         use_container_width=True
                     )
             
-            # Show preview
+          
             st.markdown("#### Preview")
             show_word_preview(output.getvalue())
             
@@ -3044,11 +3130,10 @@ def show_powerpoint_upload():
             from pptx import Presentation
             from templates.templateconfig import analyze_slide_structure, generate_ppt_sections
             
-            # Load presentation
+          
             ppt_data = uploaded_file.getvalue()
             prs = Presentation(io.BytesIO(ppt_data))
             
-            # Extract structure
             slide_texts = []
             for slide_idx, slide in enumerate(prs.slides):
                 text_blocks = []
@@ -3067,11 +3152,11 @@ def show_powerpoint_upload():
                         "text_blocks": text_blocks
                     })
             
-            # FIXED: Changed key to be unique
+           
             template_name = st.text_input(
                 "Template Name:",
                 value=f"PPT_{uploaded_file.name.split('.')[0]}",
-                key="modal_ppt_template_name"  # Changed key here
+                key="modal_ppt_template_name"  
             )
             
             col1, col2 = st.columns(2)
@@ -3089,7 +3174,7 @@ def show_powerpoint_upload():
                 if st.button("👁️ Preview", type="secondary", use_container_width=True, key="preview_ppt_btn"):
                     st.session_state.show_ppt_preview = True
             
-            # Show preview if requested
+         
             if st.session_state.get('show_ppt_preview', False):
                 st.markdown("#### Preview")
                 show_ppt_preview(prs)
@@ -3112,9 +3197,7 @@ def save_html_template(name, parsed_template, filename):
         'original_filename': filename,
         'type': 'html'
     }
-    
-    # Save to database (implement this based on your storage)
-    # save_user_templates(st.session_state.logged_in_user, st.session_state.uploaded_templates)
+
 
 
 def save_word_template(name, doc_data, structure, filename):
@@ -3132,9 +3215,7 @@ def save_word_template(name, doc_data, structure, filename):
         'type': 'word'
     }
     
-    # Save to database
-    # save_user_doc_templates(st.session_state.logged_in_user, st.session_state.doc_templates)
-
+   
 
 def save_ppt_template(name, ppt_data, slide_texts, filename):
     """Save PowerPoint template to user's templates."""
@@ -3151,8 +3232,7 @@ def save_ppt_template(name, ppt_data, slide_texts, filename):
         'type': 'powerpoint'
     }
     
-    # Save to database
-    # save_user_ppt_templates(st.session_state.logged_in_user, st.session_state.ppt_templates)
+  
 
 
 def show_word_preview(doc_bytes):
@@ -3230,7 +3310,6 @@ def use_uploaded_html_template(name, parsed_template):
 
 def show_template_selector():
     """Show template selection gallery with custom upload option and saved templates."""
-    # Check if we should show upload interface
    
     if st.session_state.get('show_upload_interface', False):
         show_upload_interface()
@@ -3298,13 +3377,13 @@ def show_template_selector():
     </div>
     """, unsafe_allow_html=True)
     
-    # Search bar
+   
     search_term = st.text_input("🔍 Search templates...", 
                                placeholder="Search templates...",
                                label_visibility="collapsed",
                                key="template_search")
     
-    # Template categories
+  
     template_categories = {
         "Minimalist (ATS Best)": "ATS",
         "Horizontal Line": "Modern",
@@ -3319,7 +3398,7 @@ def show_template_selector():
         "Two Coloumn": "Layout",
     }
     
-    # Load all saved templates
+  
     current_user = st.session_state.logged_in_user
     if 'uploaded_templates' not in st.session_state:
         st.session_state.uploaded_templates = load_user_templates(current_user)
@@ -3330,14 +3409,14 @@ def show_template_selector():
     if 'ppt_templates' not in st.session_state:
         st.session_state.ppt_templates = load_user_ppt_templates(current_user)
     
-    # Filter system templates
+   
     filtered_templates = {
         name: config for name, config in SYSTEM_TEMPLATES.items()
         if search_term.lower() in name.lower() or 
         search_term.lower() in template_categories.get(name, "").lower()
     }
     
-    # Filter saved templates
+  
     filtered_html = {
         tid: data for tid, data in st.session_state.uploaded_templates.items()
         if search_term.lower() in data['name'].lower()
@@ -3353,17 +3432,17 @@ def show_template_selector():
         if search_term.lower() in data['name'].lower()
     }
     
-    # Create tabs for different template types
+
     tab1, tab2, tab3, tab4 = st.tabs(["📋 System Templates", "📄 HTML Templates", "📝 Word Templates", "📊 PowerPoint Templates"])
     
     # ========== SYSTEM TEMPLATES TAB ==========
     with tab1:
         templates_list = list(filtered_templates.items())
         
-        # First row with Upload Custom Template card
+      
         cols = st.columns(3)
         
-        # Upload Custom Template Card
+   
         with cols[0]:
             st.markdown("""
             <div class="create-blank-card" id="upload-template-card">
@@ -3381,14 +3460,14 @@ def show_template_selector():
                 st.session_state.show_upload_interface = True
                 st.rerun()
         
-        # Fill remaining slots in first row
+      
         for col_idx in range(1, min(3, len(templates_list) + 1)):
             if col_idx - 1 < len(templates_list):
                 template_name, template_config = templates_list[col_idx - 1]
                 with cols[col_idx]:
                     render_template_card(template_name, template_config, template_categories)
         
-        # Render remaining templates in rows of 3
+      
         if len(templates_list) > 2:
             remaining_templates = templates_list[2:]
             for i in range(0, len(remaining_templates), 3):
@@ -3402,7 +3481,7 @@ def show_template_selector():
     # ========== HTML TEMPLATES TAB ==========
     with tab2:
         if filtered_html:
-            # Display in grid format
+        
             html_list = list(filtered_html.items())
             for i in range(0, len(html_list), 3):
                 cols = st.columns(3)
@@ -3420,7 +3499,7 @@ def show_template_selector():
     # ========== WORD TEMPLATES TAB ==========
     with tab3:
         if filtered_doc:
-            # Display in grid format
+         
             doc_list = list(filtered_doc.items())
             for i in range(0, len(doc_list), 3):
                 cols = st.columns(3)
@@ -3438,7 +3517,7 @@ def show_template_selector():
     # ========== POWERPOINT TEMPLATES TAB ==========
     with tab4:
         if filtered_ppt:
-            # Display in grid format
+         
             ppt_list = list(filtered_ppt.items())
             for i in range(0, len(ppt_list), 3):
                 cols = st.columns(3)
@@ -3484,37 +3563,37 @@ def render_saved_html_template_card(template_id, template_data):
     with col1:
         if st.button("Use Template", key=f"use_html_{template_id}", type="primary", use_container_width=True):
             try:
-                # Get resume data
+              
                 clear_template_state()
                 user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
-                # Ensure enhanced_resume is initialized
+              
                 if st.session_state.get('enhanced_resume') is None:
                     st.session_state['enhanced_resume'] = user_resume.copy()
                 
-                # Generate fresh resume data
+              
                 resume_data = generate_resume_for_template()
                 
-                # Get template CSS and generate HTML
+              
                 css = template_data.get('css', '')
                 html_content = generate_generic_html(resume_data)
                 
-                # Create full HTML preview
+              
                 full_html = f"""
                 <div class="ats-page">
                     {html_content}
                 </div>
                 """
                 
-                # Store everything in session state
+               
                 st.session_state.selected_template = template_data['name']
                 st.session_state.template_preview_html = full_html
                 st.session_state.template_preview_css = css
                 st.session_state.final_resume_data = resume_data
                 st.session_state['enhanced_resume'] = resume_data
-                st.session_state['template_source'] = 'html_saved'  # Set template source
+                st.session_state['template_source'] = 'html_saved'  
                 
-                # Calculate ATS score if job description exists
+             
                 jd_data = st.session_state.get('job_description')
                 if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
                     try:
@@ -3525,7 +3604,7 @@ def render_saved_html_template_card(template_id, template_data):
                 else:
                     st.session_state['ats_result'] = {}
                 
-                # Switch to visual editor
+               
                 st.session_state.show_template_selector = False
                 st.session_state.show_visual_editor = True
                 
@@ -3581,17 +3660,17 @@ def render_saved_doc_template_card(template_id, template_data):
             try:
                 import io
                 clear_template_state()
-                # Get resume data
+             
                 final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
-                # Ensure enhanced_resume is initialized
+               
                 if st.session_state.get('enhanced_resume') is None:
                     st.session_state['enhanced_resume'] = final_data.copy()
                 
-                # Generate fresh resume data
+               
                 resume_data = generate_resume_for_template()
                 
-                # Get the ORIGINAL template bytes
+               
                 template_bytes = template_data['doc_data']
                 
                 if not isinstance(template_bytes, bytes):
@@ -3599,13 +3678,12 @@ def render_saved_doc_template_card(template_id, template_data):
                     return
                 
                 with st.spinner("Processing template..."):
-                    # Extract text from template
+                   
                     uploadtext = extract_temp_from_docx(io.BytesIO(template_bytes))
-                    
-                    # Generate mapping with user resume
+                   
                     mapped_data = ask_ai_for_mapping(uploadtext, resume_data)
                     
-                    # Ensure mapping is a dictionary
+                   
                     if isinstance(mapped_data, list):
                         mapped_data = {
                             item["template"]: item["new"]
@@ -3613,13 +3691,13 @@ def render_saved_doc_template_card(template_id, template_data):
                             if "template" in item and "new" in item
                         }
                     
-                    # Process the template with user data
+                    
                     output_doc = auto_process_docx(
                         io.BytesIO(template_bytes),
                         mapped_data
                     )
                 
-                # Store everything - CRITICAL
+               
                 st.session_state['generated_docx'] = output_doc.getvalue()
                 st.session_state['enhanced_resume'] = resume_data
                 st.session_state.final_resume_data = resume_data
@@ -3632,7 +3710,7 @@ def render_saved_doc_template_card(template_id, template_data):
                 st.session_state['mapping'] = mapped_data
                 st.session_state['template_text'] = uploadtext
                 
-                # Calculate ATS score if job description exists
+               
                 jd_data = st.session_state.get('job_description')
                 if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
                     try:
@@ -3643,7 +3721,7 @@ def render_saved_doc_template_card(template_id, template_data):
                 else:
                     st.session_state['ats_result'] = {}
                 
-                # Switch to visual editor to show preview
+              
                 st.session_state.show_template_selector = False
                 st.session_state.show_visual_editor = True
                 
@@ -3665,7 +3743,7 @@ def render_saved_doc_template_card(template_id, template_data):
             )
 
             if success:
-                # Reload from DB (single source of truth)
+                
                 st.session_state.doc_templates = load_user_doc_templates(
                     st.session_state.logged_in_user
                 )
@@ -3710,14 +3788,14 @@ def render_saved_ppt_template_card(template_id, template_data):
                 import io
                 from pptx import Presentation
                 clear_template_state()
-                # Get resume data
+               
                 user_resume = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
                 
-                # Ensure enhanced_resume is initialized
+               
                 if st.session_state.get('enhanced_resume') is None:
                     st.session_state['enhanced_resume'] = user_resume.copy()
                 with st.spinner("Processing template..."):
-                    # Generate fresh resume data
+                  
                     resume_data = generate_resume_for_template()
                     st.spinner("Processing template...")
                     working_prs = Presentation(io.BytesIO(template_data['ppt_data']))
@@ -3746,7 +3824,7 @@ def render_saved_ppt_template_card(template_id, template_data):
                     
                     text_elements = template_data.get('text_elements', [])
                     if not text_elements:
-                        # Regenerate text elements if not stored
+                     
                         text_elements = []
                         for slide_idx, slide in enumerate(prs.slides):
                             for shape_idx, shape in enumerate(slide.shapes):
@@ -3784,7 +3862,7 @@ def render_saved_ppt_template_card(template_id, template_data):
                     working_prs.save(output)
                     output.seek(0)
                     
-                # Store everything
+             
                 st.session_state['generated_ppt'] = output.getvalue()
                 st.session_state['enhanced_resume'] = resume_data
                 st.session_state.final_resume_data = resume_data
@@ -3793,7 +3871,7 @@ def render_saved_ppt_template_card(template_id, template_data):
                 st.session_state['template_source'] = 'ppt_saved'
                 st.session_state.selected_template = template_data['name']
                 
-                # Calculate ATS score if job description exists
+                
                 jd_data = st.session_state.get('job_description')
                 if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
                     try:
@@ -3804,7 +3882,7 @@ def render_saved_ppt_template_card(template_id, template_data):
                 else:
                     st.session_state['ats_result'] = {}
                 
-                # Switch to visual editor to show preview
+              
                 st.session_state.show_template_selector = False
                 st.session_state.show_visual_editor = True
                 
@@ -3826,7 +3904,7 @@ def render_saved_ppt_template_card(template_id, template_data):
             )
 
             if success:
-                # Reload templates from DB (source of truth)
+            
                 st.session_state.ppt_templates = load_user_ppt_templates(
                     st.session_state.logged_in_user
                 )
@@ -3927,8 +4005,7 @@ def show_visual_editor_with_tools():
         st.rerun()
         return
 
-    # Header
-    # st.markdown('<div class="editor-header">', unsafe_allow_html=True)
+ 
     col1, col2 = st.columns([2, 5], gap='medium')
     with col1:
         if st.button("← Back to Templates", type="primary", use_container_width=True):
@@ -3957,11 +4034,11 @@ def show_visual_editor_with_tools():
   
         template_source = st.session_state.get('template_source', 'html_saved')
 
-        # Move edit mode to sidebar
+       
         if template_source in ['doc_saved', 'ppt_saved']:
             is_edit_mode = False 
         else:
-            # This will be set in the sidebar instead
+         
             is_edit_mode = st.session_state.get('edit_toggle', False)
             
         if is_edit_mode:
@@ -4031,19 +4108,19 @@ def show_visual_editor_with_tools():
         html_content = st.session_state.template_preview_html or ""
         css_content = st.session_state.template_preview_css or ""
 
-        # Add separator
+    
         st.markdown("---")
 
-        # ✅ FIX: Show appropriate editor based on template type
+      
         if template_source == 'doc_saved':
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📄 Word Document Preview</h3>", unsafe_allow_html=True)
             
-            # Show inline editor if enabled
+           
             if st.session_state.get('show_inline_doc_editor', False):
                 show_inline_doc_mapping_editor()
                 st.markdown("---")
             
-            # Show preview
+         
             if st.session_state.get('generated_docx'):
                 try:
                     preview_html = docx_to_html_preview(io.BytesIO(st.session_state['generated_docx']))
@@ -4055,13 +4132,12 @@ def show_visual_editor_with_tools():
 
         elif template_source == 'ppt_saved':
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>📊 PowerPoint Preview</h3>", unsafe_allow_html=True)
-            
-            # Show inline editor if enabled
+           
             if st.session_state.get('show_inline_ppt_editor', False):
                 show_inline_ppt_content_editor()
                 st.markdown("---")
             
-            # Show preview
+          
             if st.session_state.get('generated_ppt'):
                 show_ppt_preview_inline(st.session_state['generated_ppt'])
             else:
@@ -4070,7 +4146,7 @@ def show_visual_editor_with_tools():
         else:
             st.markdown("<h3 style='text-align:center;color:#6b7280;margin-top:2rem;margin-bottom:1rem;'>👁️ Live Preview</h3>", unsafe_allow_html=True)
             
-            # Inject data into editor
+        
             editor_html_with_data = VISUAL_EDITOR_HTML
             
             inject_script = f"""
@@ -4083,7 +4159,7 @@ def show_visual_editor_with_tools():
             
             editor_html_with_data = editor_html_with_data.replace('<body>', f'<body>\n{inject_script}')
             
-            # Display the visual editor
+       
             components.html(editor_html_with_data, height=1400, scrolling=True)
 
     with tools_col:
@@ -4110,7 +4186,7 @@ def show_visual_editor_with_tools():
             # ========== INLINE EDITOR TOGGLE BUTTONS ==========
             if template_source == 'doc_saved':
                 # st.markdown("---")
-                # Toggle button for Word editor
+                
                 current_state = st.session_state.get('show_inline_doc_editor', False)
                 button_label = "✏️ Hide Document Editor" if current_state else "✏️ Edit Document Mapping"
                 
@@ -4120,7 +4196,7 @@ def show_visual_editor_with_tools():
             
             elif template_source == 'ppt_saved':
                 # st.markdown("---")
-                # Toggle button for PPT editor
+                
                 current_state = st.session_state.get('show_inline_ppt_editor', False)
                 button_label = "✏️ Hide Content Editor" if current_state else "✏️ Edit Presentation Content"
                 
@@ -4128,7 +4204,7 @@ def show_visual_editor_with_tools():
                     st.session_state.show_inline_ppt_editor = not current_state
                     st.rerun()
         
-        # ... rest of your existing code continues here ...
+      
             
             # ========== DOWNLOAD BUTTONS ==========
             if template_source == 'doc_saved' and st.session_state.get('generated_docx'):
@@ -4157,10 +4233,10 @@ def show_visual_editor_with_tools():
             
             st.markdown("---")
             
-            # ========== REST OF TOOLS (Save & Auto-Improve, etc.) ==========
+         
             loading_placeholder = st.empty()
             
-            # Save & Auto-Improve button
+           
             if st.button("✨ **Save & Auto-Improve**", type="primary", use_container_width=True):
                 loading_placeholder.markdown("""
                     <div id="overlay-loader">
@@ -4261,9 +4337,7 @@ def show_visual_editor_with_tools():
                         type="secondary",
                         use_container_width=True
                     )
-            # Continue with HTML/PDF downloads and ATS analysis...
-            # (Rest of your existing tools_col code)
-# In your show_visual_editor_with_tools() function, replace the PDF download section with:
+          
 
         st.markdown("---")
 
@@ -4272,7 +4346,7 @@ def show_visual_editor_with_tools():
         template_source = st.session_state.get('template_source', 'html_saved')
 
         if template_source not in ['doc_saved', 'ppt_saved']: 
-            # Single HTML for both downloads
+           
             download_html = f"""
             <!DOCTYPE html>
             <html>
@@ -4311,7 +4385,7 @@ def show_visual_editor_with_tools():
             with col2:
                 filename = f"Resume_{resume_data.get('name', 'User').replace(' ', '_')}.docx"
 
-                # Convert on-the-fly
+               
                 with st.spinner("Preparing DOCX..."):
                     docx_data = convert_html_to_docx_spire(html_content, css_content)
 
@@ -4368,7 +4442,7 @@ def show_visual_editor_with_tools():
 
         if isinstance(ats_data, dict) and "overall_score" in ats_data:
 
-            # Strengths
+        
             st.markdown("### ✅ Strengths")
             strengths = ats_data.get("strengths", [])
             if strengths:
@@ -4377,7 +4451,7 @@ def show_visual_editor_with_tools():
             else:
                 st.write("No strengths identified.")
 
-            # Weaknesses
+          
             st.markdown("### ⚠️ Weaknesses")
             weaknesses = ats_data.get("weaknesses", [])
             if weaknesses:
@@ -4386,14 +4460,14 @@ def show_visual_editor_with_tools():
             else:
                 st.write("No weaknesses identified.")
 
-            # Explanation
+           
             explanation = ats_data.get("explanation")
             if explanation:
                 st.markdown("### 🧠 Explanation")
                 st.write(explanation)
 
         if ats_data and ats_data.get("overall_score", 0) > 0:
-                score = ats_data.get("overall_score", 0)  # Changed from "score" to "overall_score"
+                score = ats_data.get("overall_score", 0)  
                 label = get_score_label(score)
                 color = get_score_color(score)
                 
@@ -4429,7 +4503,7 @@ def show_visual_editor_with_tools():
 
                 # ================= Keyword Table Expander ====================
                 with st.expander("🔎 View ATS Keyword Analysis"):
-                    # ---------- Technical Skills ----------
+                  
                     st.markdown("## 🛠 Technical Skills")
 
                     st.markdown("### 🟢 Matched")
@@ -4446,7 +4520,7 @@ def show_visual_editor_with_tools():
                     else:
                         st.write("None")
 
-                    # ---------- Soft Skills ----------
+                
                     st.markdown("---")
                     st.markdown("## 🤝 Soft Skills")
 
@@ -4464,16 +4538,15 @@ def show_visual_editor_with_tools():
                     else:
                         st.write("None")
 
-# Main app flow
 def main():
-    # Check if user needs to be redirected to resume creation first
+ 
     if not user_resume or len(user_resume) == 0:
         st.warning("Please create a resume first!")
         if st.button("Go to Resume Creator"):
             st.switch_page("pages/main.py")
         return
     
-    # Determine what to show based on session state
+ 
     if st.session_state.show_visual_editor:
         show_visual_editor_with_tools()
     else:

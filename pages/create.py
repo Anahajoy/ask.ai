@@ -126,7 +126,7 @@ if st.session_state.final_resume_data is None:
         st.session_state.final_resume_data = user_resume
 else:
     user_resume = st.session_state.final_resume_data
-
+# st.write(user_resume)
 
 if st.session_state.enhanced_resume is None and user_resume:
     st.session_state.enhanced_resume = user_resume.copy()
@@ -160,6 +160,7 @@ if jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:
         st.session_state.force_enhance = False
 
 resume_data = st.session_state.get('enhanced_resume')
+# st.write(resume_data)
 
 
 if resume_data and jd_data and isinstance(jd_data, dict) and len(jd_data) > 0:

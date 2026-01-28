@@ -1287,7 +1287,8 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["phone"] = actual_resume.get("phone", "")
     rewritten_resume["location"] = actual_resume.get("location", "")
     rewritten_resume["url"] = actual_resume.get("url", "")
-
+    if "personal_details" in actual_resume:
+        rewritten_resume["personal_details"] = actual_resume["personal_details"]
     # ============================================
     # 1. SEPARATE EDUCATION AND CERTIFICATIONS
     # ============================================
@@ -1534,6 +1535,9 @@ Only include categories with items from above list.
     # ============================================
     # 9. PRESERVE OTHER FIELDS
     # ============================================
+    if "personal_details" in actual_resume:
+        rewritten_resume["personal_details"] = actual_resume["personal_details"]
+
     if "custom_sections" in actual_resume:
         rewritten_resume["custom_sections"] = actual_resume["custom_sections"]
     
@@ -5572,7 +5576,8 @@ def generate_generic_html(data, date_placement='right'):
         "interest": "Interests",
         "interests": "Interests",
         "languages": "Languages",
-        "publications": "Publications"
+        "publications": "Publications",
+        "personal_details": "Personal Information"  # ✅ ADDED
     }
 
     # Helper to detect empty fields
@@ -5601,6 +5606,55 @@ def generate_generic_html(data, date_placement='right'):
             continue
 
         html += f'<div class="ats-section-title">{title}</div>'
+
+        # -----------------------------------------
+        # ✅ SPECIAL CASE: Personal Details
+        # -----------------------------------------
+        if key == "personal_details" and isinstance(value, dict):
+            html += '<div class="ats-personal-details">'
+            
+            # Define the order and labels for personal details
+            personal_fields = {
+                "date_of_birth": "Date of Birth",
+                "gender": "Gender",
+                "marital_status": "Marital Status",
+                "nationality": "Nationality",
+                "driving_license": "Driving License",
+                "passport_number": "Passport Number",
+                "visa_status": "Visa Status"
+            }
+            
+            for field_key, field_label in personal_fields.items():
+                field_value = value.get(field_key)
+                if field_value and str(field_value).strip() and str(field_value).upper() != "NULL":
+                    html += f'<div class="ats-personal-item">'
+                    html += f'<strong>{field_label}:</strong> {field_value}'
+                    html += '</div>'
+            
+            html += '</div>'
+            continue
+
+        # -----------------------------------------
+        # ✅ SPECIAL CASE: Languages
+        # -----------------------------------------
+        if key == "languages" and isinstance(value, list):
+            html += '<div class="ats-languages">'
+            
+            for lang in value:
+                if isinstance(lang, dict):
+                    lang_name = lang.get("language", "")
+                    proficiency = lang.get("proficiency", "")
+                    
+                    if lang_name:
+                        html += '<div class="ats-language-item">'
+                        html += f'<strong>{lang_name}:</strong> {proficiency}'
+                        html += '</div>'
+                elif isinstance(lang, str):
+                    # If it's just a string (language name)
+                    html += f'<div class="ats-language-item">{lang}</div>'
+            
+            html += '</div>'
+            continue
 
         # -----------------------------------------
         # CASE A: Simple paragraph
@@ -5644,7 +5698,7 @@ def generate_generic_html(data, date_placement='right'):
                 if not isinstance(item, dict):
                     continue
 
-                # ✅ FIXED: Auto-detect title, subtitle, duration with ALL field support
+                # ✅ Auto-detect title, subtitle, duration with ALL field support
                 title_val = (
                     item.get("position") or 
                     item.get("role") or 
@@ -5656,17 +5710,17 @@ def generate_generic_html(data, date_placement='right'):
                     item.get("title")
                 )
 
-                # ✅ FIXED: Include issuer for certifications
+                # ✅ Include issuer for certifications
                 subtitle_val = (
                     item.get("company") or 
                     item.get("institution") or  # Education
                     item.get("university") or 
-                    item.get("issuer") or  # ✅ ADD THIS for certifications
+                    item.get("issuer") or  # For certifications
                     item.get("tools") or
                     item.get("provider_name")
                 )
 
-                # ✅ IMPROVED: Handle dates with year extraction
+                # ✅ Handle dates with year extraction
                 start_date = item.get("start_date", "")
                 end_date = item.get("end_date", "")
                 completed_date = item.get("completed_date", "")
@@ -5737,7 +5791,6 @@ def generate_generic_html(data, date_placement='right'):
                     html += f"<p>{desc}</p>"
 
     return html
-
 
 def extract_template_from_html(html_content):
     """Extract CSS and structure from uploaded HTML."""

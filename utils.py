@@ -113,7 +113,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
   "phone": "string or null",
   "location": "string or null",
   "url": "string or null",
-  "summary": "string or null",
+  "summary": "string or null - COMPLETE summary/professional profile/objective (extract ENTIRE paragraph, not just first sentence)",
   "skills": ["array of strings"],
   "experience": [
     {
@@ -236,6 +236,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
         "8. For portfolio/social links, identify the platform (GitHub, LinkedIn, Portfolio, etc.) and URL.",
         "9. For Personal Details section, extract: date of birth, nationality, gender, marital status, passport number, driving license, visa status, and any other personal information.",
         "10. If a section exists but doesn't match predefined fields, add it to 'custom_sections'.",
+        "11. **IMPORTANT**: For the 'summary' field, extract the COMPLETE professional summary/profile/objective section. Include ALL sentences and paragraphs, not just the first sentence. Look for sections titled: Summary, Professional Summary, Profile, Professional Profile, Objective, Career Objective, About Me, or similar.",
         "",
         "SCHEMA TO FOLLOW:",
         SCHEMA_DEFINITION,
@@ -259,7 +260,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                 "messages": [
                     {
                         "role": "system", 
-                        "content": "You are an expert resume parser. Extract ALL sections from resumes including standard sections (experience, education) and additional sections (languages, achievements, publications, volunteer work, leadership, interests, portfolio links, internships, personal details, awards, training, hobbies, additional information). Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
+                        "content": "You are an expert resume parser. Extract ALL sections from resumes including standard sections (experience, education) and additional sections (languages, achievements, publications, volunteer work, leadership, interests, portfolio links, internships, personal details, awards, training, hobbies, additional information). For the SUMMARY/PROFILE section, you MUST extract the COMPLETE text - all sentences and paragraphs, not just the first sentence. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
                     },
                     {
                         "role": "user", 
@@ -338,6 +339,18 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     elif not isinstance(desc, str):
                         proj["decription"] = ""
 
+            # ✅ NEW: Post-processing for summary - ensure it's complete
+            if "summary" in data:
+                summary = data.get("summary", "")
+                if isinstance(summary, list):
+                    # If AI returned array, join it
+                    data["summary"] = " ".join(summary)
+                elif not isinstance(summary, str):
+                    data["summary"] = ""
+                else:
+                    # Clean up the summary
+                    data["summary"] = summary.strip()
+
             # Ensure all list fields exist
             list_fields = [
                 "skills", "experience", "education", "certificate", "project",
@@ -385,6 +398,11 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
 
             print(f"✅ Successfully parsed resume on attempt {attempt + 1}")
             print(f"📊 Extracted sections: {', '.join([k for k, v in data.items() if v and k != 'custom_sections'])}")
+            
+            # ✅ Log summary length for debugging
+            if data.get("summary"):
+                print(f"📝 Summary extracted: {len(data['summary'])} characters")
+            
             return data
 
         except requests.exceptions.Timeout:

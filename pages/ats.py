@@ -644,7 +644,7 @@ st.markdown("""
 # Handle Actions
 if analyze_btn:
     if uploaded_file and job_description:
-        with st.spinner('🔍 Analyzing your resume...'):
+        with st.spinner('Analyzing your resume...'):
             try:
                 if uploaded_file.type == "application/pdf":
                     extracted_text = extract_text_from_pdf(uploaded_file)
@@ -982,7 +982,7 @@ if analyze_btn:
                         """, unsafe_allow_html=True)
                     
                     # Success message
-                    st.success("✅ Analysis complete! Review your results above.")
+                    # st.success("✅ Analysis complete! Review your results above.")
                     
                 else:
                     st.error("❌ Unable to analyze resume. Please try again.")

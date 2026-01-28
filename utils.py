@@ -2430,6 +2430,12 @@ Your job is to:
 5. Evaluate semantic similarity, not just keyword overlap
 6. Consider experience level and relevance
 
+**IMPORTANT**: If the job description does not explicitly specify experience requirements, years required, or skills:
+- Set years_required to "Not specified"
+- Only list skills as "missing" if they are EXPLICITLY mentioned in the job description
+- Do NOT invent or assume requirements that aren't stated
+- Base the analysis ONLY on what is actually written in the job description
+
 Return ONLY valid JSON in the following format:
 
 {{
@@ -2438,24 +2444,24 @@ Return ONLY valid JSON in the following format:
   "experience_match_score": number (0-100),
   "semantic_alignment_score": number (0-100),
   "technical_skills": {{
-    "matched": [string] (list of technical skills found in resume that match JD),
-    "missing": [string] (list of technical skills from JD not found in resume),
+    "matched": [string] (list of technical skills found in resume that match JD - ONLY if JD mentions them),
+    "missing": [string] (list of technical skills EXPLICITLY mentioned in JD but not found in resume),
     "match_percentage": number (0-100)
   }},
   "soft_skills": {{
-    "matched": [string] (list of soft skills demonstrated in resume),
-    "missing": [string] (list of soft skills from JD not demonstrated),
+    "matched": [string] (list of soft skills demonstrated in resume that JD requires),
+    "missing": [string] (list of soft skills EXPLICITLY mentioned in JD not demonstrated),
     "match_percentage": number (0-100)
   }},
   "experience_analysis": {{
-    "years_required": string (e.g., "5-7 years"),
-    "years_present": string (e.g., "6 years"),
-    "level_match": string (e.g., "Good Match", "Senior Level", "Entry Level"),
-    "relevant_experience": [string] (list of relevant work experiences)
+    "years_required": string (ONLY if explicitly stated in JD, otherwise "Not specified"),
+    "years_present": string (calculated from resume dates, e.g., "6 years"),
+    "level_match": string ("Not specified" if JD doesn't mention level, otherwise "Good Match", "Senior Level", "Entry Level"),
+    "relevant_experience": [string] (list of relevant work experiences from resume)
   }},
-  "strengths": [string] (3-5 key strengths of the resume),
-  "weaknesses": [string] (3-5 areas that need improvement),
-  "recommendations": [string] (5-7 specific actionable recommendations),
+  "strengths": [string] (3-5 key strengths of the resume relative to the role),
+  "weaknesses": [string] (3-5 areas that need improvement - ONLY based on what JD explicitly requires),
+  "recommendations": [string] (5-7 specific actionable recommendations based on JD requirements),
   "explanation": string (2-3 paragraph detailed explanation of the analysis)
 }}
 
@@ -2465,11 +2471,15 @@ Guidelines:
 - Be thorough and specific in identifying skills
 - Provide actionable, specific recommendations
 - Consider industry context and role requirements
+- **DO NOT assume or infer requirements not explicitly stated in the JD**
+- If JD is minimal (e.g., just a job title), focus on general role-relevant skills without inventing specific requirements
 
 CRITICAL REQUIREMENTS FOR SCORE CONSISTENCY:
 - The overall_score MUST be logically consistent with matched skills
+- If the job description is minimal or vague, base scores on general role relevance
+- If JD only contains a job title, match_percentage should reflect how well resume aligns with typical responsibilities for that role
 - If matched technical_skills is empty or has fewer than 3 items, overall_score should be below 40
-- If overall_score is above 60, there MUST be at least 5+ matched technical skills
+- If overall_score is above 60, there MUST be at least 5+ matched technical skills OR strong role relevance
 - If overall_score is above 80, there MUST be at least 10+ matched technical skills
 - The match_percentage in technical_skills and soft_skills must align with the number of matched vs missing skills
 - Ensure the response is COMPLETE with all fields properly filled
@@ -2510,7 +2520,7 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                 "experience_analysis": {
                     "years_required": "Not specified",
                     "years_present": "Not specified",
-                    "level_match": "Unknown",
+                    "level_match": "Not specified",  # ✅ Changed default
                     "relevant_experience": []
                 },
                 "strengths": [],
@@ -2528,6 +2538,20 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                     for sub_field, sub_default in default.items():
                         if sub_field not in result[field] or result[field][sub_field] is None:
                             result[field][sub_field] = sub_default
+            
+            # ✅ NEW: Check if JD is minimal (just job title or very short)
+            jd_is_minimal = len(jd_truncated.strip()) < 100 or jd_truncated.strip().count('\n') < 3
+            
+            if jd_is_minimal:
+                print("⚠️ Minimal JD detected - adjusting expectations...")
+                # Don't penalize for missing specific requirements if JD doesn't have them
+                if result['experience_analysis']['years_required'] not in ["Not specified", "Not mentioned", "N/A"]:
+                    print(f"⚠️ Correcting hallucinated years_required: {result['experience_analysis']['years_required']} → Not specified")
+                    result['experience_analysis']['years_required'] = "Not specified"
+                
+                if result['experience_analysis']['level_match'] not in ["Not specified", "General Match", "Role-Relevant"]:
+                    print(f"⚠️ Correcting level_match to general assessment")
+                    result['experience_analysis']['level_match'] = "Role-Relevant"
             
             # Check if response is complete
             is_complete = (
@@ -2549,17 +2573,19 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
             # Check for logical inconsistencies
             inconsistent = False
             
-            if overall_score > 60 and tech_matched < 5:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
-                inconsistent = True
-            
-            if overall_score > 80 and tech_matched < 10:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
-                inconsistent = True
-            
-            if overall_score < 40 and tech_matched > 10:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but {tech_matched} technical skills matched")
-                inconsistent = True
+            # ✅ ADJUSTED: More lenient scoring for minimal JDs
+            if not jd_is_minimal:
+                if overall_score > 60 and tech_matched < 5:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                    inconsistent = True
+                
+                if overall_score > 80 and tech_matched < 10:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                    inconsistent = True
+                
+                if overall_score < 40 and tech_matched > 10:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but {tech_matched} technical skills matched")
+                    inconsistent = True
             
             if tech_matched == 0 and soft_matched == 0 and overall_score > 30:
                 print(f"⚠️ Major Inconsistency: Overall={overall_score}% but NO skills matched")
@@ -2602,6 +2628,8 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
             print(f"Overall Score: {result['overall_score']}%")
             print(f"Technical Skills - Matched: {tech_matched}, Missing: {len(result['technical_skills']['missing'])}")
             print(f"Soft Skills - Matched: {soft_matched}, Missing: {len(result['soft_skills']['missing'])}")
+            print(f"Experience Required: {result['experience_analysis']['years_required']}")
+            print(f"Experience Present: {result['experience_analysis']['years_present']}")
             print(f"Recommendations: {len(result['recommendations'])}")
             print(f"Explanation Length: {len(result['explanation'])} characters")
             print("=" * 80)
@@ -2644,7 +2672,6 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                     "recommendations": ["Please try again or contact support"],
                     "explanation": f"Error occurred during analysis after {max_retries} attempts: {str(e)}"
                 }
-
 
 def get_score_color(score):
     """Return color based on score."""

@@ -5457,7 +5457,7 @@ def ask_llama(message, resume_data=None):
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.3,     # faster + less hallucinations
-        "max_tokens": 200,      # limit output for speed
+        "max_tokens": 500,      # limit output for speed
         "stream": True
     }
 

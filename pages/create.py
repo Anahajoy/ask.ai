@@ -1997,7 +1997,7 @@ def show_upload_interface():
     final_data = st.session_state.get('final_resume_data') or st.session_state.get('enhanced_resume') or {}
     
     # Header with back button
-    st.markdown('<div class="editor-header">', unsafe_allow_html=True)
+    # st.markdown('<div class="editor-header">', unsafe_allow_html=True)
     col1, col2 = st.columns([1, 5])
     with col1:
         if st.button("← Back to Templates", type="primary", use_container_width=True):

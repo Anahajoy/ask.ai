@@ -4126,7 +4126,6 @@ def render_basic_details(data, is_edit):
             data['url'] = st.text_input("URL", data.get('url', ''), key="edit_url")
         
         # Additional Links
-        # Get existing values BEFORE they might be deleted
         existing_linkedin = data.get('linkedin', '')
         existing_github = data.get('github', '')
         
@@ -4136,35 +4135,59 @@ def render_basic_details(data, is_edit):
         with col2:
             github_value = st.text_input("GitHub", existing_github, key='edit_github', placeholder="github.com/...")
         
-        # Personal Information Section
+        # ============================================
+        # 🔧 FIX: Handle BOTH personal_details AND personal_information
+        # ============================================
         st.markdown("**Personal Information:**")
         
-        # Parse personal_information - handle BOTH string and dict formats
+        # Check BOTH keys: personal_details (from uploaded resume) and personal_information (from manual entry)
+        personal_details = data.get('personal_details', {})
         personal_info = data.get('personal_information', {})
         personal_info_dict = {}
         
+        # Parse personal_information if it's a string
         if isinstance(personal_info, str):
-            # Parse string format: "Date of Birth: 30/05/1992\nGender: Female\n..."
             for line in personal_info.strip().split('\n'):
                 if ':' in line:
                     key, value = line.split(':', 1)
-                    # Clean up the key
-                    clean_key = key.strip().lower().replace(' ', '_')
-                    personal_info_dict[clean_key] = value.strip()
+                    key_lower = key.strip().lower()
+                    if 'date' in key_lower and 'birth' in key_lower:
+                        personal_info_dict['date_of_birth'] = value.strip()
+                    elif 'gender' in key_lower:
+                        personal_info_dict['gender'] = value.strip()
+                    elif 'marital' in key_lower:
+                        personal_info_dict['marital_status'] = value.strip()
+                    elif 'nationality' in key_lower:
+                        personal_info_dict['nationality'] = value.strip()
         elif isinstance(personal_info, dict):
             personal_info_dict = personal_info
         
-        # IMPORTANT: Get all existing values with multiple fallback options
-        # Priority: 1) personal_info_dict, 2) root level data
-        dob_value = personal_info_dict.get('date_of_birth', '') or data.get('date_of_birth', '')
-        gender_value = personal_info_dict.get('gender', '') or data.get('gender', '')
-        marital_value = personal_info_dict.get('marital_status', '') or data.get('marital_status', '')
-        nationality_value = personal_info_dict.get('nationality', '') or data.get('nationality', '')
+        # PRIORITY ORDER: personal_info_dict > personal_details > root level
+        dob_value = (
+            personal_info_dict.get('date_of_birth', '') or 
+            personal_details.get('date_of_birth', '') or 
+            data.get('date_of_birth', '')
+        )
         
-        # DEBUG: Show what values we extracted (you can remove this after testing)
-        # st.write(f"DEBUG - DOB: {dob_value}, Gender: {gender_value}, Marital: {marital_value}, Nationality: {nationality_value}")
+        gender_value = (
+            personal_info_dict.get('gender', '') or 
+            personal_details.get('gender', '') or 
+            data.get('gender', '')
+        )
         
-        # Date of Birth - WITH LABEL
+        marital_value = (
+            personal_info_dict.get('marital_status', '') or 
+            personal_details.get('marital_status', '') or 
+            data.get('marital_status', '')
+        )
+        
+        nationality_value = (
+            personal_info_dict.get('nationality', '') or 
+            personal_details.get('nationality', '') or 
+            data.get('nationality', '')
+        )
+        
+        # Date of Birth
         dob = st.text_input(
             "Date of Birth",
             value=dob_value,
@@ -4172,18 +4195,14 @@ def render_basic_details(data, is_edit):
             placeholder="DD/MM/YYYY"
         )
         
-        # Gender - WITH LABEL
+        # Gender
         gender_options = ['', 'Male', 'Female', 'Other', 'Prefer not to say']
         gender_index = 0
         if gender_value:
-            try:
-                gender_index = gender_options.index(gender_value)
-            except (ValueError, AttributeError):
-                # If exact match fails, try to find it
-                for idx, option in enumerate(gender_options):
-                    if option.lower() == gender_value.lower():
-                        gender_index = idx
-                        break
+            for idx, option in enumerate(gender_options):
+                if option.lower() == str(gender_value).lower():
+                    gender_index = idx
+                    break
         
         gender = st.selectbox(
             "Gender",
@@ -4192,18 +4211,14 @@ def render_basic_details(data, is_edit):
             key='edit_gender'
         )
         
-        # Marital Status - WITH LABEL
+        # Marital Status
         marital_options = ['', 'Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say']
         marital_index = 0
         if marital_value:
-            try:
-                marital_index = marital_options.index(marital_value)
-            except (ValueError, AttributeError):
-                # If exact match fails, try to find it
-                for idx, option in enumerate(marital_options):
-                    if option.lower() == marital_value.lower():
-                        marital_index = idx
-                        break
+            for idx, option in enumerate(marital_options):
+                if option.lower() == str(marital_value).lower():
+                    marital_index = idx
+                    break
         
         marital_status = st.selectbox(
             "Marital Status",
@@ -4212,7 +4227,7 @@ def render_basic_details(data, is_edit):
             key='edit_marital_status'
         )
         
-        # Nationality - WITH LABEL
+        # Nationality
         nationality = st.text_input(
             "Nationality",
             value=nationality_value,
@@ -4220,7 +4235,9 @@ def render_basic_details(data, is_edit):
             placeholder="e.g., Indian"
         )
         
-        # NOW update personal_information dict with NEW values
+        # ============================================
+        # UPDATE: Store in personal_information (single source of truth)
+        # ============================================
         data['personal_information'] = {
             'date_of_birth': dob,
             'gender': gender,
@@ -4230,8 +4247,13 @@ def render_basic_details(data, is_edit):
             'github': github_value
         }
         
-        # Fields to remove from root level AFTER we've saved them (to prevent duplication in custom sections)
-        fields_to_remove = ['date_of_birth', 'gender', 'marital_status', 'nationality', 'linkedin', 'github', 'portfolio']
+        # ============================================
+        # CLEANUP: Remove duplicate keys
+        # ============================================
+        fields_to_remove = [
+            'date_of_birth', 'gender', 'marital_status', 'nationality', 
+            'linkedin', 'github', 'portfolio', 'personal_details'
+        ]
         
         for field in fields_to_remove:
             if field in data:
@@ -4245,7 +4267,7 @@ def render_basic_details(data, is_edit):
         if languages and len(languages) > 0 and isinstance(languages[0], str):
             languages = [{'language': lang, 'proficiency': 'Fluent'} for lang in languages]
         
-        # Display existing languages - one per row
+        # Display existing languages
         for idx, lang in enumerate(languages):
             col1, col2, col3 = st.columns([3, 2, 1])
             
@@ -4306,7 +4328,7 @@ def render_basic_details(data, is_edit):
         if data.get('job_title'):
             st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
 
-        # Contact Information (all in one line)
+        # Contact Information
         contact_parts = []
         if data.get('phone'):
             contact_parts.append(data['phone'])
@@ -4317,7 +4339,7 @@ def render_basic_details(data, is_edit):
         if data.get('url'):
             contact_parts.append(f"<a href='{data['url']}' target='_blank'>Portfolio</a>")
         
-        # Check in personal_information dict for linkedin/github
+        # Check for linkedin/github in personal_information
         personal_info = data.get('personal_information', {})
         if isinstance(personal_info, str):
             personal_info_dict = {}
@@ -4343,27 +4365,35 @@ def render_basic_details(data, is_edit):
             """
             st.markdown(contact_html, unsafe_allow_html=True)
         
-        # Personal Information (handle both dict and string formats)
+        # Personal Information Display
+        personal_details = data.get('personal_details', {})
         personal_info = data.get('personal_information', {})
+        personal_info_dict = {}
         
-        # If it's a string, parse it
         if isinstance(personal_info, str):
-            personal_info_dict = {}
-            for line in personal_info.split('\n'):
+            for line in personal_info.strip().split('\n'):
                 if ':' in line:
                     key, value = line.split(':', 1)
-                    personal_info_dict[key.strip().lower().replace(' ', '_')] = value.strip()
-            personal_info = personal_info_dict
+                    key_lower = key.strip().lower()
+                    if 'date' in key_lower and 'birth' in key_lower:
+                        personal_info_dict['date_of_birth'] = value.strip()
+                    elif 'gender' in key_lower:
+                        personal_info_dict['gender'] = value.strip()
+                    elif 'marital' in key_lower:
+                        personal_info_dict['marital_status'] = value.strip()
+                    elif 'nationality' in key_lower:
+                        personal_info_dict['nationality'] = value.strip()
+        elif isinstance(personal_info, dict):
+            personal_info_dict = personal_info
+        
+        # Get values with priority
+        dob = personal_info_dict.get('date_of_birth', '') or personal_details.get('date_of_birth', '') or data.get('date_of_birth', '')
+        gender = personal_info_dict.get('gender', '') or personal_details.get('gender', '') or data.get('gender', '')
+        marital = personal_info_dict.get('marital_status', '') or personal_details.get('marital_status', '') or data.get('marital_status', '')
+        nationality = personal_info_dict.get('nationality', '') or personal_details.get('nationality', '') or data.get('nationality', '')
         
         # Build personal info parts
         personal_parts = []
-        
-        # Check in personal_information dict first, then fallback to root level
-        dob = personal_info.get('date_of_birth') if isinstance(personal_info, dict) else data.get('date_of_birth')
-        gender = personal_info.get('gender') if isinstance(personal_info, dict) else data.get('gender')
-        marital = personal_info.get('marital_status') if isinstance(personal_info, dict) else data.get('marital_status')
-        nationality = personal_info.get('nationality') if isinstance(personal_info, dict) else data.get('nationality')
-        
         if dob:
             personal_parts.append(f"DOB: {dob}")
         if gender:
@@ -4376,7 +4406,7 @@ def render_basic_details(data, is_edit):
         if personal_parts:
             st.markdown(f"<div style='color:#666; font-size:0.9em; margin-bottom:1rem;'><strong>Personal Information:</strong> {' | '.join(personal_parts)}</div>", unsafe_allow_html=True)
         
-        # Languages (inline if they exist)
+        # Languages
         languages = data.get('languages', [])
         if languages and len(languages) > 0:
             lang_texts = []
@@ -4400,7 +4430,6 @@ def render_basic_details(data, is_edit):
     st.session_state['enhanced_resume'] = data
     
     return data
-
 
 def format_date(date_string):
     """

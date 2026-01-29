@@ -113,7 +113,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
   "phone": "string or null",
   "location": "string or null",
   "url": "string or null",
-  "summary": "string or null",
+  "summary": "string or null - COMPLETE summary/professional profile/objective (extract ENTIRE paragraph, not just first sentence)",
   "skills": ["array of strings"],
   "experience": [
     {
@@ -148,6 +148,74 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
       "decription": "string or null (key achievements)"
     }
   ],
+  "internships": [
+    {
+      "company": "string or null",
+      "position": "string or null",
+      "location": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": ["array of strings - bullet points"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "string or null",
+      "proficiency": "string or null (e.g., Native, Fluent, Intermediate, Basic)"
+    }
+  ],
+  "achievements": [
+    {
+      "title": "string or null",
+      "description": "string or null",
+      "date": "string or null (MM/YYYY format)"
+    }
+  ],
+  "publications": [
+    {
+      "title": "string or null",
+      "authors": "string or null",
+      "publisher": "string or null",
+      "date": "string or null (MM/YYYY format)",
+      "url": "string or null"
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "string or null",
+      "role": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": ["array of strings - bullet points"]
+    }
+  ],
+  "leadership": [
+    {
+      "organization": "string or null",
+      "position": "string or null",
+      "start_date": "string or null (MM/YYYY format)",
+      "end_date": "string or null (MM/YYYY or Present)",
+      "description": "string or null"
+    }
+  ],
+  "interests": ["array of strings"],
+  "portfolio_links": [
+    {
+      "platform": "string or null (e.g., GitHub, LinkedIn, Portfolio, Behance)",
+      "url": "string or null"
+    }
+  ],
+  "personal_details": {
+    "date_of_birth": "string or null (DD/MM/YYYY format)",
+    "nationality": "string or null",
+    "gender": "string or null",
+    "marital_status": "string or null",
+    "passport_number": "string or null",
+    "driving_license": "string or null",
+    "visa_status": "string or null",
+    "other_info": "string or null"
+  },
+  "additional_information": "string or null (any other relevant info)",
   "custom_sections": {
     "section_title": "section content as string"
   }
@@ -164,6 +232,11 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
         "4. For dates, use MM/YYYY format (e.g., '01/2020').",
         "5. For current positions, use 'Present' as end_date.",
         "6. Split multi-line descriptions into arrays of strings.",
+        "7. Extract ALL sections including: Languages, Achievements, Publications, Volunteer Experience, Leadership, Interests, Portfolio Links, Internships, Personal Details, Additional Information.",
+        "8. For portfolio/social links, identify the platform (GitHub, LinkedIn, Portfolio, etc.) and URL.",
+        "9. For Personal Details section, extract: date of birth, nationality, gender, marital status, passport number, driving license, visa status, and any other personal information.",
+        "10. If a section exists but doesn't match predefined fields, add it to 'custom_sections'.",
+        "11. **IMPORTANT**: For the 'summary' field, extract the COMPLETE professional summary/profile/objective section. Include ALL sentences and paragraphs, not just the first sentence. Look for sections titled: Summary, Professional Summary, Profile, Professional Profile, Objective, Career Objective, About Me, or similar.",
         "",
         "SCHEMA TO FOLLOW:",
         SCHEMA_DEFINITION,
@@ -187,7 +260,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                 "messages": [
                     {
                         "role": "system", 
-                        "content": "You are an expert resume parser. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
+                        "content": "You are an expert resume parser. Extract ALL sections from resumes including standard sections (experience, education) and additional sections (languages, achievements, publications, volunteer work, leadership, interests, portfolio links, internships, personal details, awards, training, hobbies, additional information). For the SUMMARY/PROFILE section, you MUST extract the COMPLETE text - all sentences and paragraphs, not just the first sentence. Extract information exactly as it appears. Return only valid JSON with no additional text or markdown formatting."
                     },
                     {
                         "role": "user", 
@@ -195,7 +268,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     }
                 ],
                 "temperature": 0.1,
-                "max_tokens": 3000,  # Reduced for faster response
+                "max_tokens": 4000,  # Increased to accommodate more sections
                 "top_p": 0.7
             }
 
@@ -227,7 +300,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
             json_str = response_text[json_start:json_end]
             data = json.loads(json_str)
 
-            # Post-processing
+            # Post-processing for experience
             if "experience" in data and isinstance(data["experience"], list):
                 for exp in data["experience"]:
                     desc = exp.get("description", [])
@@ -239,6 +312,25 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     if "exp_skills" not in exp or not isinstance(exp["exp_skills"], list):
                         exp["exp_skills"] = []
 
+            # Post-processing for internships
+            if "internships" in data and isinstance(data["internships"], list):
+                for intern in data["internships"]:
+                    desc = intern.get("description", [])
+                    if isinstance(desc, str):
+                        intern["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    elif not isinstance(desc, list):
+                        intern["description"] = []
+
+            # Post-processing for volunteer
+            if "volunteer" in data and isinstance(data["volunteer"], list):
+                for vol in data["volunteer"]:
+                    desc = vol.get("description", [])
+                    if isinstance(desc, str):
+                        vol["description"] = [line.strip() for line in desc.split("\n") if line.strip()]
+                    elif not isinstance(desc, list):
+                        vol["description"] = []
+
+            # Post-processing for projects
             if "project" in data and isinstance(data["project"], list):
                 for proj in data["project"]:
                     desc = proj.get("decription", "")
@@ -247,29 +339,70 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
                     elif not isinstance(desc, str):
                         proj["decription"] = ""
 
-            list_fields = ["skills", "experience", "education", "certificate", "project"]
+            # ✅ NEW: Post-processing for summary - ensure it's complete
+            if "summary" in data:
+                summary = data.get("summary", "")
+                if isinstance(summary, list):
+                    # If AI returned array, join it
+                    data["summary"] = " ".join(summary)
+                elif not isinstance(summary, str):
+                    data["summary"] = ""
+                else:
+                    # Clean up the summary
+                    data["summary"] = summary.strip()
+
+            # Ensure all list fields exist
+            list_fields = [
+                "skills", "experience", "education", "certificate", "project",
+                "internships", "languages", "achievements", "publications",
+                "volunteer", "leadership", "interests", "portfolio_links"
+            ]
             for field in list_fields:
                 if field not in data:
                     data[field] = []
                 elif not isinstance(data[field], list):
                     data[field] = [data[field]] if data[field] else []
 
-            string_fields = ["name", "email", "phone", "location", "url", "summary"]
+            # Ensure all string fields exist
+            string_fields = ["name", "email", "phone", "location", "url", "summary", "additional_information"]
             for field in string_fields:
                 if field not in data:
                     data[field] = ""
                 elif data[field] is None:
                     data[field] = ""
 
+            # Ensure personal_details exists as a dictionary
+            if "personal_details" not in data:
+                data["personal_details"] = {}
+            elif not isinstance(data["personal_details"], dict):
+                data["personal_details"] = {}
+            
+            # Ensure personal_details has all expected fields
+            personal_detail_fields = [
+                "date_of_birth", "nationality", "gender", "marital_status",
+                "passport_number", "driving_license", "visa_status", "other_info"
+            ]
+            for field in personal_detail_fields:
+                if field not in data["personal_details"]:
+                    data["personal_details"][field] = ""
+
+            # Ensure custom_sections exists
             if "custom_sections" not in data:
                 data["custom_sections"] = {}
             elif not isinstance(data["custom_sections"], dict):
                 data["custom_sections"] = {}
 
+            # Validate minimum required fields
             if not data.get("name") or not data.get("email"):
                 raise ValueError("Resume must contain at least a name and email address")
 
             print(f"✅ Successfully parsed resume on attempt {attempt + 1}")
+            print(f"📊 Extracted sections: {', '.join([k for k, v in data.items() if v and k != 'custom_sections'])}")
+            
+            # ✅ Log summary length for debugging
+            if data.get("summary"):
+                print(f"📝 Summary extracted: {len(data['summary'])} characters")
+            
             return data
 
         except requests.exceptions.Timeout:
@@ -311,7 +444,7 @@ def extract_details_from_text(extracted_text: str, max_retries: int = 3) -> Dict
 
 def _fallback_parse(text: str) -> Dict[str, Any]:
     """
-    Simple regex-based fallback parser when API fails.
+    Enhanced regex-based fallback parser when API fails.
     Extracts basic information using pattern matching.
     """
     import re
@@ -330,6 +463,16 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
         "education": [],
         "certificate": [],
         "project": [],
+        "internships": [],
+        "languages": [],
+        "achievements": [],
+        "publications": [],
+        "volunteer": [],
+        "leadership": [],
+        "interests": [],
+        "portfolio_links": [],
+        "personal_details": {},
+        "additional_information": "",
         "custom_sections": {}
     }
     
@@ -343,10 +486,26 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
     if phone_match:
         data["phone"] = phone_match.group()
     
+    # Extract URLs (GitHub, LinkedIn, Portfolio)
+    url_patterns = [
+        (r'github\.com/[\w-]+', 'GitHub'),
+        (r'linkedin\.com/in/[\w-]+', 'LinkedIn'),
+        (r'(?:https?://)?(?:www\.)?[\w-]+\.(?:com|io|net|org)/[\w-/]+', 'Portfolio')
+    ]
+    for pattern, platform in url_patterns:
+        matches = re.finditer(pattern, text, re.IGNORECASE)
+        for match in matches:
+            url = match.group()
+            if not url.startswith('http'):
+                url = 'https://' + url
+            data["portfolio_links"].append({
+                "platform": platform,
+                "url": url
+            })
+    
     # Extract name (first line typically)
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     if lines:
-        # Name is usually first non-empty line
         data["name"] = lines[0]
     
     # Extract skills section
@@ -354,9 +513,68 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
                                 text, re.IGNORECASE | re.DOTALL)
     if skills_section:
         skills_text = skills_section.group(1)
-        # Split by common delimiters
         skills = re.split(r'[,•|]', skills_text)
         data["skills"] = [s.strip() for s in skills if s.strip() and len(s.strip()) > 2][:20]
+    
+    # Extract languages
+    lang_section = re.search(r'(?:LANGUAGES?)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                             text, re.IGNORECASE | re.DOTALL)
+    if lang_section:
+        lang_text = lang_section.group(1)
+        langs = re.split(r'[,•|]', lang_text)
+        for lang in langs:
+            lang = lang.strip()
+            if lang and len(lang) > 2:
+                # Try to split language and proficiency
+                parts = re.split(r'[-–:]', lang, maxsplit=1)
+                if len(parts) == 2:
+                    data["languages"].append({
+                        "language": parts[0].strip(),
+                        "proficiency": parts[1].strip()
+                    })
+                else:
+                    data["languages"].append({
+                        "language": lang,
+                        "proficiency": ""
+                    })
+    
+    # Extract interests/hobbies
+    interests_section = re.search(r'(?:INTERESTS?|HOBBIES)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                                  text, re.IGNORECASE | re.DOTALL)
+    if interests_section:
+        interests_text = interests_section.group(1)
+        interests = re.split(r'[,•|]', interests_text)
+        data["interests"] = [i.strip() for i in interests if i.strip() and len(i.strip()) > 2][:10]
+    
+    # Extract personal details section
+    personal_section = re.search(r'(?:PERSONAL DETAILS?|PERSONAL INFORMATION)[:\s]+(.*?)(?=\n[A-Z]{3,}|$)', 
+                                 text, re.IGNORECASE | re.DOTALL)
+    if personal_section:
+        personal_text = personal_section.group(1)
+        personal_lines = personal_text.split('\n')
+        
+        personal_data = {}
+        for line in personal_lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Try to extract key-value pairs
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip().lower().replace(' ', '_')
+                value = value.strip()
+                personal_data[key] = value
+            elif 'dob' in line.lower() or 'date of birth' in line.lower():
+                personal_data['date_of_birth'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'nationality' in line.lower():
+                personal_data['nationality'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'gender' in line.lower():
+                personal_data['gender'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif 'marital' in line.lower():
+                personal_data['marital_status'] = line.split(':', 1)[1].strip() if ':' in line else line
+        
+        data["personal_details"] = personal_data
     
     # Add generic experience entry
     exp_section = re.search(r'(?:EXPERIENCE|WORK EXPERIENCE)[:\s]+(.*?)(?=\n[A-Z]{3,}|EDUCATION|$)', 
@@ -389,10 +607,11 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
     if not data["email"]:
         data["email"] = "email@example.com"
     
-    print(f"✅ Fallback parser extracted: {len(data['skills'])} skills, "
-          f"{len(data['experience'])} experience entries")
+    sections_found = [k for k, v in data.items() if v and k not in ['name', 'email', 'custom_sections']]
+    print(f"✅ Fallback parser extracted: {len(sections_found)} sections")
     
     return data
+
 
 def call_llm(payload):
     response = requests.post(API_URL, json=payload, headers=headers)
@@ -400,7 +619,6 @@ def call_llm(payload):
     data = response.json()
     llm_text = data['choices'][0]['message']['content']
     return llm_text
-
 
 
 
@@ -1087,7 +1305,8 @@ def rewrite_resume_for_job(resume_data: dict, jd_data: dict) -> dict:
     rewritten_resume["phone"] = actual_resume.get("phone", "")
     rewritten_resume["location"] = actual_resume.get("location", "")
     rewritten_resume["url"] = actual_resume.get("url", "")
-
+    if "personal_details" in actual_resume:
+        rewritten_resume["personal_details"] = actual_resume["personal_details"]
     # ============================================
     # 1. SEPARATE EDUCATION AND CERTIFICATIONS
     # ============================================
@@ -1334,6 +1553,9 @@ Only include categories with items from above list.
     # ============================================
     # 9. PRESERVE OTHER FIELDS
     # ============================================
+    if "personal_details" in actual_resume:
+        rewritten_resume["personal_details"] = actual_resume["personal_details"]
+
     if "custom_sections" in actual_resume:
         rewritten_resume["custom_sections"] = actual_resume["custom_sections"]
     
@@ -2208,6 +2430,12 @@ Your job is to:
 5. Evaluate semantic similarity, not just keyword overlap
 6. Consider experience level and relevance
 
+**IMPORTANT**: If the job description does not explicitly specify experience requirements, years required, or skills:
+- Set years_required to "Not specified"
+- Only list skills as "missing" if they are EXPLICITLY mentioned in the job description
+- Do NOT invent or assume requirements that aren't stated
+- Base the analysis ONLY on what is actually written in the job description
+
 Return ONLY valid JSON in the following format:
 
 {{
@@ -2216,24 +2444,24 @@ Return ONLY valid JSON in the following format:
   "experience_match_score": number (0-100),
   "semantic_alignment_score": number (0-100),
   "technical_skills": {{
-    "matched": [string] (list of technical skills found in resume that match JD),
-    "missing": [string] (list of technical skills from JD not found in resume),
+    "matched": [string] (list of technical skills found in resume that match JD - ONLY if JD mentions them),
+    "missing": [string] (list of technical skills EXPLICITLY mentioned in JD but not found in resume),
     "match_percentage": number (0-100)
   }},
   "soft_skills": {{
-    "matched": [string] (list of soft skills demonstrated in resume),
-    "missing": [string] (list of soft skills from JD not demonstrated),
+    "matched": [string] (list of soft skills demonstrated in resume that JD requires),
+    "missing": [string] (list of soft skills EXPLICITLY mentioned in JD not demonstrated),
     "match_percentage": number (0-100)
   }},
   "experience_analysis": {{
-    "years_required": string (e.g., "5-7 years"),
-    "years_present": string (e.g., "6 years"),
-    "level_match": string (e.g., "Good Match", "Senior Level", "Entry Level"),
-    "relevant_experience": [string] (list of relevant work experiences)
+    "years_required": string (ONLY if explicitly stated in JD, otherwise "Not specified"),
+    "years_present": string (calculated from resume dates, e.g., "6 years"),
+    "level_match": string ("Not specified" if JD doesn't mention level, otherwise "Good Match", "Senior Level", "Entry Level"),
+    "relevant_experience": [string] (list of relevant work experiences from resume)
   }},
-  "strengths": [string] (3-5 key strengths of the resume),
-  "weaknesses": [string] (3-5 areas that need improvement),
-  "recommendations": [string] (5-7 specific actionable recommendations),
+  "strengths": [string] (3-5 key strengths of the resume relative to the role),
+  "weaknesses": [string] (3-5 areas that need improvement - ONLY based on what JD explicitly requires),
+  "recommendations": [string] (5-7 specific actionable recommendations based on JD requirements),
   "explanation": string (2-3 paragraph detailed explanation of the analysis)
 }}
 
@@ -2243,11 +2471,15 @@ Guidelines:
 - Be thorough and specific in identifying skills
 - Provide actionable, specific recommendations
 - Consider industry context and role requirements
+- **DO NOT assume or infer requirements not explicitly stated in the JD**
+- If JD is minimal (e.g., just a job title), focus on general role-relevant skills without inventing specific requirements
 
 CRITICAL REQUIREMENTS FOR SCORE CONSISTENCY:
 - The overall_score MUST be logically consistent with matched skills
+- If the job description is minimal or vague, base scores on general role relevance
+- If JD only contains a job title, match_percentage should reflect how well resume aligns with typical responsibilities for that role
 - If matched technical_skills is empty or has fewer than 3 items, overall_score should be below 40
-- If overall_score is above 60, there MUST be at least 5+ matched technical skills
+- If overall_score is above 60, there MUST be at least 5+ matched technical skills OR strong role relevance
 - If overall_score is above 80, there MUST be at least 10+ matched technical skills
 - The match_percentage in technical_skills and soft_skills must align with the number of matched vs missing skills
 - Ensure the response is COMPLETE with all fields properly filled
@@ -2288,7 +2520,7 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                 "experience_analysis": {
                     "years_required": "Not specified",
                     "years_present": "Not specified",
-                    "level_match": "Unknown",
+                    "level_match": "Not specified",  # ✅ Changed default
                     "relevant_experience": []
                 },
                 "strengths": [],
@@ -2306,6 +2538,20 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                     for sub_field, sub_default in default.items():
                         if sub_field not in result[field] or result[field][sub_field] is None:
                             result[field][sub_field] = sub_default
+            
+            # ✅ NEW: Check if JD is minimal (just job title or very short)
+            jd_is_minimal = len(jd_truncated.strip()) < 100 or jd_truncated.strip().count('\n') < 3
+            
+            if jd_is_minimal:
+                print("⚠️ Minimal JD detected - adjusting expectations...")
+                # Don't penalize for missing specific requirements if JD doesn't have them
+                if result['experience_analysis']['years_required'] not in ["Not specified", "Not mentioned", "N/A"]:
+                    print(f"⚠️ Correcting hallucinated years_required: {result['experience_analysis']['years_required']} → Not specified")
+                    result['experience_analysis']['years_required'] = "Not specified"
+                
+                if result['experience_analysis']['level_match'] not in ["Not specified", "General Match", "Role-Relevant"]:
+                    print(f"⚠️ Correcting level_match to general assessment")
+                    result['experience_analysis']['level_match'] = "Role-Relevant"
             
             # Check if response is complete
             is_complete = (
@@ -2327,17 +2573,19 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
             # Check for logical inconsistencies
             inconsistent = False
             
-            if overall_score > 60 and tech_matched < 5:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
-                inconsistent = True
-            
-            if overall_score > 80 and tech_matched < 10:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
-                inconsistent = True
-            
-            if overall_score < 40 and tech_matched > 10:
-                print(f"⚠️ Score Inconsistency: Overall={overall_score}% but {tech_matched} technical skills matched")
-                inconsistent = True
+            # ✅ ADJUSTED: More lenient scoring for minimal JDs
+            if not jd_is_minimal:
+                if overall_score > 60 and tech_matched < 5:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                    inconsistent = True
+                
+                if overall_score > 80 and tech_matched < 10:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but only {tech_matched} technical skills matched")
+                    inconsistent = True
+                
+                if overall_score < 40 and tech_matched > 10:
+                    print(f"⚠️ Score Inconsistency: Overall={overall_score}% but {tech_matched} technical skills matched")
+                    inconsistent = True
             
             if tech_matched == 0 and soft_matched == 0 and overall_score > 30:
                 print(f"⚠️ Major Inconsistency: Overall={overall_score}% but NO skills matched")
@@ -2380,6 +2628,8 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
             print(f"Overall Score: {result['overall_score']}%")
             print(f"Technical Skills - Matched: {tech_matched}, Missing: {len(result['technical_skills']['missing'])}")
             print(f"Soft Skills - Matched: {soft_matched}, Missing: {len(result['soft_skills']['missing'])}")
+            print(f"Experience Required: {result['experience_analysis']['years_required']}")
+            print(f"Experience Present: {result['experience_analysis']['years_present']}")
             print(f"Recommendations: {len(result['recommendations'])}")
             print(f"Explanation Length: {len(result['explanation'])} characters")
             print("=" * 80)
@@ -2422,7 +2672,6 @@ IMPORTANT: Return ONLY the JSON object. No markdown formatting, no code blocks, 
                     "recommendations": ["Please try again or contact support"],
                     "explanation": f"Error occurred during analysis after {max_retries} attempts: {str(e)}"
                 }
-
 
 def get_score_color(score):
     """Return color based on score."""
@@ -3841,7 +4090,7 @@ def generate_enhanced_resume(resume_data=None, jd_data=None):
         except:
             pass  # Query params can fail if data is too large
         
-        chatbot(enhanced_resume)
+        # chatbot(enhanced_resume)
         
         return enhanced_resume
         
@@ -3865,7 +4114,8 @@ def render_basic_details(data, is_edit):
         data['name'] = st.text_input("Name", data.get('name', ''), key="edit_name")
         data['job_title'] = st.text_input("Job Title", data.get('job_title', ''), key="edit_job_title")
 
-        col1, col2, col3,col4 = st.columns(4)
+        # Contact Information
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             data['phone'] = st.text_input("Phone", data.get('phone', ''), key="edit_phone")
         with col2:
@@ -3873,31 +4123,315 @@ def render_basic_details(data, is_edit):
         with col3:
             data['location'] = st.text_input("Location", data.get('location', ''), key="edit_location")
         with col4:
-            data['url'] = st.text_input("url", data.get('url', ''), key="edit_url")
- 
+            data['url'] = st.text_input("URL", data.get('url', ''), key="edit_url")
+        
+        # Additional Links
+        existing_linkedin = data.get('linkedin', '')
+        existing_github = data.get('github', '')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            linkedin_value = st.text_input("LinkedIn", existing_linkedin, key='edit_linkedin', placeholder="linkedin.com/in/...")
+        with col2:
+            github_value = st.text_input("GitHub", existing_github, key='edit_github', placeholder="github.com/...")
+        
+        # ============================================
+        # 🔧 FIX: Handle BOTH personal_details AND personal_information
+        # ============================================
+        st.markdown("**Personal Information:**")
+        
+        # Check BOTH keys: personal_details (from uploaded resume) and personal_information (from manual entry)
+        personal_details = data.get('personal_details', {})
+        personal_info = data.get('personal_information', {})
+        personal_info_dict = {}
+        
+        # Parse personal_information if it's a string
+        if isinstance(personal_info, str):
+            for line in personal_info.strip().split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key_lower = key.strip().lower()
+                    if 'date' in key_lower and 'birth' in key_lower:
+                        personal_info_dict['date_of_birth'] = value.strip()
+                    elif 'gender' in key_lower:
+                        personal_info_dict['gender'] = value.strip()
+                    elif 'marital' in key_lower:
+                        personal_info_dict['marital_status'] = value.strip()
+                    elif 'nationality' in key_lower:
+                        personal_info_dict['nationality'] = value.strip()
+        elif isinstance(personal_info, dict):
+            personal_info_dict = personal_info
+        
+        # PRIORITY ORDER: personal_info_dict > personal_details > root level
+        dob_value = (
+            personal_info_dict.get('date_of_birth', '') or 
+            personal_details.get('date_of_birth', '') or 
+            data.get('date_of_birth', '')
+        )
+        
+        gender_value = (
+            personal_info_dict.get('gender', '') or 
+            personal_details.get('gender', '') or 
+            data.get('gender', '')
+        )
+        
+        marital_value = (
+            personal_info_dict.get('marital_status', '') or 
+            personal_details.get('marital_status', '') or 
+            data.get('marital_status', '')
+        )
+        
+        nationality_value = (
+            personal_info_dict.get('nationality', '') or 
+            personal_details.get('nationality', '') or 
+            data.get('nationality', '')
+        )
+        
+        # Date of Birth
+        dob = st.text_input(
+            "Date of Birth",
+            value=dob_value,
+            key='edit_dob',
+            placeholder="DD/MM/YYYY"
+        )
+        
+        # Gender
+        gender_options = ['', 'Male', 'Female', 'Other', 'Prefer not to say']
+        gender_index = 0
+        if gender_value:
+            for idx, option in enumerate(gender_options):
+                if option.lower() == str(gender_value).lower():
+                    gender_index = idx
+                    break
+        
+        gender = st.selectbox(
+            "Gender",
+            options=gender_options,
+            index=gender_index,
+            key='edit_gender'
+        )
+        
+        # Marital Status
+        marital_options = ['', 'Single', 'Married', 'Divorced', 'Widowed', 'Prefer not to say']
+        marital_index = 0
+        if marital_value:
+            for idx, option in enumerate(marital_options):
+                if option.lower() == str(marital_value).lower():
+                    marital_index = idx
+                    break
+        
+        marital_status = st.selectbox(
+            "Marital Status",
+            options=marital_options,
+            index=marital_index,
+            key='edit_marital_status'
+        )
+        
+        # Nationality
+        nationality = st.text_input(
+            "Nationality",
+            value=nationality_value,
+            key='edit_nationality',
+            placeholder="e.g., Indian"
+        )
+        
+        # ============================================
+        # UPDATE: Store in personal_information (single source of truth)
+        # ============================================
+        # ============================================
+        # UPDATE: Save to personal_details (Single Source)
+        # ============================================
+        data['personal_details'] = {
+            'date_of_birth': dob,
+            'gender': gender,
+            'marital_status': marital_status,
+            'nationality': nationality,
+            'linkedin': linkedin_value,
+            'github': github_value
+        }
 
+        # ============================================
+        # CLEANUP: Remove OLD keys (but NOT personal_details!)
+        # ============================================
+        fields_to_remove = [
+            'date_of_birth', 'gender', 'marital_status', 'nationality', 
+            'linkedin', 'github', 'portfolio', 'personal_information'  # Remove the OLD key
+        ]
+
+        for field in fields_to_remove:
+            if field in data:
+                del data[field]
+        # Languages Section
+        st.markdown("**Languages:**")
+        languages = data.get('languages', [])
+        
+        # Convert string list to dict format if needed
+        if languages and len(languages) > 0 and isinstance(languages[0], str):
+            languages = [{'language': lang, 'proficiency': 'Fluent'} for lang in languages]
+        
+        # Display existing languages
+        for idx, lang in enumerate(languages):
+            col1, col2, col3 = st.columns([3, 2, 1])
+            
+            with col1:
+                lang_name = st.text_input(
+                    f"Language {idx + 1}",
+                    value=lang.get('language', '') if isinstance(lang, dict) else str(lang),
+                    key=f'edit_lang_name_{idx}',
+                    label_visibility="collapsed",
+                    placeholder="e.g., English"
+                )
+            
+            with col2:
+                proficiency_value = lang.get('proficiency', 'Fluent') if isinstance(lang, dict) else 'Fluent'
+                proficiency_options = ['Native', 'Fluent', 'Professional', 'Intermediate', 'Basic']
+                
+                try:
+                    default_index = proficiency_options.index(proficiency_value)
+                except ValueError:
+                    default_index = 1
+                
+                proficiency = st.selectbox(
+                    f"Proficiency {idx + 1}",
+                    options=proficiency_options,
+                    index=default_index,
+                    key=f'edit_lang_prof_{idx}',
+                    label_visibility="collapsed"
+                )
+            
+            with col3:
+                if st.button("🗑️", key=f'delete_lang_{idx}', use_container_width=True):
+                    languages.pop(idx)
+                    data['languages'] = languages
+                    st.session_state['enhanced_resume'] = data
+                    st.rerun()
+            
+            languages[idx] = {'language': lang_name, 'proficiency': proficiency}
+        
+        data['languages'] = languages
+        
+        # Add language button
+        if st.button("➕ Add Language", key='add_language_btn', use_container_width=False):
+            if 'languages' not in data:
+                data['languages'] = []
+            data['languages'].append({'language': '', 'proficiency': 'Fluent'})
+            st.session_state['enhanced_resume'] = data
+            st.rerun()
+
+        # Summary Section
         st.markdown('<div class="resume-section">', unsafe_allow_html=True)
         st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
         data['summary'] = st.text_area("Summary", data.get('summary', ''), height=150, key="edit_summary")
         st.markdown('</div>', unsafe_allow_html=True)
+
     else:
+        # View Mode
         st.markdown(f"<h1>{data.get('name', 'Name Not Found')}</h1>", unsafe_allow_html=True)
         if data.get('job_title'):
             st.markdown(f"<h3>{data['job_title']}</h3>", unsafe_allow_html=True)
 
-        contact_html = f"""
-        <div class="contact-info">
-            {data.get('phone', '')} | {data.get('email', '')} | {data.get('location', '')}
-        </div>
-        """
-        st.markdown(contact_html, unsafe_allow_html=True)
+        # Contact Information
+        contact_parts = []
+        if data.get('phone'):
+            contact_parts.append(data['phone'])
+        if data.get('email'):
+            contact_parts.append(data['email'])
+        if data.get('location'):
+            contact_parts.append(data['location'])
+        if data.get('url'):
+            contact_parts.append(f"<a href='{data['url']}' target='_blank'>Portfolio</a>")
+        
+        # Check for linkedin/github in personal_information
+        personal_info = data.get('personal_information', {})
+        if isinstance(personal_info, str):
+            personal_info_dict = {}
+            for line in personal_info.split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    personal_info_dict[key.strip().lower().replace(' ', '_')] = value.strip()
+            personal_info = personal_info_dict
+        
+        linkedin = personal_info.get('linkedin') if isinstance(personal_info, dict) else data.get('linkedin')
+        github = personal_info.get('github') if isinstance(personal_info, dict) else data.get('github')
+        
+        if linkedin:
+            contact_parts.append(f"<a href='{linkedin}' target='_blank'>LinkedIn</a>")
+        if github:
+            contact_parts.append(f"<a href='{github}' target='_blank'>GitHub</a>")
+        
+        if contact_parts:
+            contact_html = f"""
+            <div class="contact-info">
+                {' | '.join(contact_parts)}
+            </div>
+            """
+            st.markdown(contact_html, unsafe_allow_html=True)
+        
+        # Personal Information Display
+        personal_details = data.get('personal_details', {})
+        personal_info = data.get('personal_information', {})
+        personal_info_dict = {}
+        
+        if isinstance(personal_info, str):
+            for line in personal_info.strip().split('\n'):
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    key_lower = key.strip().lower()
+                    if 'date' in key_lower and 'birth' in key_lower:
+                        personal_info_dict['date_of_birth'] = value.strip()
+                    elif 'gender' in key_lower:
+                        personal_info_dict['gender'] = value.strip()
+                    elif 'marital' in key_lower:
+                        personal_info_dict['marital_status'] = value.strip()
+                    elif 'nationality' in key_lower:
+                        personal_info_dict['nationality'] = value.strip()
+        elif isinstance(personal_info, dict):
+            personal_info_dict = personal_info
+        
+        # Get values with priority
+        dob = personal_info_dict.get('date_of_birth', '') or personal_details.get('date_of_birth', '') or data.get('date_of_birth', '')
+        gender = personal_info_dict.get('gender', '') or personal_details.get('gender', '') or data.get('gender', '')
+        marital = personal_info_dict.get('marital_status', '') or personal_details.get('marital_status', '') or data.get('marital_status', '')
+        nationality = personal_info_dict.get('nationality', '') or personal_details.get('nationality', '') or data.get('nationality', '')
+        
+        # Build personal info parts
+        personal_parts = []
+        if dob:
+            personal_parts.append(f"DOB: {dob}")
+        if gender:
+            personal_parts.append(f"Gender: {gender}")
+        if marital:
+            personal_parts.append(f"Marital Status: {marital}")
+        if nationality:
+            personal_parts.append(f"Nationality: {nationality}")
+        
+        if personal_parts:
+            st.markdown(f"<div style='color:#666; font-size:0.9em; margin-bottom:1rem;'><strong>Personal Information:</strong> {' | '.join(personal_parts)}</div>", unsafe_allow_html=True)
+        
+        # Languages
+        languages = data.get('languages', [])
+        if languages and len(languages) > 0:
+            lang_texts = []
+            for lang in languages:
+                if isinstance(lang, dict):
+                    lang_texts.append(f"{lang.get('language', 'Unknown')} ({lang.get('proficiency', 'N/A')})")
+                else:
+                    lang_texts.append(str(lang))
+            
+            if lang_texts:
+                st.markdown(f"<div style='color:#666; font-size:0.9em; margin-bottom:1rem;'><strong>Languages:</strong> {', '.join(lang_texts)}</div>", unsafe_allow_html=True)
 
+        # Summary
         if data.get('summary'):
             st.markdown('<div class="resume-section">', unsafe_allow_html=True)
             st.markdown('<h2>Summary</h2>', unsafe_allow_html=True)
             st.markdown(f"<p style='color:#000000;'>{data['summary']}</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
+    
+    # Update session state
+    st.session_state['enhanced_resume'] = data
+    
+    return data
 
 def format_date(date_string):
     """
@@ -4923,7 +5457,7 @@ def ask_llama(message, resume_data=None):
             {"role": "user", "content": prompt}
         ],
         "temperature": 0.3,     # faster + less hallucinations
-        "max_tokens": 200,      # limit output for speed
+        "max_tokens": 500,      # limit output for speed
         "stream": True
     }
 
@@ -4982,7 +5516,7 @@ def ask_llama(message, resume_data=None):
 
     
 def chatbot(user_resume):
-    import streamlit as st
+ 
 
     # Page config
   
@@ -5372,7 +5906,8 @@ def generate_generic_html(data, date_placement='right'):
         "interest": "Interests",
         "interests": "Interests",
         "languages": "Languages",
-        "publications": "Publications"
+        "publications": "Publications",
+        "personal_details": "Personal Information"  # ✅ ADDED
     }
 
     # Helper to detect empty fields
@@ -5401,6 +5936,55 @@ def generate_generic_html(data, date_placement='right'):
             continue
 
         html += f'<div class="ats-section-title">{title}</div>'
+
+        # -----------------------------------------
+        # ✅ SPECIAL CASE: Personal Details
+        # -----------------------------------------
+        if key == "personal_details" and isinstance(value, dict):
+            html += '<div class="ats-personal-details">'
+            
+            # Define the order and labels for personal details
+            personal_fields = {
+                "date_of_birth": "Date of Birth",
+                "gender": "Gender",
+                "marital_status": "Marital Status",
+                "nationality": "Nationality",
+                "driving_license": "Driving License",
+                "passport_number": "Passport Number",
+                "visa_status": "Visa Status"
+            }
+            
+            for field_key, field_label in personal_fields.items():
+                field_value = value.get(field_key)
+                if field_value and str(field_value).strip() and str(field_value).upper() != "NULL":
+                    html += f'<div class="ats-personal-item">'
+                    html += f'<strong>{field_label}:</strong> {field_value}'
+                    html += '</div>'
+            
+            html += '</div>'
+            continue
+
+        # -----------------------------------------
+        # ✅ SPECIAL CASE: Languages
+        # -----------------------------------------
+        if key == "languages" and isinstance(value, list):
+            html += '<div class="ats-languages">'
+            
+            for lang in value:
+                if isinstance(lang, dict):
+                    lang_name = lang.get("language", "")
+                    proficiency = lang.get("proficiency", "")
+                    
+                    if lang_name:
+                        html += '<div class="ats-language-item">'
+                        html += f'<strong>{lang_name}:</strong> {proficiency}'
+                        html += '</div>'
+                elif isinstance(lang, str):
+                    # If it's just a string (language name)
+                    html += f'<div class="ats-language-item">{lang}</div>'
+            
+            html += '</div>'
+            continue
 
         # -----------------------------------------
         # CASE A: Simple paragraph
@@ -5444,7 +6028,7 @@ def generate_generic_html(data, date_placement='right'):
                 if not isinstance(item, dict):
                     continue
 
-                # ✅ FIXED: Auto-detect title, subtitle, duration with ALL field support
+                # ✅ Auto-detect title, subtitle, duration with ALL field support
                 title_val = (
                     item.get("position") or 
                     item.get("role") or 
@@ -5456,17 +6040,17 @@ def generate_generic_html(data, date_placement='right'):
                     item.get("title")
                 )
 
-                # ✅ FIXED: Include issuer for certifications
+                # ✅ Include issuer for certifications
                 subtitle_val = (
                     item.get("company") or 
                     item.get("institution") or  # Education
                     item.get("university") or 
-                    item.get("issuer") or  # ✅ ADD THIS for certifications
+                    item.get("issuer") or  # For certifications
                     item.get("tools") or
                     item.get("provider_name")
                 )
 
-                # ✅ IMPROVED: Handle dates with year extraction
+                # ✅ Handle dates with year extraction
                 start_date = item.get("start_date", "")
                 end_date = item.get("end_date", "")
                 completed_date = item.get("completed_date", "")
@@ -5537,7 +6121,6 @@ def generate_generic_html(data, date_placement='right'):
                     html += f"<p>{desc}</p>"
 
     return html
-
 
 def extract_template_from_html(html_content):
     """Extract CSS and structure from uploaded HTML."""

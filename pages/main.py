@@ -1538,7 +1538,7 @@ if st.session_state.logged_in_user:
                         # Reset file pointer to beginning
                         uploaded_file.seek(0)
                         extracted_text = extract_text_from_docx(uploaded_file)
-                    
+                    # print(extracted_text)
                     if not extracted_text or len(extracted_text.strip()) < 50:
                         st.error("⚠️ Could not extract enough text from the file. Please ensure:")
                         st.markdown("""
@@ -1622,6 +1622,7 @@ if st.session_state.logged_in_user:
                         try:
                             # Call your AI extraction function
                             parsed_data = extract_details_from_text(extracted_text)
+                            # print(parsed_data)
                             
                             if not parsed_data:
                                 raise ValueError("AI returned empty data")

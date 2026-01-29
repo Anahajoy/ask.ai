@@ -4238,7 +4238,10 @@ def render_basic_details(data, is_edit):
         # ============================================
         # UPDATE: Store in personal_information (single source of truth)
         # ============================================
-        data['personal_information'] = {
+        # ============================================
+        # UPDATE: Save to personal_details (Single Source)
+        # ============================================
+        data['personal_details'] = {
             'date_of_birth': dob,
             'gender': gender,
             'marital_status': marital_status,
@@ -4246,19 +4249,18 @@ def render_basic_details(data, is_edit):
             'linkedin': linkedin_value,
             'github': github_value
         }
-        
+
         # ============================================
-        # CLEANUP: Remove duplicate keys
+        # CLEANUP: Remove OLD keys (but NOT personal_details!)
         # ============================================
         fields_to_remove = [
             'date_of_birth', 'gender', 'marital_status', 'nationality', 
-            'linkedin', 'github', 'portfolio', 'personal_details'
+            'linkedin', 'github', 'portfolio', 'personal_information'  # Remove the OLD key
         ]
-        
+
         for field in fields_to_remove:
             if field in data:
                 del data[field]
-        
         # Languages Section
         st.markdown("**Languages:**")
         languages = data.get('languages', [])
